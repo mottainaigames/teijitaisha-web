@@ -320,10 +320,14 @@ fly deploy --config fly.staging.toml --remote-only --buildkit
 
 ## F. production へ上げるとき
 
-1. `main` ブランチを作成してマージ
-2. `fly apps create teijitaisha-web-api`
-3. `fly certs add api.teijitaisha-web.mottainaigames.com`
-4. Pages に `teijitaisha-web` プロジェクト + カスタムドメイン
-5. `main` へ push → CI が production へデプロイ
+**詳細手順:** [DEPLOY_PRODUCTION.md](./DEPLOY_PRODUCTION.md)
 
-詳細は [DEPLOYMENT.md](./DEPLOYMENT.md)
+1. Fly アプリ `teijitaisha-web-api` + Pages `teijitaisha-web` を作成
+2. DNS・証明書・カスタムドメインを設定
+3. GitHub Environment `production` に `FLY_API_TOKEN` を登録
+4. `main` ブランチを作成して push → CI が production へデプロイ
+
+```bash
+chmod +x scripts/setup-production.sh
+./scripts/setup-production.sh
+```

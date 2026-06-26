@@ -49,7 +49,8 @@ pnpm dev:web
 ## デプロイ
 
 **Staging 初回手順:** [DEPLOY_STAGING.md](./DEPLOY_STAGING.md)  
-**GitHub Actions 自動デプロイ:** [DEPLOY_STAGING.md#d-github-actions-自動デプロイ推奨](./DEPLOY_STAGING.md#d-github-actions-自動デプロイ推奨)
+**Production デプロイ:** [DEPLOY_PRODUCTION.md](./DEPLOY_PRODUCTION.md)  
+**GitHub Actions:** [DEPLOY_STAGING.md#d-github-actions-自動デプロイ推奨](./DEPLOY_STAGING.md#d-github-actions-自動デプロイ推奨)
 
 手動デプロイ:
 
