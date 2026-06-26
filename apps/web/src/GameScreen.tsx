@@ -52,7 +52,12 @@ export function GameScreen({
   if (view.phase === "lobby" || !room.started) {
     return (
       <div className="card">
-        <p className="status">ロビー — 参加者 {room.players.length} / {MAX_PLAYERS}</p>
+        <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
+        <p className="room-code">{room.code}</p>
+        <p className="status" style={{ textAlign: "center" }}>
+          このコードを共有してください
+        </p>
+        <p className="status">参加者 {room.players.length} / {MAX_PLAYERS}</p>
         <ul className="player-list">
           {room.players.map((p) => (
             <li key={p.id}>
