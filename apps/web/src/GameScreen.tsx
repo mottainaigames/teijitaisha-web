@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   CARD_LABELS,
   MAX_PLAYERS,
@@ -12,6 +13,8 @@ interface Props {
   view: GameView;
   playerId: string;
   onStart: () => void;
+  onAddCpu: () => void;
+  onRemoveCpu: () => void;
   onDraw: (cardId: string) => void;
   onPlayPair: (cardType: CardType) => void;
   onSkipPlay: () => void;
@@ -36,6 +39,8 @@ export function GameScreen({
   view,
   playerId,
   onStart,
+  onAddCpu,
+  onRemoveCpu,
   onDraw,
   onPlayPair,
   onSkipPlay,
@@ -63,9 +68,30 @@ export function GameScreen({
             <li key={p.id}>
               {p.name}
               {p.id === room.hostId && "（ホスト）"}
+              {p.isCpu && "（CPU）"}
             </li>
           ))}
         </ul>
+        {isHost && !room.started && (
+          <div className="cpu-controls">
+            <button
+              type="button"
+              className="secondary"
+              onClick={onAddCpu}
+              disabled={room.players.length >= MAX_PLAYERS}
+            >
+              CPUを追加
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={onRemoveCpu}
+              disabled={!room.players.some((p) => p.isCpu)}
+            >
+              CPUを削除
+            </button>
+          </div>
+        )}
         {isHost && (
           <button
             type="button"
@@ -102,7 +128,7 @@ export function GameScreen({
         <span>{PHASE_LABELS[view.phase]}</span>
         {current && <span>手番: {current.name}</span>}
         {view.nomikaiBlocked && <span className="badge">飲み会デバフ</span>}
-        {view.pairsRemainingThisTurn > 1 && (
+        {view.phase === "play" && view.pairsRemainingThisTurn > 0 && (
           <span>残りペア: {view.pairsRemainingThisTurn}</span>
         )}
       </div>
@@ -111,7 +137,12 @@ export function GameScreen({
         {view.seats
           .filter((s) => s.playerId !== playerId)
           .map((s) => (
-            <Opponent key={s.playerId} seat={s} isCurrent={s.playerId === view.currentPlayerId} />
+            <Opponent
+              key={s.playerId}
+              seat={s}
+              isCurrent={s.playerId === view.currentPlayerId}
+              isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
+            />
           ))}
       </div>
 
@@ -177,10 +208,21 @@ export function GameScreen({
   );
 }
 
-function Opponent({ seat, isCurrent }: { seat: GameView["seats"][0]; isCurrent: boolean }) {
+function Opponent({
+  seat,
+  isCurrent,
+  isCpu,
+}: {
+  seat: GameView["seats"][0];
+  isCurrent: boolean;
+  isCpu: boolean;
+}) {
   return (
     <div className={`opponent ${isCurrent ? "current" : ""} ${seat.status}`}>
-      <strong>{seat.name}</strong>
+      <strong>
+        {seat.name}
+        {isCpu && <span className="cpu-tag">CPU</span>}
+      </strong>
       <span>{seat.handCount}枚</span>
       {seat.status === "retired" && <span>退社</span>}
       {seat.status === "disconnected" && <span>切断</span>}
@@ -211,6 +253,20 @@ function PendingActions({
   onTrade: (cardId: string) => void;
   onTrainingTake: (take: boolean, cardId?: string) => void;
 }) {
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+
+  const pendingKey = view.pending
+    ? `${view.pending.type}:${view.pending.playerIds.join(",")}:${view.pending.sourcePlayerId ?? ""}`
+    : null;
+
+  useEffect(() => {
+    setSelectedCardId(null);
+    setSelectedPairType(null);
+    setSelectedTargetId(null);
+  }, [pendingKey]);
+
   if (!view.canAct || !view.pending) {
     return view.pending ? (
       <p className="status">他のプレイヤーの操作を待っています…</p>
@@ -223,12 +279,26 @@ function PendingActions({
     const cards = view.drawableHands[p.sourcePlayerId] ?? [];
     return (
       <div className="actions">
-        <p>右隣から1枚引く:</p>
-        {cards.map((c) => (
-          <button key={c.id} type="button" onClick={() => onDraw(c.id)}>
-            ？
-          </button>
-        ))}
+        <p>右隣から1枚引く（タップして選択 → 確定）:</p>
+        <div className="option-row">
+          {cards.map((c, index) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`option-btn card-back ${selectedCardId === c.id ? "selected" : ""}`}
+              onClick={() => setSelectedCardId(c.id)}
+            >
+              カード{index + 1}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedCardId}
+          onClick={() => selectedCardId && onDraw(selectedCardId)}
+        >
+          このカードを引く
+        </button>
       </div>
     );
   }
@@ -236,12 +306,26 @@ function PendingActions({
   if (p.type === "play_or_skip") {
     return (
       <div className="actions">
-        <p>ペアを出しますか？</p>
-        {pairable.map((t) => (
-          <button key={t} type="button" onClick={() => onPlayPair(t)}>
-            {CARD_LABELS[t]} ×2
-          </button>
-        ))}
+        <p>ペアを出しますか？（種類を選んでから確定）</p>
+        <div className="option-row">
+          {pairable.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`option-btn ${selectedPairType === t ? "selected" : ""}`}
+              onClick={() => setSelectedPairType(t)}
+            >
+              {CARD_LABELS[t]} ×2
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedPairType}
+          onClick={() => selectedPairType && onPlayPair(selectedPairType)}
+        >
+          このペアを出す
+        </button>
         <button type="button" className="secondary" onClick={onSkipPlay}>
           出さない
         </button>
@@ -253,11 +337,25 @@ function PendingActions({
     return (
       <div className="actions">
         <p>対象を選ぶ:</p>
-        {p.validTargets.map((id) => (
-          <button key={id} type="button" onClick={() => onSelectTarget(id)}>
-            {nameOf(view.seats, id)}
-          </button>
-        ))}
+        <div className="option-row">
+          {p.validTargets.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={`option-btn ${selectedTargetId === id ? "selected" : ""}`}
+              onClick={() => setSelectedTargetId(id)}
+            >
+              {nameOf(view.seats, id)}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedTargetId}
+          onClick={() => selectedTargetId && onSelectTarget(selectedTargetId)}
+        >
+          このプレイヤーを対象にする
+        </button>
       </div>
     );
   }
@@ -266,14 +364,28 @@ function PendingActions({
     return (
       <div className="actions">
         <p>カードを選ぶ:</p>
-        {p.validCardIds.map((id) => {
-          const card = findCard(view, id);
-          return (
-            <button key={id} type="button" onClick={() => onSelectCard(id)}>
-              {card ? CARD_LABELS[card.type] : "？"}
-            </button>
-          );
-        })}
+        <div className="option-row">
+          {p.validCardIds.map((id) => {
+            const card = findCard(view, id);
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`option-btn ${selectedCardId === id ? "selected" : ""}`}
+                onClick={() => setSelectedCardId(id)}
+              >
+                {card ? CARD_LABELS[card.type] : "？"}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedCardId}
+          onClick={() => selectedCardId && onSelectCard(selectedCardId)}
+        >
+          このカードを選ぶ
+        </button>
       </div>
     );
   }
@@ -282,11 +394,25 @@ function PendingActions({
     return (
       <div className="actions">
         <p>左隣に渡すカードを選ぶ:</p>
-        {view.myHand.map((c) => (
-          <button key={c.id} type="button" onClick={() => onInfoShare(c.id)}>
-            {CARD_LABELS[c.type]}
-          </button>
-        ))}
+        <div className="option-row">
+          {view.myHand.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`option-btn ${selectedCardId === c.id ? "selected" : ""}`}
+              onClick={() => setSelectedCardId(c.id)}
+            >
+              {CARD_LABELS[c.type]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedCardId}
+          onClick={() => selectedCardId && onInfoShare(selectedCardId)}
+        >
+          このカードを渡す
+        </button>
       </div>
     );
   }
@@ -295,11 +421,33 @@ function PendingActions({
     return (
       <div className="actions">
         <p>交換するカードを選ぶ:</p>
-        {view.myHand.map((c) => (
-          <button key={c.id} type="button" onClick={() => onTrade(c.id)}>
-            {CARD_LABELS[c.type]}
-          </button>
-        ))}
+        {p.tradeReady && (
+          <p className="status">
+            {Object.entries(p.tradeReady)
+              .filter(([, ready]) => ready)
+              .map(([id]) => `${nameOf(view.seats, id)} 選択済み`)
+              .join(" / ") || "相手の選択を待っています…"}
+          </p>
+        )}
+        <div className="option-row">
+          {view.myHand.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`option-btn ${selectedCardId === c.id ? "selected" : ""}`}
+              onClick={() => setSelectedCardId(c.id)}
+            >
+              {CARD_LABELS[c.type]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedCardId}
+          onClick={() => selectedCardId && onTrade(selectedCardId)}
+        >
+          このカードで交換
+        </button>
       </div>
     );
   }
@@ -308,11 +456,25 @@ function PendingActions({
     return (
       <div className="actions">
         <p>1枚加えますか？</p>
-        {view.peekedCards.map((c) => (
-          <button key={c.id} type="button" onClick={() => onTrainingTake(true, c.id)}>
-            {CARD_LABELS[c.type]} を加える
-          </button>
-        ))}
+        <div className="option-row">
+          {view.peekedCards.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`option-btn ${selectedCardId === c.id ? "selected" : ""}`}
+              onClick={() => setSelectedCardId(c.id)}
+            >
+              {CARD_LABELS[c.type]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={!selectedCardId}
+          onClick={() => selectedCardId && onTrainingTake(true, selectedCardId)}
+        >
+          選んだカードを加える
+        </button>
         <button type="button" className="secondary" onClick={() => onTrainingTake(false)}>
           加えない
         </button>
