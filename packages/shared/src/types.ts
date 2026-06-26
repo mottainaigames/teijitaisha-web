@@ -31,6 +31,12 @@ export type ClientMessage =
   | { type: "add_cpu" }
   | { type: "remove_cpu" }
   | { type: "ping" }
+  | {
+      type: "selection_preview";
+      cardId: string | null;
+      targetPlayerId: PlayerId | null;
+      mode: "hover" | "selected" | "clear";
+    }
   | GameClientMessage;
 
 /** サーバー → クライアント */

@@ -135,6 +135,8 @@ export default function App() {
           activityLog: [],
           cpuStatus: null,
           lastPlay: null,
+          remoteSelection: null,
+          lastTransfer: null,
         }
       : null;
 
@@ -202,6 +204,7 @@ export default function App() {
           onInfoShare={(cardId) => send({ type: "info_share_select", cardId })}
           onTrade={(cardId) => send({ type: "trade_select", cardId })}
           onTrainingTake={(take, cardId) => send({ type: "training_take", take, cardId })}
+          onSelectionPreview={(payload) => send({ type: "selection_preview", ...payload })}
         />
       )}
     </div>

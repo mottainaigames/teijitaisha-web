@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  CARD_EFFECTS,
   CARD_LABELS,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -24,6 +25,11 @@ interface Props {
   onInfoShare: (cardId: string) => void;
   onTrade: (cardId: string) => void;
   onTrainingTake: (take: boolean, cardId?: string) => void;
+  onSelectionPreview: (payload: {
+    cardId: string | null;
+    targetPlayerId: string | null;
+    mode: "hover" | "selected" | "clear";
+  }) => void;
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
@@ -50,6 +56,7 @@ export function GameScreen({
   onInfoShare,
   onTrade,
   onTrainingTake,
+  onSelectionPreview,
 }: Props) {
   const isHost = room.hostId === playerId;
   const me = view.seats.find((s) => s.playerId === playerId);
@@ -125,6 +132,8 @@ export function GameScreen({
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [transferFx, setTransferFx] = useState<GameView["lastTransfer"]>(null);
+  const lastTransferAtRef = useRef(0);
 
   const pendingKey = view.pending
     ? `${view.pending.type}:${view.pending.playerIds.join(",")}:${view.pending.sourcePlayerId ?? ""}`
@@ -141,8 +150,56 @@ export function GameScreen({
     if (el) el.scrollTop = el.scrollHeight;
   }, [view.activityLog.length, view.activityLog[view.activityLog.length - 1]?.id]);
 
+  useEffect(() => {
+    const t = view.lastTransfer;
+    if (!t || t.at === lastTransferAtRef.current) return;
+    lastTransferAtRef.current = t.at;
+    setTransferFx(t);
+    const timer = setTimeout(() => setTransferFx(null), 750);
+    return () => clearTimeout(timer);
+  }, [view.lastTransfer]);
+
+  const cardTargetPlayerId = getCardTargetPlayerId(view);
+  const remoteOnMe = view.remoteSelection?.targetPlayerId === playerId;
+
+  const sendCardPreview = (
+    cardId: string | null,
+    mode: "hover" | "selected" | "clear",
+  ) => {
+    if (!view.canAct) return;
+    onSelectionPreview({
+      cardId,
+      targetPlayerId: cardTargetPlayerId,
+      mode,
+    });
+  };
+
+  const sendTargetPreview = (
+    targetId: string | null,
+    mode: "hover" | "selected" | "clear",
+  ) => {
+    if (!view.canAct) return;
+    onSelectionPreview({ cardId: null, targetPlayerId: targetId, mode });
+  };
+
+  const cardRemoteState = (cardId: string) => {
+    const rs = view.remoteSelection;
+    if (!rs || rs.targetPlayerId !== playerId || rs.actorId === playerId) {
+      return { remoteHover: false, remoteSelected: false };
+    }
+    return {
+      remoteHover: rs.mode === "hover" && rs.cardId === cardId,
+      remoteSelected: rs.mode === "selected" && rs.cardId === cardId,
+    };
+  };
+
   const isDrawPhase =
     view.canAct && view.pending?.type === "draw" && !!view.pending.sourcePlayerId;
+  const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
+  const drawSourceName = drawSourceId ? nameOf(view.seats, drawSourceId) : null;
+  const myDrawableCards =
+    isDrawPhase && drawSourceId ? (view.drawableHands[drawSourceId] ?? []) : [];
+  const anyoneDrawing = view.phase === "draw" && !!drawSourceId;
   const handPickMode =
     view.canAct && view.pending
       ? view.pending.type === "info_share" || view.pending.type === "trade"
@@ -155,20 +212,28 @@ export function GameScreen({
       : null;
 
   const handleDrawPick = (cardId: string) => {
-    twoStepPick(cardId, selectedCardId, setSelectedCardId, onDraw);
+    twoStepPick(cardId, selectedCardId, setSelectedCardId, onDraw, (id) =>
+      sendCardPreview(id, "selected"),
+    );
   };
 
   const handleMyCardClick = (card: GameView["myHand"][0]) => {
     if (handPickMode === "pawahara_give") {
-      twoStepPick(card.id, selectedCardId, setSelectedCardId, onSelectCard);
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onSelectCard, (id) =>
+        sendCardPreview(id, "selected"),
+      );
       return;
     }
     if (handPickMode === "info_share") {
-      twoStepPick(card.id, selectedCardId, setSelectedCardId, onInfoShare);
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onInfoShare, (id) =>
+        sendCardPreview(id, "selected"),
+      );
       return;
     }
     if (handPickMode === "trade") {
-      twoStepPick(card.id, selectedCardId, setSelectedCardId, onTrade);
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onTrade, (id) =>
+        sendCardPreview(id, "selected"),
+      );
       return;
     }
     if (handPickMode === "play_or_skip" && pairable.includes(card.type)) {
@@ -192,6 +257,7 @@ export function GameScreen({
         {view.phase === "play" && view.pairsRemainingThisTurn > 0 && (
           <span>残りペア: {view.pairsRemainingThisTurn}</span>
         )}
+        <DeadlineCountdown deadlineAt={view.deadlineAt} />
       </div>
 
       {view.cpuStatus && (
@@ -203,12 +269,62 @@ export function GameScreen({
       {view.lastPlay && (
         <div className="field-cards">
           <p className="field-cards__label">場に出た（{view.lastPlay.actorName}）</p>
-          <PlayingCard cardType={view.lastPlay.cardType} />
-          <PlayingCard cardType={view.lastPlay.cardType} />
+          <div className="field-cards__pair">
+            <PlayingCard cardType={view.lastPlay.cardType} />
+            <PlayingCard cardType={view.lastPlay.cardType} />
+          </div>
+          <p className="field-cards__effect">
+            <strong>{CARD_LABELS[view.lastPlay.cardType]}</strong>
+            {" — "}
+            {CARD_EFFECTS[view.lastPlay.cardType]}
+          </p>
         </div>
       )}
 
-      <div className="opponents">
+      {remoteOnMe && view.remoteSelection && (
+        <p className="being-targeted">
+          {view.remoteSelection.actorName}が
+          {view.remoteSelection.mode === "selected"
+            ? "あなたのカードを選択中"
+            : "あなたのカードにカーソルを合わせています"}
+        </p>
+      )}
+
+      {anyoneDrawing && (
+        <div className={`draw-zone ${isDrawPhase ? "draw-zone--active" : "draw-zone--waiting"}`}>
+          {isDrawPhase && myDrawableCards.length > 0 ? (
+            <>
+              <p className="draw-zone__title">
+                {drawSourceName}の手札から1枚引く
+              </p>
+              <p className="draw-zone__hint">タップで選択 → もう一度タップで引く</p>
+              <CardFan className="card-fan--draw">
+                {myDrawableCards.map((c, i) => (
+                  <PlayingCard
+                    key={c.id}
+                    faceDown
+                    size="lg"
+                    index={i}
+                    total={myDrawableCards.length}
+                    selectable
+                    selected={selectedCardId === c.id}
+                    confirmReady={selectedCardId === c.id}
+                    onHoverStart={() => sendCardPreview(c.id, "hover")}
+                    onHoverEnd={() => sendCardPreview(null, "clear")}
+                    onClick={() => handleDrawPick(c.id)}
+                  />
+                ))}
+              </CardFan>
+            </>
+          ) : (
+            <p className="draw-zone__waiting">
+              {current?.name}が{drawSourceName}からカードを引いています…
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className={`opponents ${anyoneDrawing ? "opponents--compact" : ""}`}>
         {view.seats
           .filter((s) => s.playerId !== playerId)
           .map((s) => (
@@ -217,14 +333,16 @@ export function GameScreen({
               seat={s}
               isCurrent={s.playerId === view.currentPlayerId}
               isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
-              isDrawSource={isDrawPhase && view.pending?.sourcePlayerId === s.playerId}
-              drawableCards={
-                isDrawPhase && view.pending?.sourcePlayerId === s.playerId
-                  ? (view.drawableHands[s.playerId] ?? [])
-                  : []
+              compact={anyoneDrawing}
+              isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
+              remoteTarget={
+                view.remoteSelection?.targetPlayerId === s.playerId &&
+                view.remoteSelection.actorId !== playerId
               }
-              selectedDrawId={selectedCardId}
-              onSelectDraw={handleDrawPick}
+              remoteTargetSelected={
+                view.remoteSelection?.targetPlayerId === s.playerId &&
+                view.remoteSelection.mode === "selected"
+              }
             />
           ))}
       </div>
@@ -274,6 +392,8 @@ export function GameScreen({
         onSelectTarget={onSelectTarget}
         onSelectCard={onSelectCard}
         onTrainingTake={onTrainingTake}
+        sendCardPreview={sendCardPreview}
+        sendTargetPreview={sendTargetPreview}
       />
 
       <div className="my-hand">
@@ -287,7 +407,9 @@ export function GameScreen({
         </p>
         {view.myHand.length > 0 ? (
           <CardFan>
-            {view.myHand.map((c, i) => (
+            {view.myHand.map((c, i) => {
+              const remote = cardRemoteState(c.id);
+              return (
               <PlayingCard
                 key={c.id}
                 cardType={c.type}
@@ -301,13 +423,26 @@ export function GameScreen({
                 }
                 selected={isMyCardSelected(c)}
                 confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
+                remoteHover={remote.remoteHover}
+                remoteSelected={remote.remoteSelected}
+                onHoverStart={
+                  handPickMode && view.canAct
+                    ? () => sendCardPreview(c.id, "hover")
+                    : undefined
+                }
+                onHoverEnd={
+                  handPickMode && view.canAct
+                    ? () => sendCardPreview(null, "clear")
+                    : undefined
+                }
                 onClick={
                   handPickMode
                     ? () => handleMyCardClick(c)
                     : undefined
                 }
               />
-            ))}
+            );
+            })}
           </CardFan>
         ) : (
           <p className="status">手札なし</p>
@@ -333,7 +468,41 @@ export function GameScreen({
           </ul>
         </div>
       )}
+
+      {transferFx && transferFx.fromPlayerId === playerId && transferFx.cardType && (
+        <div className="card-transfer-fx card-transfer-fx--out">
+          <PlayingCard cardType={transferFx.cardType} removing />
+          <span className="card-transfer-fx__label">カードが取られた</span>
+        </div>
+      )}
+      {transferFx && transferFx.toPlayerId === playerId && transferFx.cardType && (
+        <div className="card-transfer-fx card-transfer-fx--in">
+          <PlayingCard cardType={transferFx.cardType} />
+          <span className="card-transfer-fx__label">カードをもらった</span>
+        </div>
+      )}
     </div>
+  );
+}
+
+function DeadlineCountdown({ deadlineAt }: { deadlineAt: number | null }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!deadlineAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 200);
+    return () => window.clearInterval(id);
+  }, [deadlineAt]);
+
+  if (!deadlineAt) return null;
+
+  const remaining = Math.max(0, Math.ceil((deadlineAt - now) / 1000));
+  const urgent = remaining <= 5;
+
+  return (
+    <span className={`deadline-timer ${urgent ? "deadline-timer--urgent" : ""}`}>
+      残り {remaining}秒
+    </span>
   );
 }
 
@@ -341,49 +510,51 @@ function Opponent({
   seat,
   isCurrent,
   isCpu,
+  compact,
   isDrawSource,
-  drawableCards,
-  selectedDrawId,
-  onSelectDraw,
+  remoteTarget,
+  remoteTargetSelected,
 }: {
   seat: GameView["seats"][0];
   isCurrent: boolean;
   isCpu: boolean;
+  compact?: boolean;
   isDrawSource?: boolean;
-  drawableCards?: { id: string }[];
-  selectedDrawId?: string | null;
-  onSelectDraw?: (id: string) => void;
+  remoteTarget?: boolean;
+  remoteTargetSelected?: boolean;
 }) {
-  const cards = drawableCards ?? [];
+  const previewCount = Math.min(seat.handCount, 4);
+  const opponentClass = [
+    "opponent",
+    compact ? "opponent--compact" : "",
+    isCurrent ? "current" : "",
+    isDrawSource ? "opponent--draw-source" : "",
+    seat.status,
+    remoteTargetSelected ? "remote-target-selected" : "",
+    remoteTarget && !remoteTargetSelected ? "remote-target" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={`opponent ${isCurrent ? "current" : ""} ${seat.status}`}>
-      <strong>
-        {seat.name}
-        {isCpu && <span className="cpu-tag">CPU</span>}
-      </strong>
-      <span>{seat.handCount}枚</span>
-      {seat.status === "retired" && <span>退社</span>}
-      {seat.status === "disconnected" && <span>切断</span>}
-      {isDrawSource && cards.length > 0 && (
-        <div className="opponent-draw">
-          <p className="opponent-draw-label">✋ 引くカードを選ぶ</p>
-          <CardFan className="card-fan--opponent">
-            {cards.map((c, i) => (
-              <PlayingCard
-                key={c.id}
-                faceDown
-                size="sm"
-                index={i}
-                total={cards.length}
-                selectable
-                selected={selectedDrawId === c.id}
-                confirmReady={selectedDrawId === c.id}
-                onClick={() => onSelectDraw?.(c.id)}
-              />
-            ))}
-          </CardFan>
+    <div className={opponentClass}>
+      <div className="opponent__header">
+        <strong>
+          {seat.name}
+          {isCpu && <span className="cpu-tag">CPU</span>}
+        </strong>
+        <span>{seat.handCount}枚</span>
+      </div>
+      {compact && previewCount > 0 && (
+        <div className="opponent__hand-preview" aria-hidden>
+          {Array.from({ length: previewCount }, (_, i) => (
+            <span key={i} className="opponent__mini-card" style={{ ["--mini-index" as string]: i }} />
+          ))}
         </div>
       )}
+      {seat.status === "retired" && <span>退社</span>}
+      {seat.status === "disconnected" && <span>切断</span>}
+      {isDrawSource && compact && <span className="opponent__draw-badge">引く相手</span>}
     </div>
   );
 }
@@ -402,6 +573,8 @@ function PendingActions({
   onSelectTarget,
   onSelectCard,
   onTrainingTake,
+  sendCardPreview,
+  sendTargetPreview,
 }: {
   view: GameView;
   pairable: CardType[];
@@ -416,8 +589,11 @@ function PendingActions({
   onSelectTarget: (targetId: string) => void;
   onSelectCard: (cardId: string) => void;
   onTrainingTake: (take: boolean, cardId?: string) => void;
+  sendCardPreview: (cardId: string | null, mode: "hover" | "selected" | "clear") => void;
+  sendTargetPreview: (targetId: string | null, mode: "hover" | "selected" | "clear") => void;
 }) {
   if (!view.canAct || !view.pending) {
+    if (view.pending?.type === "draw") return null;
     return view.pending ? (
       <p className="status">他のプレイヤーの操作を待っています…</p>
     ) : null;
@@ -425,15 +601,7 @@ function PendingActions({
 
   const p = view.pending;
 
-  if (p.type === "draw" && p.sourcePlayerId) {
-    const sourceName = nameOf(view.seats, p.sourcePlayerId);
-    return (
-      <div className="actions">
-        <p>{sourceName}の手札から1枚引く</p>
-        <p className="status">カードをタップで選択 → もう一度タップで引く</p>
-      </div>
-    );
-  }
+  if (p.type === "draw") return null;
 
   if (p.type === "play_or_skip") {
     return (
@@ -476,20 +644,19 @@ function PendingActions({
               key={id}
               type="button"
               className={`option-btn ${selectedTargetId === id ? "selected" : ""}`}
-              onClick={() => onSelectTargetId(id)}
+              onPointerEnter={() => sendTargetPreview(id, "hover")}
+              onPointerLeave={() => sendTargetPreview(null, "clear")}
+              onClick={() =>
+                twoStepPick(id, selectedTargetId, onSelectTargetId, onSelectTarget, (tid) =>
+                  sendTargetPreview(tid, "selected"),
+                )
+              }
             >
               {nameOf(view.seats, id)}
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className="action-confirm"
-          disabled={!selectedTargetId}
-          onClick={() => selectedTargetId && onSelectTarget(selectedTargetId)}
-        >
-          このプレイヤーを対象にする
-        </button>
+        <p className="status">タップで選択 → もう一度タップで確定</p>
       </div>
     );
   }
@@ -520,8 +687,12 @@ function PendingActions({
               selectable
               selected={selectedCardId === item.id}
               confirmReady={selectedCardId === item.id}
+              onHoverStart={() => sendCardPreview(item.id, "hover")}
+              onHoverEnd={() => sendCardPreview(null, "clear")}
               onClick={() =>
-                twoStepPick(item.id, selectedCardId, onSelectCardId, onSelectCard)
+                twoStepPick(item.id, selectedCardId, onSelectCardId, onSelectCard, (cid) =>
+                  sendCardPreview(cid, "selected"),
+                )
               }
             />
           ))}
@@ -594,13 +765,23 @@ function twoStepPick(
   selectedId: string | null,
   setSelectedId: (id: string | null) => void,
   onConfirm: (id: string) => void,
+  onFirstSelect?: (id: string) => void,
 ) {
   if (selectedId === cardId) {
     onConfirm(cardId);
     setSelectedId(null);
   } else {
+    onFirstSelect?.(cardId);
     setSelectedId(cardId);
   }
+}
+
+function getCardTargetPlayerId(view: GameView): string | null {
+  const p = view.pending;
+  if (!p) return null;
+  if (p.type === "draw") return p.sourcePlayerId ?? null;
+  if (p.type === "select_card") return p.sourcePlayerId ?? null;
+  return null;
 }
 
 function nameOf(seats: GameView["seats"], id: string): string {

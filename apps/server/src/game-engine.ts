@@ -20,6 +20,8 @@ import {
   type CpuProcessStatus,
   type GameActivityEntry,
   type LastPlayInfo,
+  type RemoteSelection,
+  type CardTransfer,
 } from "@teijitaisha/shared";
 import { randomUUID } from "node:crypto";
 
@@ -68,6 +70,8 @@ export class GameEngine {
   activityLog: GameActivityEntry[] = [];
   cpuStatus: CpuProcessStatus | null = null;
   lastPlay: LastPlayInfo | null = null;
+  remoteSelection: RemoteSelection | null = null;
+  lastTransfer: CardTransfer | null = null;
   private plannedCpuAction: {
     playerId: PlayerId;
     action: { type: string; [key: string]: unknown };
@@ -125,40 +129,120 @@ export class GameEngine {
     if (this.phase === "game_end") return "ゲームは終了しています";
     if (!this.pending) return "入力待ちではありません";
 
+    this.remoteSelection = null;
+    let result: string | null;
     switch (this.pending.type) {
       case "draw":
         if (action.type !== "draw_card") return "カードを選んでください";
-        return this.resolveDraw(playerId, action.cardId as string);
+        result = this.resolveDraw(playerId, action.cardId as string);
+        break;
       case "play_or_skip":
-        if (action.type === "skip_play") return this.resolveSkipPlay(playerId);
-        if (action.type === "play_pair") return this.resolvePlayPair(playerId, action.cardType as CardType);
-        return "ペアを出すかスキップしてください";
+        if (action.type === "skip_play") result = this.resolveSkipPlay(playerId);
+        else if (action.type === "play_pair") result = this.resolvePlayPair(playerId, action.cardType as CardType);
+        else result = "ペアを出すかスキップしてください";
+        break;
       case "select_target":
         if (action.type !== "select_target") return "対象を選んでください";
-        return this.resolveSelectTarget(playerId, action.targetId as PlayerId);
+        result = this.resolveSelectTarget(playerId, action.targetId as PlayerId);
+        break;
       case "select_card":
         if (action.type !== "select_card") return "カードを選んでください";
-        return this.resolveSelectCard(playerId, action.cardId as string);
+        result = this.resolveSelectCard(playerId, action.cardId as string);
+        break;
       case "info_share":
         if (action.type !== "info_share_select") return "カードを選んでください";
-        return this.resolveInfoShare(playerId, action.cardId as string);
+        result = this.resolveInfoShare(playerId, action.cardId as string);
+        break;
       case "trade":
         if (action.type !== "trade_select") return "カードを選んでください";
-        return this.resolveTrade(playerId, action.cardId as string);
+        result = this.resolveTrade(playerId, action.cardId as string);
+        break;
       case "training_take":
         if (action.type !== "training_take") return "選択してください";
-        return this.resolveTrainingTake(
+        result = this.resolveTrainingTake(
           playerId,
           action.take as boolean,
           action.cardId as string | undefined,
         );
+        break;
       default:
-        return "未対応の入力です";
+        result = "未対応の入力です";
     }
+    return result;
+  }
+
+  setSelectionPreview(
+    actorId: PlayerId,
+    preview: {
+      cardId: string | null;
+      targetPlayerId: PlayerId | null;
+      mode: "hover" | "selected" | "clear";
+    },
+  ): string | null {
+    if (this.phase === "game_end" || !this.pending) return null;
+
+    const canPreview =
+      this.pending.type === "info_share"
+        ? this.activePlayerIds().includes(actorId)
+        : this.pending.type === "trade"
+          ? this.pending.playerIds.includes(actorId)
+          : this.pending.playerIds.includes(actorId) ||
+            this.pending.effectUserId === actorId;
+
+    if (!canPreview) return null;
+
+    if (preview.mode === "clear") {
+      if (this.remoteSelection?.actorId === actorId) {
+        this.remoteSelection = null;
+      }
+      return null;
+    }
+
+    this.remoteSelection = {
+      actorId,
+      actorName: this.playerName(actorId),
+      cardId: preview.cardId,
+      targetPlayerId: preview.targetPlayerId,
+      mode: preview.mode,
+    };
+    return null;
+  }
+
+  applyPlannedSelectionPreview(): void {
+    if (!this.plannedCpuAction) return;
+    const { playerId, action } = this.plannedCpuAction;
+    let targetPlayerId: PlayerId | null = null;
+    let cardId: string | null = null;
+
+    switch (action.type) {
+      case "draw_card":
+        cardId = action.cardId as string;
+        targetPlayerId = this.pending?.sourcePlayerId ?? null;
+        break;
+      case "select_card":
+        cardId = action.cardId as string;
+        targetPlayerId =
+          this.pending?.effectCard === "pawahara" ? playerId : (this.pending?.targetId ?? null);
+        break;
+      case "select_target":
+        targetPlayerId = action.targetId as PlayerId;
+        break;
+      default:
+        return;
+    }
+
+    this.remoteSelection = {
+      actorId: playerId,
+      actorName: this.playerName(playerId),
+      cardId,
+      targetPlayerId,
+      mode: "selected",
+    };
   }
 
   tick(now: number): void {
     if (!this.pending || now < this.pending.deadlineAt) return;
+    this.remoteSelection = null;
     this.autoResolve();
   }
 
@@ -372,6 +456,22 @@ export class GameEngine {
       activityLog: [...this.activityLog],
       cpuStatus: this.cpuStatus ? { ...this.cpuStatus } : null,
       lastPlay: this.lastPlay ? { ...this.lastPlay } : null,
+      remoteSelection: this.remoteSelection ? { ...this.remoteSelection } : null,
+      lastTransfer: this.buildTransferView(forPlayerId),
+    };
+  }
+
+  private buildTransferView(forPlayerId: PlayerId): CardTransfer | null {
+    if (!this.lastTransfer) return null;
+    const t = this.lastTransfer;
+    const canSeeType =
+      forPlayerId === t.fromPlayerId || forPlayerId === t.toPlayerId;
+    return {
+      cardId: t.cardId,
+      cardType: canSeeType ? t.cardType : undefined,
+      fromPlayerId: t.fromPlayerId,
+      toPlayerId: t.toPlayerId,
+      at: t.at,
     };
   }
 
@@ -491,6 +591,9 @@ export class GameEngine {
       effectUserId: null,
       sourcePlayerId: sourceId,
     };
+    this.log(
+      `${this.playerName(currentId)}は${this.playerName(sourceId)}からカードを引きます`,
+    );
   }
 
   private resolveDraw(playerId: PlayerId, cardId: string): string | null {
@@ -777,6 +880,13 @@ export class GameEngine {
       const { card, hand } = removeCardById(user.hand, cardId);
       user.hand = hand;
       this.players.get(targetId)!.hand.push(card);
+      this.lastTransfer = {
+        cardId: card.id,
+        cardType: card.type,
+        fromPlayerId: userId,
+        toPlayerId: targetId,
+        at: Date.now(),
+      };
       this.log(
         `${this.playerName(userId)}が${CARD_LABELS[card.type]}を${this.playerName(targetId)}に渡した`,
         card.type,
@@ -1021,18 +1131,14 @@ export class GameEngine {
     return j;
   }
 
-  private rightOfSeat(seatIndex: number): number {
-    return (seatIndex + 1) % this.seats.length;
-  }
-
   private leftOfSeat(seatIndex: number): number {
     return (seatIndex - 1 + this.seats.length) % this.seats.length;
   }
 
   private drawSourceSeat(seatIndex: number): PlayerId {
-    let j = this.rightOfSeat(seatIndex);
+    let j = this.leftOfSeat(seatIndex);
     while (this.players.get(this.seats[j]!)?.status !== "active") {
-      j = this.rightOfSeat(j);
+      j = this.leftOfSeat(j);
     }
     return this.seats[j]!;
   }
@@ -1042,6 +1148,13 @@ export class GameEngine {
     const { card, hand } = removeCardById(from.hand, cardId);
     from.hand = hand;
     this.players.get(toId)!.hand.push(card);
+    this.lastTransfer = {
+      cardId: card.id,
+      cardType: card.type,
+      fromPlayerId: fromId,
+      toPlayerId: toId,
+      at: Date.now(),
+    };
   }
 }
 

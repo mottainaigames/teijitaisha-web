@@ -45,7 +45,12 @@ interface PlayingCardProps {
   confirmReady?: boolean;
   index?: number;
   total?: number;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
+  remoteHover?: boolean;
+  remoteSelected?: boolean;
+  removing?: boolean;
+  onHoverStart?: () => void;
+  onHoverEnd?: () => void;
   onClick?: () => void;
 }
 
@@ -56,9 +61,14 @@ export function PlayingCard({
   selected = false,
   selectable = false,
   confirmReady = false,
+  remoteHover = false,
+  remoteSelected = false,
+  removing = false,
   index = 0,
   total = 1,
   size = "md",
+  onHoverStart,
+  onHoverEnd,
   onClick,
 }: PlayingCardProps) {
   const theme = cardType ? CARD_THEMES[cardType] : null;
@@ -72,6 +82,9 @@ export function PlayingCard({
     selectable ? "playing-card--selectable" : "",
     selected ? "playing-card--selected" : "",
     confirmReady ? "playing-card--confirm-ready" : "",
+    remoteHover ? "playing-card--remote-hover" : "",
+    remoteSelected ? "playing-card--remote-selected" : "",
+    removing ? "playing-card--pulling-away" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -94,6 +107,8 @@ export function PlayingCard({
       className={className}
       style={style}
       onClick={onClick}
+      onPointerEnter={onHoverStart}
+      onPointerLeave={onHoverEnd}
       aria-label={faceDown ? "裏向きのカード" : displayLabel}
     >
       {faceDown ? (
@@ -109,6 +124,9 @@ export function PlayingCard({
         </>
       )}
       {selectable && <span className="playing-card__hand" aria-hidden>✋</span>}
+      {(remoteHover || remoteSelected) && (
+        <span className="playing-card__remote-hand" aria-hidden>👆</span>
+      )}
       {confirmReady && (
         <span className="playing-card__confirm-hint" aria-hidden>
           もう一度

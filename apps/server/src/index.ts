@@ -119,6 +119,8 @@ async function runCpuTurns(code: RoomCode): Promise<void> {
         break;
       }
 
+      roomManager.applyCpuSelectionPreview(code);
+
       roomManager.setCpuStatus(
         code,
         actor.id,
@@ -258,6 +260,18 @@ wss.on("connection", (ws) => {
           client.send(startedMsg);
         });
         flushRoom(ref.code);
+        break;
+      }
+
+      case "selection_preview": {
+        const ref = roomManager.getSocketRef(id);
+        if (!ref) return;
+        roomManager.handleSelectionPreview(ref.playerId, ref.code, {
+          cardId: message.cardId,
+          targetPlayerId: message.targetPlayerId,
+          mode: message.mode,
+        });
+        broadcastGameState(ref.code);
         break;
       }
 

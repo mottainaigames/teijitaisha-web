@@ -69,6 +69,24 @@ export interface LastPlayInfo {
   at: number;
 }
 
+/** 他プレイヤーがカード／対象を指している表示 */
+export interface RemoteSelection {
+  actorId: PlayerId;
+  actorName: string;
+  cardId: string | null;
+  targetPlayerId: PlayerId | null;
+  mode: "hover" | "selected";
+}
+
+/** 直前に移動したカード（抜き取りアニメ用） */
+export interface CardTransfer {
+  cardId: string;
+  cardType?: CardType;
+  fromPlayerId: PlayerId;
+  toPlayerId: PlayerId;
+  at: number;
+}
+
 /** クライアント向けゲーム状態（手札は自分のみ） */
 export interface GameView {
   phase: GamePhase;
@@ -96,6 +114,10 @@ export interface GameView {
   cpuStatus: CpuProcessStatus | null;
   /** 直前に場に出されたペア */
   lastPlay: LastPlayInfo | null;
+  /** 他プレイヤーの選択・ホバー（自分が対象のとき用） */
+  remoteSelection: RemoteSelection | null;
+  /** 直前のカード移動 */
+  lastTransfer: CardTransfer | null;
 }
 
 export interface PendingView {

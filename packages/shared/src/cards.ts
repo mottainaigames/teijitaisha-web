@@ -32,6 +32,22 @@ export const CARD_LABELS: Record<CardType, string> = {
   zangyo: "残業",
 };
 
+/** ペアを場に出したときの効果（UI表示用） */
+export const CARD_EFFECTS: Record<CardType, string> = {
+  norma: "効果なし",
+  rouki: "対象の手札から1枚選び公開する（残業なら即敗北、パワハラなら渡す）",
+  nomikai: "次の手番の社員はペアを出せない",
+  shanai_renai: "対象と互いの手札をすべて見せ合う",
+  shinjin_kyouiku: "対象の手札を2枚まで見て、1枚加えてもよい",
+  jouhou_kyouyu: "全員が手札から1枚選び、左隣に渡す",
+  torihiki: "対象と手札を1枚ずつ選んで交換する",
+  enadori: "このターン、もう1組ペアを出せる",
+  kaigi: "残業を持つ社員は「持っています」と宣言する",
+  pawahara: "対象を1人選び、自分の手札から1枚渡す",
+  tabako_kyuukei: "手札のタバコ休憩をすべて場に出す",
+  zangyo: "ペアにできない特殊カード（労基で公開されると即敗北）",
+};
+
 /** デッキ構成（確定版: 49枚） */
 export const DECK_COMPOSITION: Record<CardType, number> = {
   norma: 4,

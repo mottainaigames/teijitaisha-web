@@ -116,8 +116,134 @@ button.secondary {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
   margin-bottom: 1rem;
   font-size: 0.85rem;
+}
+
+.deadline-timer {
+  margin-left: auto;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.deadline-timer--urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+  animation: deadline-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes deadline-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.opponents--compact {
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.4rem;
+}
+
+.opponent--compact {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.opponent__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.opponent__hand-preview {
+  position: relative;
+  height: 28px;
+  margin-top: 0.15rem;
+}
+
+.opponent__mini-card {
+  position: absolute;
+  bottom: 0;
+  left: calc(var(--mini-index) * 10px);
+  width: 18px;
+  height: 26px;
+  border-radius: 3px;
+  background: linear-gradient(145deg, #1e3a5f 0%, #0f2744 100%);
+  border: 1px solid #3b82f6;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+}
+
+.opponent--draw-source {
+  outline: 2px solid #2563eb;
+  background: #eff6ff;
+}
+
+.opponent__draw-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #2563eb;
+  text-align: center;
+}
+
+.draw-zone {
+  margin-bottom: 1rem;
+  padding: 1.25rem 1rem 1.5rem;
+  background: linear-gradient(180deg, #eff6ff 0%, #fff 100%);
+  border: 2px solid #93c5fd;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgb(37 99 235 / 12%);
+  text-align: center;
+}
+
+.draw-zone--waiting {
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.draw-zone__title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e40af;
+}
+
+.draw-zone__hint {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.draw-zone__waiting {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.card-fan--draw {
+  justify-content: center;
+  min-height: 160px;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.card-fan--draw .playing-card {
+  margin-left: -42px;
+}
+
+.card-fan--draw .playing-card:first-child {
+  margin-left: 0;
 }
 
 .opponents {
@@ -407,6 +533,17 @@ button.secondary {
   height: 96px;
 }
 
+.playing-card--lg {
+  width: 96px;
+  height: 134px;
+  margin-left: -32px;
+  border-radius: 11px;
+}
+
+.playing-card--lg:first-child {
+  margin-left: 0;
+}
+
 .playing-card--sm {
   width: 48px;
   height: 68px;
@@ -457,6 +594,10 @@ button.secondary {
 
 .playing-card--sm .playing-card__back-mark {
   font-size: 0.95rem;
+}
+
+.playing-card--lg .playing-card__back-mark {
+  font-size: 1.5rem;
 }
 
 .playing-card__corner {
@@ -578,6 +719,126 @@ button.secondary {
   }
 }
 
+.playing-card--pulling-away {
+  animation: card-pull-away 0.65s ease-in forwards;
+  pointer-events: none;
+}
+
+.playing-card--remote-hover {
+  transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 14px)) scale(1.05) !important;
+  z-index: 180 !important;
+  box-shadow:
+    0 0 0 3px rgb(249 115 22 / 55%),
+    0 10px 22px rgb(249 115 22 / 35%) !important;
+}
+
+.playing-card--remote-selected {
+  transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 20px)) scale(1.08) !important;
+  z-index: 190 !important;
+  box-shadow:
+    0 0 0 4px #ea580c,
+    0 14px 28px rgb(234 88 12 / 45%) !important;
+  animation: card-remote-pulse 0.8s ease-in-out infinite;
+}
+
+.playing-card__remote-hand {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 35%));
+}
+
+@keyframes card-pull-away {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 10px)) scale(1.05);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(var(--fan-rotate)) translateY(-120px) scale(0.75) translateX(40px);
+  }
+}
+
+@keyframes card-remote-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+.card-transfer-fx {
+  position: fixed;
+  left: 50%;
+  bottom: 7rem;
+  transform: translateX(-50%);
+  z-index: 500;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.card-transfer-fx--out .playing-card {
+  animation: card-pull-away 0.7s ease-in forwards;
+}
+
+.card-transfer-fx--in .playing-card {
+  animation: card-receive 0.7s ease-out forwards;
+}
+
+.card-transfer-fx__label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #1e3a5f;
+  background: rgb(255 255 255 / 92%);
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+
+@keyframes card-receive {
+  0% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.7);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.being-targeted {
+  background: #fff7ed;
+  border: 2px solid #fb923c;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9a3412;
+  text-align: center;
+}
+
+.opponent.remote-target {
+  outline: 2px solid #fb923c;
+  box-shadow: 0 0 0 3px rgb(251 146 60 / 35%);
+}
+
+.opponent.remote-target-selected {
+  outline: 3px solid #ea580c;
+  box-shadow: 0 0 12px rgb(234 88 12 / 45%);
+}
+
 /* ペア選択用 */
 
 .pair-row {
@@ -677,9 +938,8 @@ button.secondary {
 
 .field-cards {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5rem;
-  align-items: flex-end;
   margin-bottom: 1rem;
   padding: 0.75rem;
   background: #fff;
@@ -687,12 +947,33 @@ button.secondary {
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
+.field-cards__pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
 .field-cards__label {
-  width: 100%;
   font-size: 0.8rem;
   font-weight: 600;
   color: #64748b;
-  margin: 0 0 0.25rem;
+  margin: 0;
+}
+
+.field-cards__effect {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: #f8fafc;
+  border-left: 3px solid #6366f1;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.field-cards__effect strong {
+  color: #1e293b;
 }
 
 .peek .card-fan {

@@ -181,6 +181,24 @@ export class RoomManager {
     return err;
   }
 
+  handleSelectionPreview(
+    playerId: PlayerId,
+    code: RoomCode,
+    preview: {
+      cardId: string | null;
+      targetPlayerId: PlayerId | null;
+      mode: "hover" | "selected" | "clear";
+    },
+  ): void {
+    const room = this.rooms.get(code.toUpperCase());
+    room?.game?.setSelectionPreview(playerId, preview);
+  }
+
+  applyCpuSelectionPreview(code: RoomCode): void {
+    const room = this.rooms.get(code.toUpperCase());
+    room?.game?.applyPlannedSelectionPreview();
+  }
+
   tickGames(now: number): RoomCode[] {
     const updated: RoomCode[] = [];
     for (const room of this.rooms.values()) {
@@ -395,6 +413,15 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return { type: "add_cpu" };
     case "remove_cpu":
       return { type: "remove_cpu" };
+    case "selection_preview":
+      if (!("mode" in msg)) return null;
+      return {
+        type: "selection_preview",
+        cardId: typeof msg.cardId === "string" ? msg.cardId : null,
+        targetPlayerId:
+          typeof msg.targetPlayerId === "string" ? msg.targetPlayerId : null,
+        mode: msg.mode as "hover" | "selected" | "clear",
+      };
     default:
       if (GAME_MESSAGE_TYPES.has(msg.type as string)) {
         return msg as GameClientMessage;
