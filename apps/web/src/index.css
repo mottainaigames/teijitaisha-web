@@ -121,6 +121,134 @@ button.secondary {
   font-size: 0.85rem;
 }
 
+.room-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.room-chrome button {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 7rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  margin-top: 0;
+}
+
+.room-chrome__leave {
+  flex: 0 1 auto;
+}
+
+.room-chrome__advance {
+  background: #f59e0b;
+  animation: advance-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes advance-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(245 158 11 / 40%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgb(245 158 11 / 0%);
+  }
+}
+
+.seat-order {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.seat-order__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.seat-order__track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.35rem;
+}
+
+.seat-order__seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  min-width: 3.5rem;
+  font-size: 0.72rem;
+}
+
+.seat-order__seat--current {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 15%);
+}
+
+.seat-order__seat--me {
+  font-weight: 700;
+}
+
+.seat-order__seat--retired {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.seat-order__index {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.seat-order__name {
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.seat-order__badge {
+  font-size: 0.6rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.seat-order__arrow {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.seat-order__arrow--draw {
+  color: #059669;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.seat-order__wrap {
+  color: #cbd5e1;
+  font-size: 1rem;
+  margin-left: 0.15rem;
+}
+
 .deadline-timer {
   margin-left: auto;
   padding: 0.2rem 0.55rem;
@@ -983,4 +1111,276 @@ button.secondary {
 
 .peek .card-fan {
   min-height: 88px;
+}
+
+/* カード効果 */
+
+.game-status__effects-btn,
+.lobby-effects-btn {
+  width: auto;
+  min-width: 0;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.game-status__effects-btn {
+  margin-left: auto;
+}
+
+.lobby-effects-btn {
+  margin-top: 0.75rem;
+}
+
+.card-effect-text {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.card-effect-text strong {
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.hand-card-effect {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: #f5f3ff;
+  border: 1px solid #c4b5fd;
+  border-radius: 10px;
+}
+
+.hand-card-effect__note {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.my-hand .playing-card[type="button"],
+.my-hand .playing-card {
+  cursor: pointer;
+}
+
+.playing-card--inspected {
+  transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 10px)) scale(1.03) !important;
+  z-index: 120 !important;
+  box-shadow:
+    0 0 0 2px #8b5cf6,
+    0 8px 18px rgb(139 92 246 / 30%) !important;
+}
+
+.card-effects-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.card-effects-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgb(15 23 42 / 45%);
+  cursor: pointer;
+}
+
+.card-effects-modal__panel {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: min(85vh, 640px);
+  background: #fff;
+  border-radius: 16px 16px 12px 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.card-effects-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.card-effects-modal__header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.card-effects-modal__close {
+  width: auto;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.card-effects-modal__note {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.card-effects-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 1rem 1rem;
+  overflow-y: auto;
+}
+
+.card-effects-list__item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.card-effects-list__item:last-child {
+  border-bottom: none;
+}
+
+.card-effects-list__item .playing-card {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.card-effects-list__body {
+  min-width: 0;
+}
+
+.card-effects-list__body strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.2rem;
+}
+
+.card-effects-list__body p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #475569;
+}
+
+@media (min-width: 640px) {
+  .card-effects-modal {
+    align-items: center;
+  }
+
+  .card-effects-modal__panel {
+    border-radius: 16px;
+  }
+}
+
+/* 労基公開演出 */
+
+.rouki-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.rouki-reveal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(15 23 42 / 55%);
+}
+
+.rouki-reveal__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: 280px;
+  text-align: center;
+}
+
+.rouki-reveal__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 40%);
+}
+
+.rouki-reveal__meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #e2e8f0;
+}
+
+.rouki-reveal__flip {
+  perspective: 900px;
+  width: 96px;
+  height: 134px;
+}
+
+.rouki-reveal__flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.rouki-reveal__flip--done .rouki-reveal__flip-inner {
+  transform: rotateY(180deg);
+}
+
+.rouki-reveal__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rouki-reveal__face .playing-card {
+  margin-left: 0;
+}
+
+.rouki-reveal__face--front {
+  transform: rotateY(180deg);
+}
+
+.rouki-reveal__result {
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  background: rgb(255 255 255 / 95%);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  animation: rouki-result-in 0.35s ease-out;
+}
+
+@keyframes rouki-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -18,6 +18,9 @@ export default function App() {
     send,
     createRoom,
     joinRoom,
+    leaveRoom,
+    cycleCpuSpeed,
+    advanceCpu,
   } = useGameSocket();
 
   const lobbyView: GameView | null =
@@ -52,6 +55,7 @@ export default function App() {
           lastPlay: null,
           remoteSelection: null,
           lastTransfer: null,
+          lastRoukiReveal: null,
         }
       : null;
 
@@ -120,6 +124,9 @@ export default function App() {
           onTrade={(cardId) => send({ type: "trade_select", cardId })}
           onTrainingTake={(take, cardId) => send({ type: "training_take", take, cardId })}
           onSelectionPreview={(payload) => send({ type: "selection_preview", ...payload })}
+          onLeave={leaveRoom}
+          onCycleCpuSpeed={cycleCpuSpeed}
+          onAdvanceCpu={advanceCpu}
         />
       )}
     </div>

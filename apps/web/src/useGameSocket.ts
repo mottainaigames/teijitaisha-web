@@ -56,6 +56,16 @@ export function useGameSocket() {
         case "room_updated":
           setRoom(data.room);
           break;
+        case "room_left":
+          clearSession();
+          sessionRef.current = null;
+          setRoom(null);
+          setGameView(null);
+          setPlayerId(null);
+          setScreen("home");
+          setError(null);
+          setReconnecting(false);
+          break;
         case "game_started":
           setRoom(data.room);
           setScreen("game");
@@ -160,6 +170,18 @@ export function useGameSocket() {
     send({ type: "join_room", code: joinCode.trim().toUpperCase(), playerName });
   }, [joinCode, playerName, send]);
 
+  const leaveRoom = useCallback(() => {
+    send({ type: "leave_room" });
+  }, [send]);
+
+  const cycleCpuSpeed = useCallback(() => {
+    send({ type: "cycle_cpu_speed" });
+  }, [send]);
+
+  const advanceCpu = useCallback(() => {
+    send({ type: "advance_cpu" });
+  }, [send]);
+
   return {
     screen,
     playerName,
@@ -175,5 +197,8 @@ export function useGameSocket() {
     send,
     createRoom,
     joinRoom,
+    leaveRoom,
+    cycleCpuSpeed,
+    advanceCpu,
   };
 }

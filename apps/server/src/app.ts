@@ -107,6 +107,19 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  async function cpuDelay(code: RoomCode, baseMs: number): Promise<void> {
+    const mult = roomManager.getCpuSpeedMultiplier(code);
+    if (mult === 0) {
+      roomManager.setCpuWaitingAdvance(code, true);
+      broadcastRoom(code);
+      await roomManager.waitForCpuAdvance(code);
+      roomManager.setCpuWaitingAdvance(code, false);
+      broadcastRoom(code);
+      return;
+    }
+    await delay(baseMs * mult);
+  }
+
   async function runCpuTurns(code: RoomCode): Promise<void> {
     if (cpuRunning.has(code)) return;
     cpuRunning.add(code);
@@ -118,7 +131,7 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
 
         roomManager.setCpuStatus(code, actor.id, actor.name, "thinking", `${actor.name} 思考中…`);
         broadcastGameState(code);
-        await delay(CPU_THINK_MS);
+        await cpuDelay(code, CPU_THINK_MS);
 
         const prepared = roomManager.prepareCpuAction(code, actor.id);
         if (!prepared) {
@@ -136,7 +149,7 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           `${actor.name} → ${prepared.preview}`,
         );
         broadcastGameState(code);
-        await delay(CPU_ACT_MS);
+        await cpuDelay(code, CPU_ACT_MS);
 
         const ok = roomManager.executePreparedCpuAction(code);
         if (!ok) {
@@ -148,9 +161,9 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           roomManager.setCpuStatus(code, actor.id, actor.name, "effect", "効果処理中…");
           broadcastRoom(code);
           broadcastGameState(code);
-          await delay(CPU_EFFECT_MS);
+          await cpuDelay(code, CPU_EFFECT_MS);
         } else {
-          await delay(CPU_QUICK_MS);
+          await cpuDelay(code, CPU_QUICK_MS);
         }
 
         roomManager.clearCpuStatus(code);
@@ -236,6 +249,49 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
             send(ws, { type: "game_state", view });
           }
           flushRoom(result.room.code);
+          break;
+        }
+
+        case "leave_room": {
+          const result = roomManager.leaveRoom(id);
+          if ("error" in result) {
+            send(ws, { type: "error", message: result.error });
+            return;
+          }
+          logEvent("room_left", { code: result.code, roomDeleted: result.roomDeleted });
+          send(ws, { type: "room_left" });
+          if (!result.roomDeleted) {
+            flushRoom(result.code);
+          }
+          break;
+        }
+
+        case "cycle_cpu_speed": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          const err = roomManager.cycleCpuSpeed(ref.playerId, ref.code);
+          if (err) {
+            send(ws, { type: "error", message: err });
+            return;
+          }
+          flushRoom(ref.code);
+          break;
+        }
+
+        case "advance_cpu": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          if (!roomManager.advanceCpu(ref.code)) {
+            send(ws, { type: "error", message: "進行待ちではありません" });
+            return;
+          }
+          flushRoom(ref.code);
           break;
         }
 

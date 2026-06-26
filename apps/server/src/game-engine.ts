@@ -72,6 +72,13 @@ export class GameEngine {
   lastPlay: LastPlayInfo | null = null;
   remoteSelection: RemoteSelection | null = null;
   lastTransfer: CardTransfer | null = null;
+  lastRoukiReveal: {
+    cardType: CardType;
+    ownerId: PlayerId;
+    ownerName: string;
+    actorName: string;
+    at: number;
+  } | null = null;
   private plannedCpuAction: {
     playerId: PlayerId;
     action: { type: string; [key: string]: unknown };
@@ -470,6 +477,7 @@ export class GameEngine {
       lastPlay: this.lastPlay ? { ...this.lastPlay } : null,
       remoteSelection: this.remoteSelection ? { ...this.remoteSelection } : null,
       lastTransfer: this.buildTransferView(forPlayerId),
+      lastRoukiReveal: this.lastRoukiReveal ? { ...this.lastRoukiReveal } : null,
     };
   }
 
@@ -735,18 +743,33 @@ export class GameEngine {
         }
         this.afterEffectResolved();
         break;
-      case "jouhou_kyouyu":
+      case "jouhou_kyouyu": {
         this.effectStep = "info_share";
-        this.log("情報共有: 全員が左隣に渡すカードを選ぶ", "jouhou_kyouyu");
+        const actor = this.players.get(userId)!;
+        if (actor.hand.length === 0) {
+          actor.status = "retired";
+          this.log(`${this.playerName(userId)}が情報共有のペアを出して定時退社`);
+        }
+
+        const participants = this.activePlayerIds();
+        if (participants.length <= 1) {
+          if (this.checkRetirement()) return;
+          this.log("情報共有: 交換できる在籍者がいないためスキップ", "jouhou_kyouyu");
+          this.afterEffectResolved();
+          break;
+        }
+
+        this.log("情報共有: 在籍者が左隣に渡すカードを選ぶ", "jouhou_kyouyu");
         this.pending = {
           type: "info_share",
-          playerIds: [...this.activePlayerIds()],
+          playerIds: [...participants],
           deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
           effectCard: cardType,
           effectUserId: userId,
           infoShareSelections: new Map(),
         };
         break;
+      }
       case "shanai_renai":
       case "shinjin_kyouiku":
       case "torihiki":
@@ -820,6 +843,13 @@ export class GameEngine {
           `${this.playerName(userId)}が${this.playerName(targetId)}のカードを${peekCount}枚見た（新人教育）`,
           "shinjin_kyouiku",
         );
+        const actor = this.players.get(userId)!;
+        if (actor.hand.length === 0) {
+          actor.status = "retired";
+          this.log(`${this.playerName(userId)}が新人教育のペアを出して定時退社`);
+          this.afterEffectResolved();
+          return null;
+        }
         this.pending = {
           type: "training_take",
           playerIds: [userId],
@@ -904,6 +934,13 @@ export class GameEngine {
       const { card, hand } = removeCardById(target.hand, cardId);
       target.hand = hand;
       this.revealedCard = { type: card.type, ownerId: targetId };
+      this.lastRoukiReveal = {
+        cardType: card.type,
+        ownerId: targetId,
+        ownerName: this.playerName(targetId),
+        actorName: this.playerName(userId),
+        at: Date.now(),
+      };
 
       if (card.type === "zangyo") {
         this.log(

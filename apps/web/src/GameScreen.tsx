@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   CARD_EFFECTS,
   CARD_LABELS,
+  CPU_SPEED_LABELS,
   MAX_PLAYERS,
   MIN_PLAYERS,
   type CardType,
@@ -9,6 +10,9 @@ import {
   type RoomPublic,
 } from "@teijitaisha/shared";
 import { CardFan, PairCard, PlayingCard } from "./cards-ui";
+import { CardEffectText, CardEffectsButton } from "./card-effects-ui";
+import { RoukiRevealOverlay } from "./rouki-reveal";
+import { SeatOrderBar } from "./seat-order";
 
 interface Props {
   room: RoomPublic;
@@ -30,6 +34,9 @@ interface Props {
     targetPlayerId: string | null;
     mode: "hover" | "selected" | "clear";
   }) => void;
+  onLeave: () => void;
+  onCycleCpuSpeed: () => void;
+  onAdvanceCpu: () => void;
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
@@ -57,14 +64,48 @@ export function GameScreen({
   onTrade,
   onTrainingTake,
   onSelectionPreview,
+  onLeave,
+  onCycleCpuSpeed,
+  onAdvanceCpu,
 }: Props) {
   const isHost = room.hostId === playerId;
   const me = view.seats.find((s) => s.playerId === playerId);
   const current = view.seats.find((s) => s.playerId === view.currentPlayerId);
+  const hasCpu = room.players.some((p) => p.isCpu);
+  const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
+
+  const roomChrome = (
+    <div className="room-chrome">
+      <button type="button" className="secondary room-chrome__leave" onClick={onLeave}>
+        ルームを退出
+      </button>
+      {hasCpu && isHost && (
+        <button type="button" className="secondary room-chrome__speed" onClick={onCycleCpuSpeed}>
+          CPU速度: {CPU_SPEED_LABELS[room.cpuSpeed]}
+        </button>
+      )}
+      {room.cpuWaitingAdvance && (
+        <button type="button" className="room-chrome__advance" onClick={onAdvanceCpu}>
+          CPUを進める ▶
+        </button>
+      )}
+    </div>
+  );
+
+  const seatOrder = (
+    <SeatOrderBar
+      seats={view.seats}
+      currentPlayerId={view.currentPlayerId}
+      drawSourcePlayerId={drawSourceId}
+      myPlayerId={playerId}
+    />
+  );
 
   if (view.phase === "lobby" || !room.started) {
     return (
-      <div className="card">
+      <>
+        {roomChrome}
+        <div className="card">
         <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
         <p className="room-code">{room.code}</p>
         <p className="status" style={{ textAlign: "center" }}>
@@ -73,6 +114,7 @@ export function GameScreen({
         <p className="status">
           参加者 {room.players.length} / {MAX_PLAYERS}
         </p>
+        {seatOrder}
         <ul className="player-list">
           {room.players.map((p) => (
             <li key={p.id}>
@@ -108,20 +150,26 @@ export function GameScreen({
           </button>
         )}
         {!isHost && <p className="status">ホストの開始を待っています…</p>}
-      </div>
+        <CardEffectsButton className="lobby-effects-btn" />
+        </div>
+      </>
     );
   }
 
   if (view.phase === "game_end" && view.result) {
     return (
-      <div className="card">
+      <>
+        {roomChrome}
+        <div className="card">
         <h2>ゲーム終了</h2>
         <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
         <p>
           勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
         </p>
         <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
-      </div>
+        <CardEffectsButton />
+        </div>
+      </>
     );
   }
 
@@ -130,6 +178,7 @@ export function GameScreen({
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [focusedHandCardId, setFocusedHandCardId] = useState<string | null>(null);
   const [transferFx, setTransferFx] = useState<GameView["lastTransfer"]>(null);
   const lastTransferAtRef = useRef(0);
 
@@ -141,7 +190,14 @@ export function GameScreen({
     setSelectedCardId(null);
     setSelectedPairType(null);
     setSelectedTargetId(null);
+    setFocusedHandCardId(null);
   }, [pendingKey]);
+
+  useEffect(() => {
+    if (focusedHandCardId && !view.myHand.some((c) => c.id === focusedHandCardId)) {
+      setFocusedHandCardId(null);
+    }
+  }, [view.myHand, focusedHandCardId]);
 
   useEffect(() => {
     const el = activityLogRef.current;
@@ -186,7 +242,6 @@ export function GameScreen({
   };
 
   const isDrawPhase = view.canAct && view.pending?.type === "draw" && !!view.pending.sourcePlayerId;
-  const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
   const drawSourceName = drawSourceId ? nameOf(view.seats, drawSourceId) : null;
   const myDrawableCards =
     isDrawPhase && drawSourceId ? (view.drawableHands[drawSourceId] ?? []) : [];
@@ -238,8 +293,24 @@ export function GameScreen({
     return false;
   };
 
+  const inspectedHandCardType: CardType | null = (() => {
+    if (handPickMode === "play_or_skip" && selectedPairType) return selectedPairType;
+    const id =
+      handPickMode && selectedCardId
+        ? selectedCardId
+        : focusedHandCardId;
+    if (!id) return null;
+    return view.myHand.find((c) => c.id === id)?.type ?? null;
+  })();
+
+  const handleHandCardTap = (card: GameView["myHand"][0]) => {
+    setFocusedHandCardId(card.id);
+    if (handPickMode) handleMyCardClick(card);
+  };
+
   return (
     <div className="game">
+      {roomChrome}
       <div className="game-status">
         <span className="room-code">{room.code}</span>
         <span>{PHASE_LABELS[view.phase]}</span>
@@ -249,7 +320,10 @@ export function GameScreen({
           <span>残りペア: {view.pairsRemainingThisTurn}</span>
         )}
         <DeadlineCountdown deadlineAt={view.deadlineAt} />
+        <CardEffectsButton className="game-status__effects-btn" />
       </div>
+
+      {seatOrder}
 
       {view.cpuStatus && (
         <div className={`cpu-banner cpu-banner--${view.cpuStatus.step}`}>
@@ -336,12 +410,14 @@ export function GameScreen({
           ))}
       </div>
 
-      {view.revealedCard && (
+      {view.revealedCard && !view.lastRoukiReveal && (
         <p className="notice">
           公開: {CARD_LABELS[view.revealedCard.type]}（
           {nameOf(view.seats, view.revealedCard.ownerId)}）
         </p>
       )}
+
+      <RoukiRevealOverlay reveal={view.lastRoukiReveal} />
 
       {Object.keys(view.meetingDeclarations).length > 0 && (
         <p className="notice">
@@ -389,11 +465,19 @@ export function GameScreen({
           {handPickMode === "info_share" && " — タップで選択 → もう一度で渡す"}
           {handPickMode === "trade" && " — タップで選択 → もう一度で交換"}
           {handPickMode === "pawahara_give" && " — タップで選択 → もう一度で渡す"}
+          {!handPickMode && view.myHand.length > 0 && " — タップで効果を表示"}
         </p>
+        {inspectedHandCardType && (
+          <div className="hand-card-effect">
+            <CardEffectText cardType={inspectedHandCardType} />
+            <p className="hand-card-effect__note">ペアを場に出したときの効果</p>
+          </div>
+        )}
         {view.myHand.length > 0 ? (
           <CardFan>
             {view.myHand.map((c, i) => {
               const remote = cardRemoteState(c.id);
+              const selected = isMyCardSelected(c);
               return (
                 <PlayingCard
                   key={c.id}
@@ -406,7 +490,8 @@ export function GameScreen({
                     handPickMode === "pawahara_give" ||
                     (handPickMode === "play_or_skip" && pairable.includes(c.type))
                   }
-                  selected={isMyCardSelected(c)}
+                  selected={selected}
+                  inspected={!selected && focusedHandCardId === c.id}
                   confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
                   remoteHover={remote.remoteHover}
                   remoteSelected={remote.remoteSelected}
@@ -416,7 +501,7 @@ export function GameScreen({
                   onHoverEnd={
                     handPickMode && view.canAct ? () => sendCardPreview(null, "clear") : undefined
                   }
-                  onClick={handPickMode ? () => handleMyCardClick(c) : undefined}
+                  onClick={() => handleHandCardTap(c)}
                 />
               );
             })}

@@ -1,10 +1,13 @@
 import {
+  CPU_SPEED_MULTIPLIERS,
+  CPU_SPEED_ORDER,
   MAX_PLAYERS,
   MIN_PLAYERS,
   ROOM_CODE_CHARS,
   ROOM_CODE_LENGTH,
   ROOM_IDLE_TTL_MS,
   type ClientMessage,
+  type CpuSpeed,
   type GameClientMessage,
   type PlayerId,
   type PlayerPublic,
@@ -34,6 +37,8 @@ interface Room {
   started: boolean;
   game: GameEngine | null;
   lastActivityAt: number;
+  cpuSpeed: CpuSpeed;
+  cpuWaitingAdvance: boolean;
 }
 
 const GAME_MESSAGE_TYPES = new Set([
@@ -52,6 +57,7 @@ const GAME_MESSAGE_TYPES = new Set([
 export class RoomManager {
   private rooms = new Map<RoomCode, Room>();
   private socketToRoom = new Map<string, { code: RoomCode; playerId: PlayerId }>();
+  private cpuAdvanceWaiters = new Map<RoomCode, () => void>();
 
   createRoom(
     playerName: string,
@@ -79,6 +85,8 @@ export class RoomManager {
       started: false,
       game: null,
       lastActivityAt: Date.now(),
+      cpuSpeed: "2x",
+      cpuWaitingAdvance: false,
     };
 
     this.rooms.set(code, room);
@@ -159,6 +167,91 @@ export class RoomManager {
     this.touchRoom(room);
 
     return { room: this.toPublic(room), playerId: player.id, sessionToken: player.sessionToken };
+  }
+
+  leaveRoom(socketId: string): { code: RoomCode; roomDeleted: boolean } | { error: string } {
+    const ref = this.socketToRoom.get(socketId);
+    if (!ref) return { error: "ルームに参加していません" };
+
+    const room = this.rooms.get(ref.code);
+    if (!room) return { error: "ルームが見つかりません" };
+
+    const player = room.players.get(ref.playerId);
+    if (!player || player.isCpu) return { error: "退出できません" };
+
+    if (room.game && room.started) {
+      const gp = room.game.players.get(ref.playerId);
+      if (gp && gp.status === "active") {
+        gp.status = "retired";
+        gp.hand = [];
+      }
+    }
+
+    room.players.delete(ref.playerId);
+    this.socketToRoom.delete(socketId);
+    player.socketId = "";
+
+    if (room.hostId === ref.playerId) {
+      const nextHost = [...room.players.values()]
+        .filter((p) => !p.isCpu)
+        .sort((a, b) => a.seatIndex - b.seatIndex)[0];
+      if (nextHost) room.hostId = nextHost.id;
+    }
+
+    this.reindexSeats(room);
+
+    const humansLeft = [...room.players.values()].some((p) => !p.isCpu);
+    if (!humansLeft || room.players.size === 0) {
+      for (const p of room.players.values()) {
+        if (p.socketId) this.socketToRoom.delete(p.socketId);
+      }
+      this.resolveCpuAdvance(room.code);
+      this.rooms.delete(room.code);
+      return { code: ref.code, roomDeleted: true };
+    }
+
+    this.touchRoom(room);
+    return { code: ref.code, roomDeleted: false };
+  }
+
+  cycleCpuSpeed(hostId: PlayerId, code: RoomCode): string | null {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return "ルームが見つかりません";
+    if (room.hostId !== hostId) return "ホストのみ操作できます";
+
+    const idx = CPU_SPEED_ORDER.indexOf(room.cpuSpeed);
+    room.cpuSpeed = CPU_SPEED_ORDER[(idx + 1) % CPU_SPEED_ORDER.length]!;
+    this.touchRoom(room);
+    return null;
+  }
+
+  getCpuSpeedMultiplier(code: RoomCode): number {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return 1;
+    return CPU_SPEED_MULTIPLIERS[room.cpuSpeed];
+  }
+
+  setCpuWaitingAdvance(code: RoomCode, waiting: boolean): void {
+    const room = this.rooms.get(code.toUpperCase());
+    if (room) room.cpuWaitingAdvance = waiting;
+  }
+
+  waitForCpuAdvance(code: RoomCode): Promise<void> {
+    return new Promise((resolve) => {
+      this.cpuAdvanceWaiters.set(code, resolve);
+    });
+  }
+
+  advanceCpu(code: RoomCode): boolean {
+    return this.resolveCpuAdvance(code);
+  }
+
+  private resolveCpuAdvance(code: RoomCode): boolean {
+    const resolve = this.cpuAdvanceWaiters.get(code);
+    if (!resolve) return false;
+    this.cpuAdvanceWaiters.delete(code);
+    resolve();
+    return true;
   }
 
   purgeExpiredRooms(now: number): number {
@@ -466,6 +559,8 @@ export class RoomManager {
       players,
       maxPlayers: room.maxPlayers,
       started: room.started,
+      cpuSpeed: room.cpuSpeed,
+      cpuWaitingAdvance: room.cpuWaitingAdvance,
     };
   }
 
@@ -498,6 +593,12 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
     case "rejoin_room":
       if (typeof msg.code !== "string" || typeof msg.sessionToken !== "string") return null;
       return { type: "rejoin_room", code: msg.code.toUpperCase(), sessionToken: msg.sessionToken };
+    case "leave_room":
+      return { type: "leave_room" };
+    case "cycle_cpu_speed":
+      return { type: "cycle_cpu_speed" };
+    case "advance_cpu":
+      return { type: "advance_cpu" };
     case "add_cpu":
       return { type: "add_cpu" };
     case "remove_cpu":

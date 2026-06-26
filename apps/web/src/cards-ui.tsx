@@ -49,6 +49,7 @@ interface PlayingCardProps {
   remoteHover?: boolean;
   remoteSelected?: boolean;
   removing?: boolean;
+  inspected?: boolean;
   onHoverStart?: () => void;
   onHoverEnd?: () => void;
   onClick?: () => void;
@@ -64,6 +65,7 @@ export function PlayingCard({
   remoteHover = false,
   remoteSelected = false,
   removing = false,
+  inspected = false,
   index = 0,
   total = 1,
   size = "md",
@@ -85,6 +87,7 @@ export function PlayingCard({
     remoteHover ? "playing-card--remote-hover" : "",
     remoteSelected ? "playing-card--remote-selected" : "",
     removing ? "playing-card--pulling-away" : "",
+    inspected ? "playing-card--inspected" : "",
   ]
     .filter(Boolean)
     .join(" ");

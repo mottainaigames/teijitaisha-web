@@ -87,6 +87,15 @@ export interface CardTransfer {
   at: number;
 }
 
+/** 労基で公開されたカード（全員向け演出用） */
+export interface RoukiReveal {
+  cardType: CardType;
+  ownerId: PlayerId;
+  ownerName: string;
+  actorName: string;
+  at: number;
+}
+
 /** クライアント向けゲーム状態（手札は自分のみ） */
 export interface GameView {
   phase: GamePhase;
@@ -118,6 +127,8 @@ export interface GameView {
   remoteSelection: RemoteSelection | null;
   /** 直前のカード移動 */
   lastTransfer: CardTransfer | null;
+  /** 労基で公開されたカード（演出用） */
+  lastRoukiReveal: RoukiReveal | null;
 }
 
 export interface PendingView {
