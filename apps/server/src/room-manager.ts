@@ -3,6 +3,7 @@ import {
   MIN_PLAYERS,
   ROOM_CODE_CHARS,
   ROOM_CODE_LENGTH,
+  ROOM_IDLE_TTL_MS,
   type ClientMessage,
   type GameClientMessage,
   type PlayerId,
@@ -21,6 +22,7 @@ interface Player {
   handCount: number;
   seatIndex: number;
   socketId: string;
+  sessionToken: string;
   isCpu: boolean;
 }
 
@@ -31,6 +33,7 @@ interface Room {
   maxPlayers: number;
   started: boolean;
   game: GameEngine | null;
+  lastActivityAt: number;
 }
 
 const GAME_MESSAGE_TYPES = new Set([
@@ -50,9 +53,13 @@ export class RoomManager {
   private rooms = new Map<RoomCode, Room>();
   private socketToRoom = new Map<string, { code: RoomCode; playerId: PlayerId }>();
 
-  createRoom(playerName: string, socketId: string): { room: RoomPublic; playerId: PlayerId } {
+  createRoom(
+    playerName: string,
+    socketId: string,
+  ): { room: RoomPublic; playerId: PlayerId; sessionToken: string } {
     const code = this.generateUniqueCode();
     const playerId = randomUUID();
+    const sessionToken = randomUUID();
     const player: Player = {
       id: playerId,
       name: playerName.trim() || "社員",
@@ -60,6 +67,7 @@ export class RoomManager {
       handCount: 0,
       seatIndex: 0,
       socketId,
+      sessionToken,
       isCpu: false,
     };
 
@@ -70,19 +78,20 @@ export class RoomManager {
       maxPlayers: MAX_PLAYERS,
       started: false,
       game: null,
+      lastActivityAt: Date.now(),
     };
 
     this.rooms.set(code, room);
     this.socketToRoom.set(socketId, { code, playerId });
 
-    return { room: this.toPublic(room), playerId };
+    return { room: this.toPublic(room), playerId, sessionToken };
   }
 
   joinRoom(
     code: RoomCode,
     playerName: string,
     socketId: string,
-  ): { room: RoomPublic; playerId: PlayerId } | { error: string } {
+  ): { room: RoomPublic; playerId: PlayerId; sessionToken: string } | { error: string } {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) {
       return { error: "ルームが見つかりません" };
@@ -95,6 +104,7 @@ export class RoomManager {
     }
 
     const playerId = randomUUID();
+    const sessionToken = randomUUID();
     const player: Player = {
       id: playerId,
       name: playerName.trim() || "社員",
@@ -102,13 +112,88 @@ export class RoomManager {
       handCount: 0,
       seatIndex: room.players.size,
       socketId,
+      sessionToken,
       isCpu: false,
     };
 
     room.players.set(playerId, player);
+    this.touchRoom(room);
     this.socketToRoom.set(socketId, { code: room.code, playerId });
 
-    return { room: this.toPublic(room), playerId };
+    return { room: this.toPublic(room), playerId, sessionToken };
+  }
+
+  rejoinRoom(
+    code: RoomCode,
+    sessionToken: string,
+    socketId: string,
+  ): { room: RoomPublic; playerId: PlayerId; sessionToken: string } | { error: string } {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) {
+      return { error: "ルームが見つかりません" };
+    }
+
+    const player = [...room.players.values()].find(
+      (p) => p.sessionToken === sessionToken && !p.isCpu,
+    );
+    if (!player) {
+      return { error: "セッションが無効です" };
+    }
+
+    if (player.socketId && player.socketId !== socketId) {
+      this.socketToRoom.delete(player.socketId);
+    }
+
+    player.socketId = socketId;
+    if (player.status === "disconnected") {
+      player.status = "active";
+      if (room.game) {
+        const gp = room.game.players.get(player.id);
+        if (gp && gp.status === "disconnected") {
+          gp.status = "active";
+        }
+      }
+    }
+
+    this.socketToRoom.set(socketId, { code: room.code, playerId: player.id });
+    this.touchRoom(room);
+
+    return { room: this.toPublic(room), playerId: player.id, sessionToken: player.sessionToken };
+  }
+
+  purgeExpiredRooms(now: number): number {
+    let removed = 0;
+    for (const [code, room] of this.rooms) {
+      if (now - room.lastActivityAt < ROOM_IDLE_TTL_MS) continue;
+      if (this.hasConnectedHuman(room)) continue;
+
+      for (const player of room.players.values()) {
+        if (player.socketId) {
+          this.socketToRoom.delete(player.socketId);
+        }
+      }
+      this.rooms.delete(code);
+      removed++;
+    }
+    return removed;
+  }
+
+  getRoomCount(): number {
+    return this.rooms.size;
+  }
+
+  /** @internal テスト用 */
+  setLastActivityAt(code: RoomCode, at: number): void {
+    const room = this.rooms.get(code.toUpperCase());
+    if (room) room.lastActivityAt = at;
+  }
+
+  private hasConnectedHuman(room: Room): boolean {
+    return [...room.players.values()].some((p) => !p.isCpu && p.socketId);
+  }
+
+  private touchRoom(room: Room): void {
+    room.lastActivityAt = Date.now();
   }
 
   addCpu(hostId: PlayerId, code: RoomCode): string | null {
@@ -127,9 +212,11 @@ export class RoomManager {
       handCount: 0,
       seatIndex: room.players.size,
       socketId: "",
+      sessionToken: "",
       isCpu: true,
     };
     room.players.set(playerId, player);
+    this.touchRoom(room);
     return null;
   }
 
@@ -146,6 +233,7 @@ export class RoomManager {
 
     room.players.delete(cpus[0]!.id);
     this.reindexSeats(room);
+    this.touchRoom(room);
     return null;
   }
 
@@ -166,18 +254,18 @@ export class RoomManager {
     room.game = game;
     room.started = true;
     this.syncHandCounts(room);
+    this.touchRoom(room);
     return null;
   }
 
-  handleGameAction(
-    playerId: PlayerId,
-    code: RoomCode,
-    action: GameClientMessage,
-  ): string | null {
+  handleGameAction(playerId: PlayerId, code: RoomCode, action: GameClientMessage): string | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game) return "ゲームが開始されていません";
     const err = room.game.handleAction(playerId, action);
-    if (!err) this.syncHandCounts(room);
+    if (!err) {
+      this.syncHandCounts(room);
+      this.touchRoom(room);
+    }
     return err;
   }
 
@@ -216,9 +304,7 @@ export class RoomManager {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game || room.game.result) return null;
 
-    const cpuIds = new Set(
-      [...room.players.values()].filter((p) => p.isCpu).map((p) => p.id),
-    );
+    const cpuIds = new Set([...room.players.values()].filter((p) => p.isCpu).map((p) => p.id));
     if (cpuIds.size === 0) return null;
 
     const actors = this.getPendingCpuActors(room, cpuIds);
@@ -322,9 +408,7 @@ export class RoomManager {
   getSocketsInRoom(code: RoomCode): string[] {
     const room = this.getRoom(code);
     if (!room) return [];
-    return [...room.players.values()]
-      .filter((p) => !p.isCpu && p.socketId)
-      .map((p) => p.socketId);
+    return [...room.players.values()].filter((p) => !p.isCpu && p.socketId).map((p) => p.socketId);
   }
 
   removeSocket(socketId: string): RoomCode | undefined {
@@ -334,7 +418,8 @@ export class RoomManager {
     const room = this.rooms.get(ref.code);
     if (room) {
       const player = room.players.get(ref.playerId);
-      if (player) {
+      if (player && !player.isCpu) {
+        player.socketId = "";
         player.status = "disconnected";
         if (room.game) {
           const gp = room.game.players.get(ref.playerId);
@@ -387,8 +472,9 @@ export class RoomManager {
   private generateUniqueCode(): RoomCode {
     let code: RoomCode;
     do {
-      code = Array.from({ length: ROOM_CODE_LENGTH }, () =>
-        ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)],
+      code = Array.from(
+        { length: ROOM_CODE_LENGTH },
+        () => ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)],
       ).join("");
     } while (this.rooms.has(code));
     return code;
@@ -409,6 +495,9 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
     case "join_room":
       if (typeof msg.code !== "string" || typeof msg.playerName !== "string") return null;
       return { type: "join_room", code: msg.code.toUpperCase(), playerName: msg.playerName };
+    case "rejoin_room":
+      if (typeof msg.code !== "string" || typeof msg.sessionToken !== "string") return null;
+      return { type: "rejoin_room", code: msg.code.toUpperCase(), sessionToken: msg.sessionToken };
     case "add_cpu":
       return { type: "add_cpu" };
     case "remove_cpu":
@@ -418,8 +507,7 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return {
         type: "selection_preview",
         cardId: typeof msg.cardId === "string" ? msg.cardId : null,
-        targetPlayerId:
-          typeof msg.targetPlayerId === "string" ? msg.targetPlayerId : null,
+        targetPlayerId: typeof msg.targetPlayerId === "string" ? msg.targetPlayerId : null,
         mode: msg.mode as "hover" | "selected" | "clear",
       };
     default:

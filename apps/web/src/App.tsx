@@ -1,109 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  GameView,
-  RoomPublic,
-  ServerMessage,
-} from "@teijitaisha/shared";
+import type { GameView } from "@teijitaisha/shared";
+import { useGameSocket } from "./useGameSocket";
 import { GameScreen } from "./GameScreen";
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080";
-
-type Screen = "home" | "game";
-
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("home");
-  const [playerName, setPlayerName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [room, setRoom] = useState<RoomPublic | null>(null);
-  const [gameView, setGameView] = useState<GameView | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
-
-  const connect = useCallback(() => {
-    const existing = wsRef.current;
-    if (
-      existing?.readyState === WebSocket.OPEN ||
-      existing?.readyState === WebSocket.CONNECTING
-    ) {
-      return existing;
-    }
-
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      if (wsRef.current !== ws) return;
-      setConnected(true);
-      setError(null);
-    };
-    ws.onclose = () => {
-      if (wsRef.current !== ws) return;
-      setConnected(false);
-    };
-    ws.onerror = () => {
-      if (wsRef.current !== ws) return;
-      setError("サーバーに接続できません");
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data) as ServerMessage;
-      switch (data.type) {
-        case "room_created":
-        case "room_joined":
-          setRoom(data.room);
-          setPlayerId(data.playerId);
-          setScreen("game");
-          setError(null);
-          break;
-        case "room_updated":
-          setRoom(data.room);
-          break;
-        case "game_started":
-          setRoom(data.room);
-          setScreen("game");
-          break;
-        case "game_state":
-          setGameView(data.view);
-          setScreen("game");
-          break;
-        case "error":
-          setError(data.message);
-          break;
-      }
-    };
-
-    return ws;
-  }, []);
-
-  useEffect(() => {
-    const ws = connect();
-    return () => {
-      if (wsRef.current === ws) wsRef.current = null;
-      ws.close();
-    };
-  }, [connect]);
-
-  const send = (payload: object) => {
-    const ws = connect();
-    const json = JSON.stringify(payload);
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(json);
-    } else {
-      ws.addEventListener("open", () => ws.send(json), { once: true });
-    }
-  };
-
-  const handleCreate = () => {
-    setError(null);
-    send({ type: "create_room", playerName });
-  };
-
-  const handleJoin = () => {
-    setError(null);
-    send({ type: "join_room", code: joinCode.trim().toUpperCase(), playerName });
-  };
+  const {
+    screen,
+    playerName,
+    setPlayerName,
+    joinCode,
+    setJoinCode,
+    room,
+    gameView,
+    playerId,
+    error,
+    connected,
+    reconnecting,
+    send,
+    createRoom,
+    joinRoom,
+  } = useGameSocket();
 
   const lobbyView: GameView | null =
     room && playerId
@@ -147,7 +62,11 @@ export default function App() {
       <h1>定時退社</h1>
       <p className="subtitle">Mottainai Games — Web版</p>
 
-      {!connected && <p className="status">サーバー接続中…</p>}
+      {!connected && reconnecting && <p className="status">再接続中…</p>}
+      {!connected && !reconnecting && <p className="status">サーバー接続中…</p>}
+      {connected && reconnecting && screen === "game" && (
+        <p className="status">ルームに復帰しています…</p>
+      )}
       {error && <p className="error">{error}</p>}
 
       {screen === "home" && (
@@ -160,11 +79,7 @@ export default function App() {
             placeholder="社員名"
             maxLength={20}
           />
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={!connected || !playerName.trim()}
-          >
+          <button type="button" onClick={createRoom} disabled={!connected || !playerName.trim()}>
             ルームを作成
           </button>
           <label htmlFor="code" style={{ marginTop: "1rem" }}>
@@ -180,7 +95,7 @@ export default function App() {
           <button
             type="button"
             className="secondary"
-            onClick={handleJoin}
+            onClick={joinRoom}
             disabled={!connected || !playerName.trim() || joinCode.length < 6}
           >
             ルームに参加

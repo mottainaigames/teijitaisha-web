@@ -7,16 +7,16 @@
 
 ## 1. 確定した方針（サマリー）
 
-| 項目 | 決定内容 |
-|------|----------|
-| URL 形式 | **サブドメイン** |
-| URL スラッグ | **`teijitaisha-web`** |
-| フロントホスト | **Cloudflare Pages** |
-| ゲームサーバー | **Fly.io**（WebSocket 向き・無料枠あり） |
-| リポジトリ構成 | **モノレポ**（`web` + `server` + `shared`） |
-| 環境 | **production** + **staging** の2環境 |
-| サークルドメイン | **`mottainaigames.com`** |
-| 認証 | **ルームコードのみ**（アカウント不要） |
+| 項目             | 決定内容                                    |
+| ---------------- | ------------------------------------------- |
+| URL 形式         | **サブドメイン**                            |
+| URL スラッグ     | **`teijitaisha-web`**                       |
+| フロントホスト   | **Cloudflare Pages**                        |
+| ゲームサーバー   | **Fly.io**（WebSocket 向き・無料枠あり）    |
+| リポジトリ構成   | **モノレポ**（`web` + `server` + `shared`） |
+| 環境             | **production** + **staging** の2環境        |
+| サークルドメイン | **`mottainaigames.com`**                    |
+| 認証             | **ルームコードのみ**（アカウント不要）      |
 
 ---
 
@@ -24,26 +24,26 @@
 
 ### Production
 
-| 用途 | URL |
-|------|-----|
-| フロント（ゲーム画面） | **https://teijitaisha-web.mottainaigames.com** |
+| 用途                    | URL                                              |
+| ----------------------- | ------------------------------------------------ |
+| フロント（ゲーム画面）  | **https://teijitaisha-web.mottainaigames.com**   |
 | ゲーム API（WebSocket） | **wss://api.teijitaisha-web.mottainaigames.com** |
 
 ### Staging
 
-| 用途 | URL |
-|------|-----|
-| フロント | **https://teijitaisha-web-staging.mottainaigames.com** |
+| 用途       | URL                                                      |
+| ---------- | -------------------------------------------------------- |
+| フロント   | **https://teijitaisha-web-staging.mottainaigames.com**   |
 | ゲーム API | **wss://api.teijitaisha-web-staging.mottainaigames.com** |
 
 ### DNS レコード（Cloudflare / `mottainaigames.com`）
 
-| 名前 | タイプ | 向き先 |
-|------|--------|--------|
-| `teijitaisha-web` | CNAME | Cloudflare Pages（production ブランチ） |
-| `teijitaisha-web-staging` | CNAME | Cloudflare Pages（staging ブランチ） |
-| `api.teijitaisha-web` | CNAME | Fly.io アプリ（production） |
-| `api.teijitaisha-web-staging` | CNAME | Fly.io アプリ（staging） |
+| 名前                          | タイプ | 向き先                                  |
+| ----------------------------- | ------ | --------------------------------------- |
+| `teijitaisha-web`             | CNAME  | Cloudflare Pages（production ブランチ） |
+| `teijitaisha-web-staging`     | CNAME  | Cloudflare Pages（staging ブランチ）    |
+| `api.teijitaisha-web`         | CNAME  | Fly.io アプリ（production）             |
+| `api.teijitaisha-web-staging` | CNAME  | Fly.io アプリ（staging）                |
 
 - プロキシ（オレンジ雲）: **ON**（SSL・CDN・DDoS 保護）
 - Fly.io 側で SSL 証明書を自動発行（`fly certs add`）
@@ -76,14 +76,14 @@ flowchart TB
     Pages -.->|環境変数で WS URL| API
 ```
 
-| レイヤー | 技術 | 役割 |
-|----------|------|------|
-| フロント | Vite + React（または Next.js static） | UI・カード表示・ルーム参加 |
-| 共有 | TypeScript `shared` | 型・カード定義・ルール定数 |
-| サーバー | Node.js + `ws`（または Bun） | ルーム管理・ゲーム状態・EffectResolver |
-| DNS/SSL | Cloudflare | ドメイン・HTTPS |
-| 静的配信 | Cloudflare Pages | フロントのビルド成果物 |
-| 常時接続 | Fly.io | WebSocket ゲームサーバー |
+| レイヤー | 技術                                  | 役割                                   |
+| -------- | ------------------------------------- | -------------------------------------- |
+| フロント | Vite + React（または Next.js static） | UI・カード表示・ルーム参加             |
+| 共有     | TypeScript `shared`                   | 型・カード定義・ルール定数             |
+| サーバー | Node.js + `ws`（または Bun）          | ルーム管理・ゲーム状態・EffectResolver |
+| DNS/SSL  | Cloudflare                            | ドメイン・HTTPS                        |
+| 静的配信 | Cloudflare Pages                      | フロントのビルド成果物                 |
+| 常時接続 | Fly.io                                | WebSocket ゲームサーバー               |
 
 **Fly.io を選ぶ理由**
 
@@ -119,48 +119,48 @@ teijitaisha-web/
 └── DEPLOYMENT.md
 ```
 
-| 選択 | 理由 |
-|------|------|
-| **モノレポ** | フロントとサーバーで型・ルールを `shared` から共有。1 PR で整合が取れる |
-| **pnpm workspace** | 軽量・高速。モノレポの定番 |
+| 選択               | 理由                                                                    |
+| ------------------ | ----------------------------------------------------------------------- |
+| **モノレポ**       | フロントとサーバーで型・ルールを `shared` から共有。1 PR で整合が取れる |
+| **pnpm workspace** | 軽量・高速。モノレポの定番                                              |
 
 ---
 
 ## 5. 環境（production / staging）
 
-| 環境 | ブランチ | フロント URL | 用途 |
-|------|----------|-------------|------|
-| **staging** | `develop` | `teijitaisha-web-staging.mottainaigames.com` | 動作確認・友人テスト |
-| **production** | `main` | `teijitaisha-web.mottainaigames.com` | 本番公開 |
+| 環境           | ブランチ  | フロント URL                                 | 用途                 |
+| -------------- | --------- | -------------------------------------------- | -------------------- |
+| **staging**    | `develop` | `teijitaisha-web-staging.mottainaigames.com` | 動作確認・友人テスト |
+| **production** | `main`    | `teijitaisha-web.mottainaigames.com`         | 本番公開             |
 
 ### 環境変数
 
 **`apps/web`（Cloudflare Pages）**
 
-| 変数 | staging | production |
-|------|---------|------------|
+| 変数          | staging                                                | production                                     |
+| ------------- | ------------------------------------------------------ | ---------------------------------------------- |
 | `VITE_WS_URL` | `wss://api.teijitaisha-web-staging.mottainaigames.com` | `wss://api.teijitaisha-web.mottainaigames.com` |
-| `VITE_ENV` | `staging` | `production` |
+| `VITE_ENV`    | `staging`                                              | `production`                                   |
 
 **`apps/server`（Fly.io）**
 
-| 変数 | staging | production |
-|------|---------|------------|
-| `NODE_ENV` | `production` | `production` |
-| `PORT` | `8080` | `8080` |
-| `CORS_ORIGIN` | `https://teijitaisha-web-staging.mottainaigames.com` | `https://teijitaisha-web.mottainaigames.com` |
-| `ROOM_CODE_LENGTH` | `6` | `6` |
+| 変数               | staging                                              | production                                   |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------- |
+| `NODE_ENV`         | `production`                                         | `production`                                 |
+| `PORT`             | `8080`                                               | `8080`                                       |
+| `CORS_ORIGIN`      | `https://teijitaisha-web-staging.mottainaigames.com` | `https://teijitaisha-web.mottainaigames.com` |
+| `ROOM_CODE_LENGTH` | `6`                                                  | `6`                                          |
 
 ---
 
 ## 6. 認証・ルーム
 
-| 項目 | 方針 |
-|------|------|
-| ユーザーアカウント | **なし**（MVP） |
-| ルーム参加 | **6桁のルームコード**（ホストが表示・共有） |
-| ルーム作成 | 誰でも可。ホストが開始ボタンを押す |
-| 座席 | ルーム設定どおり（ランダム or ホスト並べ替え） |
+| 項目               | 方針                                           |
+| ------------------ | ---------------------------------------------- |
+| ユーザーアカウント | **なし**（MVP）                                |
+| ルーム参加         | **6桁のルームコード**（ホストが表示・共有）    |
+| ルーム作成         | 誰でも可。ホストが開始ボタンを押す             |
+| 座席               | ルーム設定どおり（ランダム or ホスト並べ替え） |
 
 ### ルームコード（実装指針）
 
@@ -181,10 +181,10 @@ flowchart LR
     GH -->|develop| FlyStg[Fly.io staging]
 ```
 
-| トリガー | デプロイ先 |
-|----------|-----------|
-| `main` への push | Pages production + Fly.io production |
-| `develop` への push | Pages staging + Fly.io staging |
+| トリガー            | デプロイ先                           |
+| ------------------- | ------------------------------------ |
+| `main` への push    | Pages production + Fly.io production |
+| `develop` への push | Pages staging + Fly.io staging       |
 
 **CI（推奨）:** GitHub Actions
 
@@ -218,11 +218,11 @@ flowchart LR
 
 ## 10. コスト目安（小規模）
 
-| サービス | 想定 |
-|----------|------|
-| Cloudflare Pages | 無料枠内（帯域・ビルド数に注意） |
-| Cloudflare DNS/SSL | 無料 |
-| Fly.io | 無料枠 or 数ドル/月程度（同時接続・常時起動による） |
+| サービス           | 想定                                                |
+| ------------------ | --------------------------------------------------- |
+| Cloudflare Pages   | 無料枠内（帯域・ビルド数に注意）                    |
+| Cloudflare DNS/SSL | 無料                                                |
+| Fly.io             | 無料枠 or 数ドル/月程度（同時接続・常時起動による） |
 
 サークル規模（同時数ルーム・数十人）なら **ほぼ無料〜月数百円程度** が現実的。
 
@@ -243,11 +243,11 @@ flowchart LR
 
 ## 12. 未決定（後でよい）
 
-| 項目 | メモ |
-|------|------|
-| GitHub リポジトリ名 | `teijitaisha-web` 推奨 |
-| 同時ルーム数上限 | Fly のメモリに応じて後から調整 |
-| analytics | MVP では不要。必要なら Cloudflare Web Analytics（無料） |
+| 項目                | メモ                                                    |
+| ------------------- | ------------------------------------------------------- |
+| GitHub リポジトリ名 | `teijitaisha-web` 推奨                                  |
+| 同時ルーム数上限    | Fly のメモリに応じて後から調整                          |
+| analytics           | MVP では不要。必要なら Cloudflare Web Analytics（無料） |
 
 ---
 
@@ -258,4 +258,4 @@ flowchart LR
 
 ---
 
-*次のステップ: モノレポ雛形の作成 → staging への初回デプロイ*
+_次のステップ: モノレポ雛形の作成 → staging への初回デプロイ_

@@ -123,9 +123,15 @@ export function PlayingCard({
           <span className="playing-card__corner playing-card__corner--br">{displayLabel}</span>
         </>
       )}
-      {selectable && <span className="playing-card__hand" aria-hidden>✋</span>}
+      {selectable && (
+        <span className="playing-card__hand" aria-hidden>
+          ✋
+        </span>
+      )}
       {(remoteHover || remoteSelected) && (
-        <span className="playing-card__remote-hand" aria-hidden>👆</span>
+        <span className="playing-card__remote-hand" aria-hidden>
+          👆
+        </span>
       )}
       {confirmReady && (
         <span className="playing-card__confirm-hint" aria-hidden>
@@ -181,7 +187,11 @@ export function PairCard({
         <span className="pair-card__layer pair-card__layer--front">{label}</span>
       </div>
       <span className="pair-card__badge">×2</span>
-      {selectable && <span className="playing-card__hand" aria-hidden>✋</span>}
+      {selectable && (
+        <span className="playing-card__hand" aria-hidden>
+          ✋
+        </span>
+      )}
     </button>
   );
 }

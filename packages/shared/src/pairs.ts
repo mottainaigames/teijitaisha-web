@@ -28,7 +28,10 @@ export function removeCardsByType(hand: CardInstance[], type: CardType, count = 
   return rest;
 }
 
-export function removeCardById(hand: CardInstance[], cardId: string): {
+export function removeCardById(
+  hand: CardInstance[],
+  cardId: string,
+): {
   card: CardInstance;
   hand: CardInstance[];
 } {

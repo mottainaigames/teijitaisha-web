@@ -1,8 +1,9 @@
 # Production デプロイ手順
 
-> 対象 URL  
-> - Web: https://teijitaisha-web.mottainaigames.com  
-> - API: https://api.teijitaisha-web.mottainaigames.com  
+> 対象 URL
+>
+> - Web: https://teijitaisha-web.mottainaigames.com
+> - API: https://api.teijitaisha-web.mottainaigames.com
 
 **前提:** [DEPLOY_STAGING.md](./DEPLOY_STAGING.md) の staging デプロイが完了していること。
 
@@ -10,13 +11,13 @@
 
 ## 概要
 
-| 項目 | 内容 |
-|------|------|
-| ブランチ | `main` |
-| GitHub Environment | `production` |
-| Fly アプリ | `teijitaisha-web-api` |
-| Pages プロジェクト | `teijitaisha-web` |
-| トリガー | `main` への push / 手動実行 |
+| 項目               | 内容                        |
+| ------------------ | --------------------------- |
+| ブランチ           | `main`                      |
+| GitHub Environment | `production`                |
+| Fly アプリ         | `teijitaisha-web-api`       |
+| Pages プロジェクト | `teijitaisha-web`           |
+| トリガー           | `main` への push / 手動実行 |
 
 ワークフロー: [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) の `deploy-production` ジョブ
 
@@ -61,16 +62,16 @@ fly certs setup api.teijitaisha-web.mottainaigames.com -a teijitaisha-web-api
 
 **A / AAAA の場合（staging と同様）:**
 
-| タイプ | 名前 | 向き先 | プロキシ |
-|--------|------|--------|----------|
-| A | `api.teijitaisha-web` | fly が表示した IPv4 | **DNS only（灰）** |
-| AAAA | `api.teijitaisha-web` | fly が表示した IPv6 | **DNS only（灰）** |
+| タイプ | 名前                  | 向き先              | プロキシ           |
+| ------ | --------------------- | ------------------- | ------------------ |
+| A      | `api.teijitaisha-web` | fly が表示した IPv4 | **DNS only（灰）** |
+| AAAA   | `api.teijitaisha-web` | fly が表示した IPv6 | **DNS only（灰）** |
 
 **証明書を早く発行する場合（ACME）:**
 
-| タイプ | 名前 | 向き先 | プロキシ |
-|--------|------|--------|----------|
-| CNAME | `_acme-challenge.api.teijitaisha-web` | `fly certs setup` の表示どおり | DNS only |
+| タイプ | 名前                                  | 向き先                         | プロキシ |
+| ------ | ------------------------------------- | ------------------------------ | -------- |
+| CNAME  | `_acme-challenge.api.teijitaisha-web` | `fly certs setup` の表示どおり | DNS only |
 
 ```bash
 fly certs check api.teijitaisha-web.mottainaigames.com -a teijitaisha-web-api
@@ -93,8 +94,8 @@ curl https://api.teijitaisha-web.mottainaigames.com/health
 
 **Settings → Environments → New environment** → 名前: `production`
 
-| 設定 | 推奨 |
-|------|------|
+| 設定                | 推奨        |
+| ------------------- | ----------- |
 | Deployment branches | `main` のみ |
 
 ### 2. Fly デプロイトークン
@@ -105,8 +106,8 @@ fly tokens create deploy -a teijitaisha-web-api -x 999999h
 
 **Environment `production` → Environment secrets:**
 
-| Name | 値 |
-|------|-----|
+| Name            | 値                         |
+| --------------- | -------------------------- |
 | `FLY_API_TOKEN` | 上記コマンドの出力（全文） |
 
 ローカルに控える場合（`.secrets.local`、git 管理外）:
@@ -126,9 +127,9 @@ GITHUB_ENV=production ./scripts/set-github-fly-secret.sh
 
 staging と同じ **Repository secrets** をそのまま使えます（追加不要）:
 
-| Secret | 備考 |
-|--------|------|
-| `CLOUDFLARE_API_TOKEN` | 既存 |
+| Secret                  | 備考 |
+| ----------------------- | ---- |
+| `CLOUDFLARE_API_TOKEN`  | 既存 |
 | `CLOUDFLARE_ACCOUNT_ID` | 既存 |
 
 ---
@@ -184,13 +185,13 @@ pnpm exec wrangler pages deploy apps/web/dist \
 
 ## F. トラブルシュート
 
-| 症状 | 対処 |
-|------|------|
+| 症状                     | 対処                                                                                                                                                                                                      |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Fly `unauthorized`（CI） | [DEPLOY_STAGING.md の Fly unauthorized](./DEPLOY_STAGING.md#fly-deploy-unauthorizedgithub-actions) を参照。production でもローカル `fly deploy --config fly.toml --remote-only --buildkit` でビルダー起動 |
-| Pages デプロイ失敗 | `teijitaisha-web` プロジェクトが存在するか確認 |
-| Web は開くが WS 失敗 | `VITE_WS_URL` が production API を指しているか。`main` で再ビルド |
-| CORS エラー | `fly.toml` の `CORS_ORIGIN` が `https://teijitaisha-web.mottainaigames.com` か |
-| SSL / 証明書 | staging と同様に ACME CNAME + A/AAAA（灰の雲） |
+| Pages デプロイ失敗       | `teijitaisha-web` プロジェクトが存在するか確認                                                                                                                                                            |
+| Web は開くが WS 失敗     | `VITE_WS_URL` が production API を指しているか。`main` で再ビルド                                                                                                                                         |
+| CORS エラー              | `fly.toml` の `CORS_ORIGIN` が `https://teijitaisha-web.mottainaigames.com` か                                                                                                                            |
+| SSL / 証明書             | staging と同様に ACME CNAME + A/AAAA（灰の雲）                                                                                                                                                            |
 
 ---
 

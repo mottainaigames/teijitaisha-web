@@ -28,6 +28,7 @@ import type { GameClientMessage } from "./game.js";
 export type ClientMessage =
   | { type: "create_room"; playerName: string }
   | { type: "join_room"; code: RoomCode; playerName: string }
+  | { type: "rejoin_room"; code: RoomCode; sessionToken: string }
   | { type: "add_cpu" }
   | { type: "remove_cpu" }
   | { type: "ping" }
@@ -41,8 +42,9 @@ export type ClientMessage =
 
 /** サーバー → クライアント */
 export type ServerMessage =
-  | { type: "room_created"; room: RoomPublic; playerId: PlayerId }
-  | { type: "room_joined"; room: RoomPublic; playerId: PlayerId }
+  | { type: "room_created"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
+  | { type: "room_joined"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
+  | { type: "room_rejoined"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
   | { type: "room_updated"; room: RoomPublic }
   | { type: "game_started"; room: RoomPublic }
   | { type: "game_state"; view: import("./game.js").GameView }

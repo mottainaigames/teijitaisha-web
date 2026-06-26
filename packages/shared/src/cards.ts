@@ -64,10 +64,7 @@ export const DECK_COMPOSITION: Record<CardType, number> = {
   zangyo: 1,
 };
 
-export const TOTAL_DECK_SIZE = Object.values(DECK_COMPOSITION).reduce(
-  (sum, n) => sum + n,
-  0,
-);
+export const TOTAL_DECK_SIZE = Object.values(DECK_COMPOSITION).reduce((sum, n) => sum + n, 0);
 
 /** ペアを作れないカード */
 export const NON_PAIRABLE: ReadonlySet<CardType> = new Set(["zangyo"]);

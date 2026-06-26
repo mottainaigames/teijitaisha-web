@@ -78,12 +78,15 @@ export class GameEngine {
   } | null = null;
 
   private readonly random: () => number;
+  private readonly layout?: { seats: PlayerId[]; firstSeatIndex: number };
 
   constructor(
     entries: { id: PlayerId; name: string }[],
     random: () => number = Math.random,
+    layout?: { seats: PlayerId[]; firstSeatIndex: number },
   ) {
     this.random = random;
+    this.layout = layout;
     for (const e of entries) {
       this.players.set(e.id, {
         id: e.id,
@@ -99,13 +102,17 @@ export class GameEngine {
       return `最低${MIN_PLAYERS}人必要です`;
     }
     this.seats = [...this.players.keys()];
-    // 座席シャッフル
-    for (let i = this.seats.length - 1; i > 0; i--) {
-      const j = Math.floor(this.random() * (i + 1));
-      [this.seats[i], this.seats[j]] = [this.seats[j]!, this.seats[i]!];
+    if (this.layout) {
+      this.seats = [...this.layout.seats];
+      this.firstPlayerSeatIndex = this.layout.firstSeatIndex;
+    } else {
+      // 座席シャッフル
+      for (let i = this.seats.length - 1; i > 0; i--) {
+        const j = Math.floor(this.random() * (i + 1));
+        [this.seats[i], this.seats[j]] = [this.seats[j]!, this.seats[i]!];
+      }
+      this.firstPlayerSeatIndex = Math.floor(this.random() * this.seats.length);
     }
-
-    this.firstPlayerSeatIndex = Math.floor(this.random() * this.seats.length);
     this.currentSeatIndex = this.firstPlayerSeatIndex;
 
     const { hands } = dealHands(this.seats, this.firstPlayerSeatIndex, this.random, () =>
@@ -125,7 +132,10 @@ export class GameEngine {
     return null;
   }
 
-  handleAction(playerId: PlayerId, action: { type: string; [key: string]: unknown }): string | null {
+  handleAction(
+    playerId: PlayerId,
+    action: { type: string; [key: string]: unknown },
+  ): string | null {
     if (this.phase === "game_end") return "ゲームは終了しています";
     if (!this.pending) return "入力待ちではありません";
 
@@ -138,7 +148,8 @@ export class GameEngine {
         break;
       case "play_or_skip":
         if (action.type === "skip_play") result = this.resolveSkipPlay(playerId);
-        else if (action.type === "play_pair") result = this.resolvePlayPair(playerId, action.cardType as CardType);
+        else if (action.type === "play_pair")
+          result = this.resolvePlayPair(playerId, action.cardType as CardType);
         else result = "ペアを出すかスキップしてください";
         break;
       case "select_target":
@@ -186,8 +197,7 @@ export class GameEngine {
         ? this.activePlayerIds().includes(actorId)
         : this.pending.type === "trade"
           ? this.pending.playerIds.includes(actorId)
-          : this.pending.playerIds.includes(actorId) ||
-            this.pending.effectUserId === actorId;
+          : this.pending.playerIds.includes(actorId) || this.pending.effectUserId === actorId;
 
     if (!canPreview) return null;
 
@@ -389,7 +399,9 @@ export class GameEngine {
       case "training_take": {
         if (playerId !== p.effectUserId) return null;
         const peeked = p.peekedCards ?? [];
-        const options: { type: string; [key: string]: unknown }[] = [{ type: "training_take", take: false }];
+        const options: { type: string; [key: string]: unknown }[] = [
+          { type: "training_take", take: false },
+        ];
         for (const card of peeked) {
           options.push({ type: "training_take", take: true, cardId: card.id });
         }
@@ -464,8 +476,7 @@ export class GameEngine {
   private buildTransferView(forPlayerId: PlayerId): CardTransfer | null {
     if (!this.lastTransfer) return null;
     const t = this.lastTransfer;
-    const canSeeType =
-      forPlayerId === t.fromPlayerId || forPlayerId === t.toPlayerId;
+    const canSeeType = forPlayerId === t.fromPlayerId || forPlayerId === t.toPlayerId;
     return {
       cardId: t.cardId,
       cardType: canSeeType ? t.cardType : undefined,
@@ -591,9 +602,7 @@ export class GameEngine {
       effectUserId: null,
       sourcePlayerId: sourceId,
     };
-    this.log(
-      `${this.playerName(currentId)}は${this.playerName(sourceId)}からカードを引きます`,
-    );
+    this.log(`${this.playerName(currentId)}は${this.playerName(sourceId)}からカードを引きます`);
   }
 
   private resolveDraw(playerId: PlayerId, cardId: string): string | null {
@@ -604,9 +613,7 @@ export class GameEngine {
       return "そのカードは選べません";
     }
     this.transferCard(sourceId, playerId, cardId);
-    this.log(
-      `${this.playerName(playerId)}が${this.playerName(sourceId)}からカードを1枚引きました`,
-    );
+    this.log(`${this.playerName(playerId)}が${this.playerName(sourceId)}からカードを1枚引きました`);
     this.afterDraw(playerId);
     return null;
   }
@@ -660,10 +667,7 @@ export class GameEngine {
       cardType,
       at: Date.now(),
     };
-    this.log(
-      `${this.playerName(playerId)}が${CARD_LABELS[cardType]}のペアを場に出した`,
-      cardType,
-    );
+    this.log(`${this.playerName(playerId)}が${CARD_LABELS[cardType]}のペアを場に出した`, cardType);
     this.runEffect(cardType, playerId);
     return null;
   }
@@ -790,10 +794,7 @@ export class GameEngine {
     switch (cardType) {
       case "shanai_renai":
         this.effectStep = "reveal";
-        this.peekedCards = [
-          ...this.players.get(userId)!.hand,
-          ...this.players.get(targetId)!.hand,
-        ];
+        this.peekedCards = [...this.players.get(userId)!.hand, ...this.players.get(targetId)!.hand];
         this.log(
           `${this.playerName(userId)}と${this.playerName(targetId)}の手札がお互いに見えた（社内恋愛）`,
           "shanai_renai",
@@ -1080,11 +1081,7 @@ export class GameEngine {
       winnerIds: retired,
       loserIds: loser ? [loser] : [],
     };
-    this.log(
-      loser
-        ? `ゲーム終了: ${this.playerName(loser)}の負け`
-        : "ゲーム終了",
-    );
+    this.log(loser ? `ゲーム終了: ${this.playerName(loser)}の負け` : "ゲーム終了");
   }
 
   private endGameRouki(roukiUserId: PlayerId, zangyoUserId: PlayerId): void {

@@ -1,8 +1,9 @@
 # Staging 初回デプロイ手順
 
-> 対象 URL  
-> - Web: https://teijitaisha-web-staging.mottainaigames.com  
-> - API: https://api.teijitaisha-web-staging.mottainaigames.com  
+> 対象 URL
+>
+> - Web: https://teijitaisha-web-staging.mottainaigames.com
+> - API: https://api.teijitaisha-web-staging.mottainaigames.com
 
 ---
 
@@ -107,18 +108,18 @@ fly certs add api.teijitaisha-web-staging.mottainaigames.com -a teijitaisha-web-
 
 **A / AAAA が表示された場合（いまのケース）:**
 
-| タイプ | 名前 | 向き先 | プロキシ |
-|--------|------|--------|----------|
-| A | `api.teijitaisha-web-staging` | `66.241.124.187`（fly が表示した IPv4） | **DNS only（灰色雲）** |
-| AAAA | `api.teijitaisha-web-staging` | `2a09:8280:1::135:22cc:0`（fly が表示した IPv6） | **DNS only（灰色雲）** |
+| タイプ | 名前                          | 向き先                                           | プロキシ               |
+| ------ | ----------------------------- | ------------------------------------------------ | ---------------------- |
+| A      | `api.teijitaisha-web-staging` | `66.241.124.187`（fly が表示した IPv4）          | **DNS only（灰色雲）** |
+| AAAA   | `api.teijitaisha-web-staging` | `2a09:8280:1::135:22cc:0`（fly が表示した IPv6） | **DNS only（灰色雲）** |
 
 > IP はデプロイごとに変わることがある。必ず `fly certs add` の出力をそのまま使う。
 
 **CNAME が表示された場合**（`fly certs setup` 参照時）:
 
-| タイプ | 名前 | 向き先 |
-|--------|------|--------|
-| CNAME | `api.teijitaisha-web-staging` | fly が表示する値 |
+| タイプ | 名前                          | 向き先           |
+| ------ | ----------------------------- | ---------------- |
+| CNAME  | `api.teijitaisha-web-staging` | fly が表示する値 |
 
 証明書の状態確認:
 
@@ -130,17 +131,17 @@ fly certs check api.teijitaisha-web-staging.mottainaigames.com -a teijitaisha-we
 
 **すぐに証明書を発行したい場合** — `fly certs setup` の **ACME DNS Challenge** を Cloudflare に追加:
 
-| タイプ | 名前 | 向き先 | プロキシ |
-|--------|------|--------|----------|
-| CNAME | `_acme-challenge.api.teijitaisha-web-staging` | `api.teijitaisha-web-staging.mottainaigames.com.nyn26p9.flydns.net.` | DNS only |
+| タイプ | 名前                                          | 向き先                                                               | プロキシ |
+| ------ | --------------------------------------------- | -------------------------------------------------------------------- | -------- |
+| CNAME  | `_acme-challenge.api.teijitaisha-web-staging` | `api.teijitaisha-web-staging.mottainaigames.com.nyn26p9.flydns.net.` | DNS only |
 
 > 向き先は `fly certs setup api.teijitaisha-web-staging.mottainaigames.com -a teijitaisha-web-api-staging` の表示をそのまま使う（`nyn26p9` 部分はアプリごとに異なる）。
 
 **Cloudflare プロキシ（オレンジ雲）を ON にしている場合** — 次も追加:
 
-| タイプ | 名前 | コンテンツ |
-|--------|------|-----------|
-| TXT | `_fly-ownership.api.teijitaisha-web-staging` | `app-nyn26p9`（setup の表示どおり） |
+| タイプ | 名前                                         | コンテンツ                          |
+| ------ | -------------------------------------------- | ----------------------------------- |
+| TXT    | `_fly-ownership.api.teijitaisha-web-staging` | `app-nyn26p9`（setup の表示どおり） |
 
 `Could not resolve host` → A/AAAA 未登録。  
 `SSL_ERROR_SYSCALL` → 証明書が **Not verified**（上記 ACME を追加するか、数分〜30分待つ）。
@@ -166,11 +167,11 @@ curl https://api.teijitaisha-web-staging.mottainaigames.com/health
 
 ワークフロー: [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml)
 
-| ブランチ | トリガー | デプロイ先 |
-|----------|----------|------------|
-| `develop` | push / 手動 | staging（Pages + Fly） |
-| `main` | push / 手動 | production（Pages + Fly） |
-| どちらも | pull_request | ビルドのみ（デプロイなし） |
+| ブランチ  | トリガー     | デプロイ先                 |
+| --------- | ------------ | -------------------------- |
+| `develop` | push / 手動  | staging（Pages + Fly）     |
+| `main`    | push / 手動  | production（Pages + Fly）  |
+| どちらも  | pull_request | ビルドのみ（デプロイなし） |
 
 補助スクリプト（トークン取得コマンドの表示）:
 
@@ -200,10 +201,10 @@ git push -u origin develop
 
 リポジトリ → **Settings** → **Environments**
 
-| Environment | Deployment branches（推奨） | 用途 |
-|-------------|----------------------------|------|
-| `staging` | `develop` のみ | staging 自動デプロイ |
-| `production` | `main` のみ | 本番自動デプロイ |
+| Environment  | Deployment branches（推奨） | 用途                 |
+| ------------ | --------------------------- | -------------------- |
+| `staging`    | `develop` のみ              | staging 自動デプロイ |
+| `production` | `main` のみ                 | 本番自動デプロイ     |
 
 > ワークフローが `environment: staging` / `production` を参照するため、**同名の Environment が必須**です。
 
@@ -211,16 +212,16 @@ git push -u origin develop
 
 #### リポジトリ共通（Settings → Secrets and variables → Actions → Repository secrets）
 
-| Secret | 値の取得方法 |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | [API Tokens](https://dash.cloudflare.com/profile/api-tokens) で作成。権限: **Cloudflare Pages — Edit**、**Account Settings — Read** |
-| `CLOUDFLARE_ACCOUNT_ID` | `pnpm exec wrangler whoami` の Account ID 欄（例: `882d30c37cca7222dc03546d685169d0`） |
+| Secret                  | 値の取得方法                                                                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | [API Tokens](https://dash.cloudflare.com/profile/api-tokens) で作成。権限: **Cloudflare Pages — Edit**、**Account Settings — Read** |
+| `CLOUDFLARE_ACCOUNT_ID` | `pnpm exec wrangler whoami` の Account ID 欄（例: `882d30c37cca7222dc03546d685169d0`）                                              |
 
 #### Environment ごと（Settings → Environments → 各環境 → Environment secrets）
 
-| Environment | Secret | 値 |
-|-------------|--------|-----|
-| `staging` | `FLY_API_TOKEN` | `fly tokens create deploy -a teijitaisha-web-api-staging` の出力 |
+| Environment  | Secret          | 値                                                                           |
+| ------------ | --------------- | ---------------------------------------------------------------------------- |
+| `staging`    | `FLY_API_TOKEN` | `fly tokens create deploy -a teijitaisha-web-api-staging` の出力             |
 | `production` | `FLY_API_TOKEN` | `fly tokens create deploy -a teijitaisha-web-api` の出力（本番アプリ作成後） |
 
 ```bash
@@ -271,14 +272,14 @@ fly version update
 fly deploy --config fly.staging.toml --remote-only --buildkit --verbose
 ```
 
-| 症状 | 対処 |
-|------|------|
-| `docker.sock` / `missing hostname` | 下記「Docker エラー回避」を参照 |
-| Web は開くが WS 接続失敗 | `VITE_WS_URL` がビルド時に正しいか確認。Pages を再デプロイ |
-| CORS エラー | Fly の `CORS_ORIGIN` が `fly.staging.toml` と一致しているか |
-| API 502 / deploy 失敗 | `fly deploy --config fly.staging.toml --remote-only --buildkit` |
-| カスタムドメインが効かない | DNS 伝播待ち（最大数時間）、Cloudflare プロキシ ON |
-| Fly deploy `unauthorized` | 下記「Fly unauthorized」を参照 |
+| 症状                               | 対処                                                            |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `docker.sock` / `missing hostname` | 下記「Docker エラー回避」を参照                                 |
+| Web は開くが WS 接続失敗           | `VITE_WS_URL` がビルド時に正しいか確認。Pages を再デプロイ      |
+| CORS エラー                        | Fly の `CORS_ORIGIN` が `fly.staging.toml` と一致しているか     |
+| API 502 / deploy 失敗              | `fly deploy --config fly.staging.toml --remote-only --buildkit` |
+| カスタムドメインが効かない         | DNS 伝播待ち（最大数時間）、Cloudflare プロキシ ON              |
+| Fly deploy `unauthorized`          | 下記「Fly unauthorized」を参照                                  |
 
 ### Fly deploy `unauthorized`（GitHub Actions）
 

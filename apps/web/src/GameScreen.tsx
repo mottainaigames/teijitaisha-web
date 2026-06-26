@@ -70,7 +70,9 @@ export function GameScreen({
         <p className="status" style={{ textAlign: "center" }}>
           このコードを共有してください
         </p>
-        <p className="status">参加者 {room.players.length} / {MAX_PLAYERS}</p>
+        <p className="status">
+          参加者 {room.players.length} / {MAX_PLAYERS}
+        </p>
         <ul className="player-list">
           {room.players.map((p) => (
             <li key={p.id}>
@@ -101,11 +103,7 @@ export function GameScreen({
           </div>
         )}
         {isHost && (
-          <button
-            type="button"
-            onClick={onStart}
-            disabled={room.players.length < MIN_PLAYERS}
-          >
+          <button type="button" onClick={onStart} disabled={room.players.length < MIN_PLAYERS}>
             ゲームを開始（{MIN_PLAYERS}人〜）
           </button>
         )}
@@ -118,10 +116,10 @@ export function GameScreen({
     return (
       <div className="card">
         <h2>ゲーム終了</h2>
-        <p className="status">
-          {view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}
+        <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
+        <p>
+          勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
         </p>
-        <p>勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
         <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
       </div>
     );
@@ -162,10 +160,7 @@ export function GameScreen({
   const cardTargetPlayerId = getCardTargetPlayerId(view);
   const remoteOnMe = view.remoteSelection?.targetPlayerId === playerId;
 
-  const sendCardPreview = (
-    cardId: string | null,
-    mode: "hover" | "selected" | "clear",
-  ) => {
+  const sendCardPreview = (cardId: string | null, mode: "hover" | "selected" | "clear") => {
     if (!view.canAct) return;
     onSelectionPreview({
       cardId,
@@ -174,10 +169,7 @@ export function GameScreen({
     });
   };
 
-  const sendTargetPreview = (
-    targetId: string | null,
-    mode: "hover" | "selected" | "clear",
-  ) => {
+  const sendTargetPreview = (targetId: string | null, mode: "hover" | "selected" | "clear") => {
     if (!view.canAct) return;
     onSelectionPreview({ cardId: null, targetPlayerId: targetId, mode });
   };
@@ -193,8 +185,7 @@ export function GameScreen({
     };
   };
 
-  const isDrawPhase =
-    view.canAct && view.pending?.type === "draw" && !!view.pending.sourcePlayerId;
+  const isDrawPhase = view.canAct && view.pending?.type === "draw" && !!view.pending.sourcePlayerId;
   const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
   const drawSourceName = drawSourceId ? nameOf(view.seats, drawSourceId) : null;
   const myDrawableCards =
@@ -294,9 +285,7 @@ export function GameScreen({
         <div className={`draw-zone ${isDrawPhase ? "draw-zone--active" : "draw-zone--waiting"}`}>
           {isDrawPhase && myDrawableCards.length > 0 ? (
             <>
-              <p className="draw-zone__title">
-                {drawSourceName}の手札から1枚引く
-              </p>
+              <p className="draw-zone__title">{drawSourceName}の手札から1枚引く</p>
               <p className="draw-zone__hint">タップで選択 → もう一度タップで引く</p>
               <CardFan className="card-fan--draw">
                 {myDrawableCards.map((c, i) => (
@@ -349,7 +338,8 @@ export function GameScreen({
 
       {view.revealedCard && (
         <p className="notice">
-          公開: {CARD_LABELS[view.revealedCard.type]}（{nameOf(view.seats, view.revealedCard.ownerId)}）
+          公開: {CARD_LABELS[view.revealedCard.type]}（
+          {nameOf(view.seats, view.revealedCard.ownerId)}）
         </p>
       )}
 
@@ -367,12 +357,7 @@ export function GameScreen({
           <p>見えたカード:</p>
           <CardFan>
             {view.peekedCards.map((c, i) => (
-              <PlayingCard
-                key={c.id}
-                cardType={c.type}
-                index={i}
-                total={view.peekedCards.length}
-              />
+              <PlayingCard key={c.id} cardType={c.type} index={i} total={view.peekedCards.length} />
             ))}
           </CardFan>
         </div>
@@ -410,38 +395,30 @@ export function GameScreen({
             {view.myHand.map((c, i) => {
               const remote = cardRemoteState(c.id);
               return (
-              <PlayingCard
-                key={c.id}
-                cardType={c.type}
-                index={i}
-                total={view.myHand.length}
-                selectable={
-                  handPickMode === "info_share" ||
-                  handPickMode === "trade" ||
-                  handPickMode === "pawahara_give" ||
-                  (handPickMode === "play_or_skip" && pairable.includes(c.type))
-                }
-                selected={isMyCardSelected(c)}
-                confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
-                remoteHover={remote.remoteHover}
-                remoteSelected={remote.remoteSelected}
-                onHoverStart={
-                  handPickMode && view.canAct
-                    ? () => sendCardPreview(c.id, "hover")
-                    : undefined
-                }
-                onHoverEnd={
-                  handPickMode && view.canAct
-                    ? () => sendCardPreview(null, "clear")
-                    : undefined
-                }
-                onClick={
-                  handPickMode
-                    ? () => handleMyCardClick(c)
-                    : undefined
-                }
-              />
-            );
+                <PlayingCard
+                  key={c.id}
+                  cardType={c.type}
+                  index={i}
+                  total={view.myHand.length}
+                  selectable={
+                    handPickMode === "info_share" ||
+                    handPickMode === "trade" ||
+                    handPickMode === "pawahara_give" ||
+                    (handPickMode === "play_or_skip" && pairable.includes(c.type))
+                  }
+                  selected={isMyCardSelected(c)}
+                  confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
+                  remoteHover={remote.remoteHover}
+                  remoteSelected={remote.remoteSelected}
+                  onHoverStart={
+                    handPickMode && view.canAct ? () => sendCardPreview(c.id, "hover") : undefined
+                  }
+                  onHoverEnd={
+                    handPickMode && view.canAct ? () => sendCardPreview(null, "clear") : undefined
+                  }
+                  onClick={handPickMode ? () => handleMyCardClick(c) : undefined}
+                />
+              );
             })}
           </CardFan>
         ) : (
@@ -450,7 +427,13 @@ export function GameScreen({
       </div>
 
       {view.discardTypes.length > 0 && (
-        <p className="status">場の履歴: {view.discardTypes.slice(-8).map((t) => CARD_LABELS[t]).join("、")}</p>
+        <p className="status">
+          場の履歴:{" "}
+          {view.discardTypes
+            .slice(-8)
+            .map((t) => CARD_LABELS[t])
+            .join("、")}
+        </p>
       )}
 
       {view.activityLog.length > 0 && (
@@ -548,7 +531,11 @@ function Opponent({
       {compact && previewCount > 0 && (
         <div className="opponent__hand-preview" aria-hidden>
           {Array.from({ length: previewCount }, (_, i) => (
-            <span key={i} className="opponent__mini-card" style={{ ["--mini-index" as string]: i }} />
+            <span
+              key={i}
+              className="opponent__mini-card"
+              style={{ ["--mini-index" as string]: i }}
+            />
           ))}
         </div>
       )}
@@ -594,9 +581,7 @@ function PendingActions({
 }) {
   if (!view.canAct || !view.pending) {
     if (view.pending?.type === "draw") return null;
-    return view.pending ? (
-      <p className="status">他のプレイヤーの操作を待っています…</p>
-    ) : null;
+    return view.pending ? <p className="status">他のプレイヤーの操作を待っています…</p> : null;
   }
 
   const p = view.pending;
@@ -743,9 +728,7 @@ function PendingActions({
               selected={selectedCardId === c.id}
               confirmReady={selectedCardId === c.id}
               onClick={() =>
-                twoStepPick(c.id, selectedCardId, onSelectCardId, (id) =>
-                  onTrainingTake(true, id),
-                )
+                twoStepPick(c.id, selectedCardId, onSelectCardId, (id) => onTrainingTake(true, id))
               }
             />
           ))}

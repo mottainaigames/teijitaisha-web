@@ -1,6 +1,7 @@
 {
   "name": "teijitaisha-web",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "dev:web": "pnpm --filter @teijitaisha/web dev",
@@ -8,7 +9,10 @@
     "build": "pnpm --filter @teijitaisha/shared build && pnpm --filter @teijitaisha/server build && pnpm --filter @teijitaisha/web build",
     "build:web": "pnpm --filter @teijitaisha/shared build && pnpm --filter @teijitaisha/web build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
+    "test": "pnpm --filter @teijitaisha/shared build && pnpm --filter @teijitaisha/server test",
+    "lint": "eslint apps packages",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
     "deploy:server:staging": "fly deploy --config fly.staging.toml --remote-only --buildkit",
     "deploy:server:production": "fly deploy --config fly.toml --remote-only --buildkit",
     "deploy:web:staging": "pnpm build:web && wrangler pages deploy apps/web/dist --project-name=teijitaisha-web-staging --branch=develop",
@@ -19,6 +23,10 @@
   },
   "packageManager": "pnpm@9.15.0",
   "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "eslint": "^9.19.0",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.22.0",
     "wrangler": "^3.99.0"
   }
 }
