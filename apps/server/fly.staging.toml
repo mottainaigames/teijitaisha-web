@@ -1,0 +1,26 @@
+# staging — リポジトリルートから:
+#   fly deploy --config apps/server/fly.staging.toml --remote-only
+
+app = "teijitaisha-web-api-staging"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "apps/server/Dockerfile"
+
+[env]
+  PORT = "8080"
+  CORS_ORIGIN = "https://teijitaisha-web-staging.mottainaigames.com"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"

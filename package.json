@@ -1,0 +1,24 @@
+{
+  "name": "teijitaisha-web",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:web": "pnpm --filter @teijitaisha/web dev",
+    "dev:server": "pnpm --filter @teijitaisha/server dev",
+    "build": "pnpm -r build",
+    "build:web": "pnpm --filter @teijitaisha/shared build && pnpm --filter @teijitaisha/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "deploy:server:staging": "fly deploy --config fly.staging.toml --remote-only --buildkit",
+    "deploy:server:production": "fly deploy --config fly.toml --remote-only --buildkit",
+    "deploy:web:staging": "pnpm build:web && wrangler pages deploy apps/web/dist --project-name=teijitaisha-web-staging --branch=develop",
+    "deploy:web:production": "pnpm build:web && wrangler pages deploy apps/web/dist --project-name=teijitaisha-web --branch=main"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
+}

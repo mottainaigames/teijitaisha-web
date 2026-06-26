@@ -1,0 +1,10 @@
+node_modules
+.git
+.DS_Store
+apps/web/dist
+apps/web/node_modules
+*.md
+カード
+ルールブック
+.env
+.env.*
