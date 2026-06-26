@@ -1,5 +1,3 @@
-import type { CardType } from "./cards.js";
-
 export type PlayerId = string;
 export type RoomCode = string;
 
@@ -21,22 +19,23 @@ export interface RoomPublic {
   started: boolean;
 }
 
+export type { CardInstance, GameView, GameResult, GameClientMessage } from "./game.js";
+
+import type { GameClientMessage } from "./game.js";
+
 /** クライアント → サーバー */
 export type ClientMessage =
   | { type: "create_room"; playerName: string }
   | { type: "join_room"; code: RoomCode; playerName: string }
-  | { type: "ping" };
+  | { type: "ping" }
+  | GameClientMessage;
 
 /** サーバー → クライアント */
 export type ServerMessage =
   | { type: "room_created"; room: RoomPublic; playerId: PlayerId }
   | { type: "room_joined"; room: RoomPublic; playerId: PlayerId }
   | { type: "room_updated"; room: RoomPublic }
+  | { type: "game_started"; room: RoomPublic }
+  | { type: "game_state"; view: import("./game.js").GameView }
   | { type: "error"; message: string }
   | { type: "pong" };
-
-/** 将来のゲーム実装用（サーバー内部） */
-export interface CardInstance {
-  id: string;
-  type: CardType;
-}

@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { RoomCode } from "@teijitaisha/shared";
+import type { RoomCode, ServerMessage } from "@teijitaisha/shared";
 import {
   parseClientMessage,
   RoomManager,
@@ -54,13 +54,32 @@ function broadcastRoom(code: RoomCode): void {
   if (!room) return;
 
   const socketIds = new Set(roomManager.getSocketsInRoom(code));
-  const message = JSON.stringify({ type: "room_updated", room } satisfies import("@teijitaisha/shared").ServerMessage);
+  const message = JSON.stringify({
+    type: "room_updated",
+    room,
+  } satisfies ServerMessage);
 
   wss.clients.forEach((client) => {
     if (client.readyState !== 1) return;
     if (!socketIds.has(getSocketId(client))) return;
     client.send(message);
   });
+}
+
+function broadcastGameState(code: RoomCode): void {
+  const socketIds = roomManager.getSocketsInRoom(code);
+  for (const socketId of socketIds) {
+    const ref = roomManager.getSocketRef(socketId);
+    if (!ref) continue;
+    const view = roomManager.getGameView(code, ref.playerId);
+    if (!view) continue;
+
+    wss.clients.forEach((client) => {
+      if (client.readyState !== 1) return;
+      if (getSocketId(client) !== socketId) return;
+      send(client, { type: "game_state", view });
+    });
+  }
 }
 
 wss.on("connection", (ws) => {
@@ -102,6 +121,45 @@ wss.on("connection", (ws) => {
         broadcastRoom(result.room.code);
         break;
       }
+
+      case "start_game": {
+        const ref = roomManager.getSocketRef(id);
+        if (!ref) {
+          send(ws, { type: "error", message: "ルームに参加していません" });
+          return;
+        }
+        const err = roomManager.startGame(ref.playerId, ref.code);
+        if (err) {
+          send(ws, { type: "error", message: err });
+          return;
+        }
+        const room = roomManager.getRoomPublic(ref.code)!;
+        const socketIds = new Set(roomManager.getSocketsInRoom(ref.code));
+        const startedMsg = JSON.stringify({ type: "game_started", room } satisfies ServerMessage);
+        wss.clients.forEach((client) => {
+          if (client.readyState !== 1) return;
+          if (!socketIds.has(getSocketId(client))) return;
+          client.send(startedMsg);
+        });
+        broadcastGameState(ref.code);
+        break;
+      }
+
+      default: {
+        const ref = roomManager.getSocketRef(id);
+        if (!ref) {
+          send(ws, { type: "error", message: "ルームに参加していません" });
+          return;
+        }
+        const err = roomManager.handleGameAction(ref.playerId, ref.code, message);
+        if (err) {
+          send(ws, { type: "error", message: err });
+          return;
+        }
+        broadcastRoom(ref.code);
+        broadcastGameState(ref.code);
+        break;
+      }
     }
   });
 
@@ -109,9 +167,18 @@ wss.on("connection", (ws) => {
     const code = roomManager.removeSocket(id);
     if (code) {
       broadcastRoom(code);
+      broadcastGameState(code);
     }
   });
 });
+
+setInterval(() => {
+  const codes = roomManager.tickGames(Date.now());
+  for (const code of codes) {
+    broadcastRoom(code);
+    broadcastGameState(code);
+  }
+}, 1000);
 
 httpServer.listen(PORT, () => {
   console.log(`Server listening on :${PORT}`);

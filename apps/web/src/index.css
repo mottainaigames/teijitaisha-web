@@ -111,3 +111,88 @@ button.secondary {
   font-size: 0.8rem;
   color: #64748b;
 }
+
+.game-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.opponents {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.opponent {
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.opponent.current {
+  outline: 2px solid #2563eb;
+}
+
+.opponent.retired {
+  opacity: 0.5;
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.card-chip {
+  background: #e0e7ff;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.actions {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.actions button {
+  margin-bottom: 0.35rem;
+}
+
+.actions p {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.notice {
+  background: #fef3c7;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.badge {
+  background: #fecaca;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.my-hand {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}

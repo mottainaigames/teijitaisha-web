@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RoomPublic, ServerMessage } from "@teijitaisha/shared";
-import { MIN_PLAYERS, MAX_PLAYERS } from "@teijitaisha/shared";
+import type {
+  GameView,
+  RoomPublic,
+  ServerMessage,
+} from "@teijitaisha/shared";
+import { GameScreen } from "./GameScreen";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080";
 
-type Screen = "home" | "lobby";
+type Screen = "home" | "game";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [playerName, setPlayerName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<RoomPublic | null>(null);
+  const [gameView, setGameView] = useState<GameView | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -33,11 +38,19 @@ export default function App() {
         case "room_joined":
           setRoom(data.room);
           setPlayerId(data.playerId);
-          setScreen("lobby");
+          setScreen("game");
           setError(null);
           break;
         case "room_updated":
           setRoom(data.room);
+          break;
+        case "game_started":
+          setRoom(data.room);
+          setScreen("game");
+          break;
+        case "game_state":
+          setGameView(data.view);
+          setScreen("game");
           break;
         case "error":
           setError(data.message);
@@ -55,10 +68,11 @@ export default function App() {
 
   const send = (payload: object) => {
     const ws = connect();
+    const json = JSON.stringify(payload);
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(payload));
+      ws.send(json);
     } else {
-      ws.addEventListener("open", () => ws.send(JSON.stringify(payload)), { once: true });
+      ws.addEventListener("open", () => ws.send(json), { once: true });
     }
   };
 
@@ -72,14 +86,45 @@ export default function App() {
     send({ type: "join_room", code: joinCode.trim().toUpperCase(), playerName });
   };
 
-  const isHost = room && playerId === room.hostId;
+  const lobbyView: GameView | null =
+    room && playerId
+      ? {
+          phase: "lobby",
+          seats: room.players.map((p) => ({
+            playerId: p.id,
+            name: p.name,
+            status: p.status,
+            handCount: p.handCount,
+            seatIndex: p.seatIndex,
+          })),
+          currentPlayerId: null,
+          myPlayerId: playerId,
+          myHand: [],
+          drawableHands: {},
+          discardTypes: [],
+          pairsRemainingThisTurn: 1,
+          nomikaiBlocked: false,
+          effectCard: null,
+          effectStep: "none",
+          pending: null,
+          result: null,
+          revealedCard: null,
+          meetingDeclarations: {},
+          peekedCards: [],
+          canAct: false,
+          deadlineAt: null,
+        }
+      : null;
+
+  const view = gameView ?? lobbyView;
 
   return (
     <div className="app">
       <h1>定時退社</h1>
-      <p className="subtitle">Mottainai Games — Web版（MVP）</p>
+      <p className="subtitle">Mottainai Games — Web版</p>
 
       {!connected && <p className="status">サーバー接続中…</p>}
+      {error && <p className="error">{error}</p>}
 
       {screen === "home" && (
         <div className="card">
@@ -91,8 +136,11 @@ export default function App() {
             placeholder="社員名"
             maxLength={20}
           />
-          {error && <p className="error">{error}</p>}
-          <button type="button" onClick={handleCreate} disabled={!connected || !playerName.trim()}>
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={!connected || !playerName.trim()}
+          >
             ルームを作成
           </button>
           <label htmlFor="code" style={{ marginTop: "1rem" }}>
@@ -116,31 +164,21 @@ export default function App() {
         </div>
       )}
 
-      {screen === "lobby" && room && (
-        <div className="card">
-          <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
-          <p className="room-code">{room.code}</p>
-          <p className="status" style={{ textAlign: "center" }}>
-            このコードを共有してください
-          </p>
-          <ul className="player-list">
-            {room.players.map((p) => (
-              <li key={p.id}>
-                {p.name}
-                {p.id === room.hostId && "（ホスト）"}
-                <span className="status"> — {p.status}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="status" style={{ marginTop: "1rem" }}>
-            {room.players.length} / {MAX_PLAYERS} 人（{MIN_PLAYERS}人から開始可能）
-          </p>
-          {isHost && (
-            <button type="button" disabled>
-              ゲームを開始（未実装）
-            </button>
-          )}
-        </div>
+      {screen === "game" && room && playerId && view && (
+        <GameScreen
+          room={room}
+          view={view}
+          playerId={playerId}
+          onStart={() => send({ type: "start_game" })}
+          onDraw={(cardId) => send({ type: "draw_card", cardId })}
+          onPlayPair={(cardType) => send({ type: "play_pair", cardType })}
+          onSkipPlay={() => send({ type: "skip_play" })}
+          onSelectTarget={(targetId) => send({ type: "select_target", targetId })}
+          onSelectCard={(cardId) => send({ type: "select_card", cardId })}
+          onInfoShare={(cardId) => send({ type: "info_share_select", cardId })}
+          onTrade={(cardId) => send({ type: "trade_select", cardId })}
+          onTrainingTake={(take, cardId) => send({ type: "training_take", take, cardId })}
+        />
       )}
     </div>
   );
