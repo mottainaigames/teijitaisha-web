@@ -47,6 +47,28 @@ export interface SeatPublic {
   seatIndex: number;
 }
 
+export type CpuProcessStep = "thinking" | "acting" | "effect";
+
+export interface CpuProcessStatus {
+  playerId: PlayerId;
+  playerName: string;
+  step: CpuProcessStep;
+  message: string;
+}
+
+export interface GameActivityEntry {
+  id: string;
+  at: number;
+  message: string;
+  cardType?: CardType;
+}
+
+export interface LastPlayInfo {
+  actorName: string;
+  cardType: CardType;
+  at: number;
+}
+
 /** クライアント向けゲーム状態（手札は自分のみ） */
 export interface GameView {
   phase: GamePhase;
@@ -68,6 +90,12 @@ export interface GameView {
   peekedCards: CardInstance[];
   canAct: boolean;
   deadlineAt: number | null;
+  /** 直近の出来事ログ（古い順） */
+  activityLog: GameActivityEntry[];
+  /** CPU が考えている／行動中の表示 */
+  cpuStatus: CpuProcessStatus | null;
+  /** 直前に場に出されたペア */
+  lastPlay: LastPlayInfo | null;
 }
 
 export interface PendingView {

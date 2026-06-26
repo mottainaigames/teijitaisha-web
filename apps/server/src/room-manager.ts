@@ -185,53 +185,75 @@ export class RoomManager {
     const updated: RoomCode[] = [];
     for (const room of this.rooms.values()) {
       if (!room.game || room.game.phase === "game_end") continue;
-      let changed = false;
       if (room.game.pending && now >= room.game.pending.deadlineAt) {
         room.game.tick(now);
         this.syncHandCounts(room);
-        changed = true;
+        updated.push(room.code);
       }
-      if (this.processCpuActions(room)) {
-        changed = true;
-      }
-      if (changed) updated.push(room.code);
     }
     return updated;
   }
 
-  processCpuActions(room: Room): boolean {
-    if (!room.game || room.game.phase === "game_end") return false;
+  getNextCpuActor(code: RoomCode): { id: PlayerId; name: string } | null {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room?.game || room.game.result) return null;
 
     const cpuIds = new Set(
       [...room.players.values()].filter((p) => p.isCpu).map((p) => p.id),
     );
-    if (cpuIds.size === 0) return false;
+    if (cpuIds.size === 0) return null;
 
-    let anyAction = false;
-    for (let guard = 0; guard < 50; guard++) {
-      if (!room.game.pending || room.game.result) break;
+    const actors = this.getPendingCpuActors(room, cpuIds);
+    if (actors.length === 0) return null;
 
-      const actors = this.getPendingCpuActors(room, cpuIds);
-      if (actors.length === 0) break;
-
-      let actedThisRound = false;
-      for (const playerId of actors) {
-        const err = room.game.actRandom(playerId);
-        if (!err) {
-          actedThisRound = true;
-          anyAction = true;
-          this.syncHandCounts(room);
-        }
-      }
-      if (!actedThisRound) break;
-    }
-    return anyAction;
+    const id = actors[0]!;
+    const name = room.players.get(id)?.name ?? room.game.players.get(id)?.name ?? "CPU";
+    return { id, name };
   }
 
-  processCpuActionsForCode(code: RoomCode): boolean {
+  prepareCpuAction(
+    code: RoomCode,
+    playerId: PlayerId,
+  ): { preview: string; needsEffect: boolean } | null {
     const room = this.rooms.get(code.toUpperCase());
-    if (!room) return false;
-    return this.processCpuActions(room);
+    if (!room?.game) return null;
+    return room.game.prepareCpuAction(playerId);
+  }
+
+  executePreparedCpuAction(code: RoomCode): boolean {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room?.game) return false;
+    const err = room.game.executePreparedCpuAction();
+    if (!err) this.syncHandCounts(room);
+    return !err;
+  }
+
+  setCpuStatus(
+    code: RoomCode,
+    playerId: PlayerId,
+    playerName: string,
+    step: "thinking" | "acting" | "effect",
+    message: string,
+  ): void {
+    const room = this.rooms.get(code.toUpperCase());
+    room?.game?.setCpuStatus(playerId, playerName, step, message);
+  }
+
+  clearCpuStatus(code: RoomCode): void {
+    const room = this.rooms.get(code.toUpperCase());
+    room?.game?.clearCpuStatus();
+  }
+
+  hasPendingCpu(code: RoomCode): boolean {
+    return this.getNextCpuActor(code) !== null;
+  }
+
+  getRoomCodesWithPendingCpu(): RoomCode[] {
+    const codes: RoomCode[] = [];
+    for (const room of this.rooms.values()) {
+      if (this.hasPendingCpu(room.code)) codes.push(room.code);
+    }
+    return codes;
   }
 
   private getPendingCpuActors(room: Room, cpuIds: Set<PlayerId>): PlayerId[] {

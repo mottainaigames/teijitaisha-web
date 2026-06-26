@@ -1,6 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { RoomCode, ServerMessage } from "@teijitaisha/shared";
+import {
+  CPU_ACT_MS,
+  CPU_EFFECT_MS,
+  CPU_QUICK_MS,
+  CPU_THINK_MS,
+  type RoomCode,
+  type ServerMessage,
+} from "@teijitaisha/shared";
 import {
   parseClientMessage,
   RoomManager,
@@ -12,6 +19,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
 
 const roomManager = new RoomManager();
 const socketRegistry = new WeakMap<WebSocket, string>();
+const cpuRunning = new Set<RoomCode>();
 
 function getSocketId(ws: WebSocket): string {
   let id = socketRegistry.get(ws);
@@ -82,16 +90,82 @@ function broadcastGameState(code: RoomCode): void {
   }
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runCpuTurns(code: RoomCode): Promise<void> {
+  if (cpuRunning.has(code)) return;
+  cpuRunning.add(code);
+
+  try {
+    while (roomManager.hasPendingCpu(code)) {
+      const actor = roomManager.getNextCpuActor(code);
+      if (!actor) break;
+
+      roomManager.setCpuStatus(
+        code,
+        actor.id,
+        actor.name,
+        "thinking",
+        `${actor.name} 思考中…`,
+      );
+      broadcastGameState(code);
+      await delay(CPU_THINK_MS);
+
+      const prepared = roomManager.prepareCpuAction(code, actor.id);
+      if (!prepared) {
+        roomManager.clearCpuStatus(code);
+        break;
+      }
+
+      roomManager.setCpuStatus(
+        code,
+        actor.id,
+        actor.name,
+        "acting",
+        `${actor.name} → ${prepared.preview}`,
+      );
+      broadcastGameState(code);
+      await delay(CPU_ACT_MS);
+
+      const ok = roomManager.executePreparedCpuAction(code);
+      if (!ok) {
+        roomManager.clearCpuStatus(code);
+        break;
+      }
+
+      if (prepared.needsEffect) {
+        roomManager.setCpuStatus(
+          code,
+          actor.id,
+          actor.name,
+          "effect",
+          "効果処理中…",
+        );
+        broadcastRoom(code);
+        broadcastGameState(code);
+        await delay(CPU_EFFECT_MS);
+      } else {
+        await delay(CPU_QUICK_MS);
+      }
+
+      roomManager.clearCpuStatus(code);
+      broadcastRoom(code);
+      broadcastGameState(code);
+    }
+  } finally {
+    cpuRunning.delete(code);
+    if (roomManager.hasPendingCpu(code)) {
+      void runCpuTurns(code);
+    }
+  }
+}
+
 function flushRoom(code: RoomCode): void {
   broadcastRoom(code);
   broadcastGameState(code);
-
-  let guard = 0;
-  while (roomManager.processCpuActionsForCode(code) && guard < 50) {
-    guard++;
-    broadcastRoom(code);
-    broadcastGameState(code);
-  }
+  void runCpuTurns(code);
 }
 
 wss.on("connection", (ws) => {
@@ -213,7 +287,10 @@ wss.on("connection", (ws) => {
 });
 
 setInterval(() => {
-  const codes = roomManager.tickGames(Date.now());
+  const codes = new Set(roomManager.tickGames(Date.now()));
+  for (const code of roomManager.getRoomCodesWithPendingCpu()) {
+    codes.add(code);
+  }
   for (const code of codes) {
     flushRoom(code);
   }

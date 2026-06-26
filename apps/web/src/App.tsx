@@ -132,6 +132,9 @@ export default function App() {
           peekedCards: [],
           canAct: false,
           deadlineAt: null,
+          activityLog: [],
+          cpuStatus: null,
+          lastPlay: null,
         }
       : null;
 

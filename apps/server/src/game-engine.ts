@@ -16,6 +16,10 @@ import {
   type PendingInputType,
   type PendingView,
   type PlayerId,
+  type CpuProcessStep,
+  type CpuProcessStatus,
+  type GameActivityEntry,
+  type LastPlayInfo,
 } from "@teijitaisha/shared";
 import { randomUUID } from "node:crypto";
 
@@ -61,6 +65,14 @@ export class GameEngine {
   meetingDeclarations: Record<PlayerId, boolean> = {};
   peekedCards: CardInstance[] = [];
 
+  activityLog: GameActivityEntry[] = [];
+  cpuStatus: CpuProcessStatus | null = null;
+  lastPlay: LastPlayInfo | null = null;
+  private plannedCpuAction: {
+    playerId: PlayerId;
+    action: { type: string; [key: string]: unknown };
+  } | null = null;
+
   private readonly random: () => number;
 
   constructor(
@@ -103,6 +115,8 @@ export class GameEngine {
     this.phase = "draw";
     this.pairsRemainingThisTurn = 1;
     this.nomikaiBlockedPlayerId = null;
+    this.log("ゲーム開始");
+    this.log(`${this.playerName(this.seats[this.currentSeatIndex]!)}のターン`);
     this.beginDrawPhase();
     return null;
   }
@@ -146,6 +160,88 @@ export class GameEngine {
   tick(now: number): void {
     if (!this.pending || now < this.pending.deadlineAt) return;
     this.autoResolve();
+  }
+
+  /** CPU 用: 次の行動を決めて保持 */
+  prepareCpuAction(playerId: PlayerId): { preview: string; needsEffect: boolean } | null {
+    const action = this.pickRandomAction(playerId);
+    if (!action) return null;
+    this.plannedCpuAction = { playerId, action };
+    return {
+      preview: this.formatActionPreview(action),
+      needsEffect: this.actionNeedsEffectDelay(action),
+    };
+  }
+
+  executePreparedCpuAction(): string | null {
+    if (!this.plannedCpuAction) return "行動が未準備です";
+    const { playerId, action } = this.plannedCpuAction;
+    this.plannedCpuAction = null;
+    return this.handleAction(playerId, action);
+  }
+
+  setCpuStatus(
+    playerId: PlayerId,
+    playerName: string,
+    step: CpuProcessStep,
+    message: string,
+  ): void {
+    this.cpuStatus = { playerId, playerName, step, message };
+  }
+
+  clearCpuStatus(): void {
+    this.cpuStatus = null;
+  }
+
+  private formatActionPreview(action: { type: string; [key: string]: unknown }): string {
+    switch (action.type) {
+      case "draw_card":
+        return "カードを引く";
+      case "skip_play":
+        return "ペアを出さない";
+      case "play_pair":
+        return `${CARD_LABELS[action.cardType as CardType]}のペアを出す`;
+      case "select_target":
+        return `${this.playerName(action.targetId as PlayerId)}を対象にする`;
+      case "select_card":
+        return "カードを選ぶ";
+      case "info_share_select":
+        return "左隣に渡すカードを選ぶ";
+      case "trade_select":
+        return "交換するカードを選ぶ";
+      case "training_take":
+        if (action.take) {
+          const card = this.peekedCards.find((c) => c.id === action.cardId);
+          return card ? `${CARD_LABELS[card.type]}を加える` : "カードを加える";
+        }
+        return "カードを加えない";
+      default:
+        return "行動する";
+    }
+  }
+
+  private actionNeedsEffectDelay(action: { type: string; [key: string]: unknown }): boolean {
+    return (
+      action.type === "play_pair" ||
+      action.type === "select_target" ||
+      action.type === "select_card"
+    );
+  }
+
+  private playerName(playerId: PlayerId): string {
+    return this.players.get(playerId)?.name ?? "?";
+  }
+
+  private log(message: string, cardType?: CardType): void {
+    this.activityLog.push({
+      id: randomUUID(),
+      at: Date.now(),
+      message,
+      cardType,
+    });
+    if (this.activityLog.length > 30) {
+      this.activityLog.shift();
+    }
   }
 
   /** CPU 用: 有効ならランダム行動、なければスキップ相当の操作 */
@@ -273,6 +369,9 @@ export class GameEngine {
       peekedCards: forPlayerId === this.effectUserId ? [...this.peekedCards] : [],
       canAct: this.pending?.playerIds.includes(forPlayerId) ?? false,
       deadlineAt: this.pending?.deadlineAt ?? null,
+      activityLog: [...this.activityLog],
+      cpuStatus: this.cpuStatus ? { ...this.cpuStatus } : null,
+      lastPlay: this.lastPlay ? { ...this.lastPlay } : null,
     };
   }
 
@@ -325,8 +424,7 @@ export class GameEngine {
         const sourceId = this.pending.sourcePlayerId!;
         const source = this.players.get(sourceId)!;
         const card = pickRandom(source.hand, this.random);
-        this.transferCard(sourceId, drawer, card.id);
-        this.afterDraw(drawer);
+        this.resolveDraw(drawer, card.id);
         break;
       }
       case "play_or_skip":
@@ -340,8 +438,13 @@ export class GameEngine {
       }
       case "select_card": {
         const user = this.pending.effectUserId!;
-        const target = this.players.get(this.pending.targetId!)!;
-        const card = pickRandom(target.hand, this.random);
+        const cardType = this.pending.effectCard!;
+        const hand =
+          cardType === "pawahara"
+            ? this.players.get(user)!.hand
+            : this.players.get(this.pending.targetId!)!.hand;
+        if (hand.length === 0) break;
+        const card = pickRandom(hand, this.random);
         this.resolveSelectCard(user, card.id);
         break;
       }
@@ -398,12 +501,16 @@ export class GameEngine {
       return "そのカードは選べません";
     }
     this.transferCard(sourceId, playerId, cardId);
+    this.log(
+      `${this.playerName(playerId)}が${this.playerName(sourceId)}からカードを1枚引きました`,
+    );
     this.afterDraw(playerId);
     return null;
   }
 
   private afterDraw(playerId: PlayerId): void {
     if (this.nomikaiBlockedPlayerId === playerId) {
+      this.log(`${this.playerName(playerId)}は飲み会デバフでペアを出せず、ターン終了`);
       this.nomikaiBlockedPlayerId = null;
       this.endTurn();
       return;
@@ -427,6 +534,7 @@ export class GameEngine {
   private resolveSkipPlay(playerId: PlayerId): string | null {
     if (!this.pending || this.pending.type !== "play_or_skip") return "不正な操作です";
     if (playerId !== this.pending.playerIds[0]) return "あなたの番ではありません";
+    this.log(`${this.playerName(playerId)}はペアを出さなかった`);
     this.endTurn();
     return null;
   }
@@ -444,6 +552,15 @@ export class GameEngine {
     this.effectCard = cardType;
     this.effectUserId = playerId;
     this.phase = "effect";
+    this.lastPlay = {
+      actorName: this.playerName(playerId),
+      cardType,
+      at: Date.now(),
+    };
+    this.log(
+      `${this.playerName(playerId)}が${CARD_LABELS[cardType]}のペアを場に出した`,
+      cardType,
+    );
     this.runEffect(cardType, playerId);
     return null;
   }
@@ -455,27 +572,42 @@ export class GameEngine {
 
     switch (cardType) {
       case "norma":
+        this.log("効果なし");
         this.afterEffectResolved();
         break;
       case "nomikai": {
         const nextSeat = this.nextActiveSeat(this.currentSeatIndex);
         this.nomikaiBlockedPlayerId = this.seats[nextSeat]!;
+        this.log(
+          `${this.playerName(this.nomikaiBlockedPlayerId)}は次のターン、ペアを出せない（飲み会）`,
+        );
         this.afterEffectResolved();
         break;
       }
       case "enadori":
         this.pairsRemainingThisTurn++;
+        this.log(`${this.playerName(userId)}はもう1組ペアを出せる（エナドリ）`);
         this.afterEffectResolved();
         break;
       case "tabako_kyuukei":
         this.effectStep = "tabaco_dump";
-        for (const id of this.activePlayerIds()) {
-          const p = this.players.get(id)!;
-          const tabaco = p.hand.filter((c) => c.type === "tabako_kyuukei");
-          for (const c of tabaco) {
-            p.hand = removeCardById(p.hand, c.id).hand;
-            this.discardTypes.push(c.type);
+        {
+          let count = 0;
+          for (const id of this.activePlayerIds()) {
+            const p = this.players.get(id)!;
+            const tabaco = p.hand.filter((c) => c.type === "tabako_kyuukei");
+            for (const c of tabaco) {
+              p.hand = removeCardById(p.hand, c.id).hand;
+              this.discardTypes.push(c.type);
+              count++;
+            }
           }
+          this.log(
+            count > 0
+              ? `全員のタバコ休憩${count}枚が場に出された`
+              : "タバコ休憩は場に出されなかった",
+            "tabako_kyuukei",
+          );
         }
         this.afterEffectResolved();
         break;
@@ -486,10 +618,19 @@ export class GameEngine {
           const hasZangyo = p.hand.some((c) => c.type === "zangyo");
           if (hasZangyo) this.meetingDeclarations[id] = true;
         }
+        if (Object.keys(this.meetingDeclarations).length > 0) {
+          const names = Object.keys(this.meetingDeclarations)
+            .map((id) => this.playerName(id))
+            .join("、");
+          this.log(`会議: ${names}が残業カードを持っていると宣言`, "kaigi");
+        } else {
+          this.log("会議: 残業カードの宣言者なし", "kaigi");
+        }
         this.afterEffectResolved();
         break;
       case "jouhou_kyouyu":
         this.effectStep = "info_share";
+        this.log("情報共有: 全員が左隣に渡すカードを選ぶ", "jouhou_kyouyu");
         this.pending = {
           type: "info_share",
           playerIds: [...this.activePlayerIds()],
@@ -550,6 +691,10 @@ export class GameEngine {
           ...this.players.get(userId)!.hand,
           ...this.players.get(targetId)!.hand,
         ];
+        this.log(
+          `${this.playerName(userId)}と${this.playerName(targetId)}の手札がお互いに見えた（社内恋愛）`,
+          "shanai_renai",
+        );
         this.afterEffectResolved();
         return null;
       case "shinjin_kyouiku": {
@@ -567,6 +712,10 @@ export class GameEngine {
           this.afterEffectResolved();
           return null;
         }
+        this.log(
+          `${this.playerName(userId)}が${this.playerName(targetId)}のカードを${peekCount}枚見た（新人教育）`,
+          "shinjin_kyouiku",
+        );
         this.pending = {
           type: "training_take",
           playerIds: [userId],
@@ -580,6 +729,10 @@ export class GameEngine {
       }
       case "torihiki":
         this.effectStep = "trade";
+        this.log(
+          `${this.playerName(userId)}と${this.playerName(targetId)}がカード交換（取引）`,
+          "torihiki",
+        );
         this.pending = {
           type: "trade",
           playerIds: [userId, targetId],
@@ -593,6 +746,10 @@ export class GameEngine {
       case "rouki":
       case "pawahara":
         this.effectStep = "select_card";
+        this.log(
+          `${this.playerName(userId)}が${this.playerName(targetId)}のカードを選ぶ（${CARD_LABELS[cardType]}）`,
+          cardType,
+        );
         this.pending = {
           type: "select_card",
           playerIds: [userId],
@@ -610,35 +767,56 @@ export class GameEngine {
   private resolveSelectCard(userId: PlayerId, cardId: string): string | null {
     if (!this.pending || this.pending.type !== "select_card") return "不正な操作です";
     if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
+
+    const cardType = this.pending.effectCard!;
+
+    if (cardType === "pawahara") {
+      const user = this.players.get(userId)!;
+      if (!user.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
+      const targetId = this.pending.targetId!;
+      const { card, hand } = removeCardById(user.hand, cardId);
+      user.hand = hand;
+      this.players.get(targetId)!.hand.push(card);
+      this.log(
+        `${this.playerName(userId)}が${CARD_LABELS[card.type]}を${this.playerName(targetId)}に渡した`,
+        card.type,
+      );
+      this.afterEffectResolved();
+      return null;
+    }
+
     const targetId = this.pending.targetId!;
     const target = this.players.get(targetId)!;
     if (!target.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
 
-    const cardType = this.pending.effectCard!;
     if (cardType === "rouki") {
       const { card, hand } = removeCardById(target.hand, cardId);
       target.hand = hand;
       this.revealedCard = { type: card.type, ownerId: targetId };
 
       if (card.type === "zangyo") {
+        this.log(
+          `${this.playerName(targetId)}の残業が摘発！${this.playerName(targetId)}の負け`,
+          "zangyo",
+        );
         this.endGameRouki(userId, targetId);
         return null;
       }
       if (card.type === "pawahara") {
         const user = this.players.get(userId)!;
         user.hand.push(card);
+        this.log(
+          `${CARD_LABELS[card.type]}が公開され、${this.playerName(userId)}の手札へ`,
+          card.type,
+        );
         this.afterEffectResolved();
         return null;
       }
       target.hand.push(card);
-      this.afterEffectResolved();
-      return null;
-    }
-
-    if (cardType === "pawahara") {
-      const { card, hand } = removeCardById(this.players.get(userId)!.hand, cardId);
-      this.players.get(userId)!.hand = hand;
-      this.players.get(targetId)!.hand.push(card);
+      this.log(
+        `${CARD_LABELS[card.type]}を公開して戻した（${this.playerName(targetId)}）`,
+        card.type,
+      );
       this.afterEffectResolved();
       return null;
     }
@@ -651,6 +829,8 @@ export class GameEngine {
     const p = this.players.get(playerId)!;
     if (!p.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
     this.pending.infoShareSelections!.set(playerId, cardId);
+    const card = p.hand.find((c) => c.id === cardId)!;
+    this.log(`${this.playerName(playerId)}が渡すカードを選択（${CARD_LABELS[card.type]}）`);
     const active = this.activePlayerIds();
     if ([...this.pending.infoShareSelections!.keys()].length >= active.length) {
       this.finishInfoShare();
@@ -673,6 +853,7 @@ export class GameEngine {
         this.transferCard(from, to, cardId);
       }
     }
+    this.log("情報共有: 選んだカードが左隣へ渡された", "jouhou_kyouyu");
     this.afterEffectResolved();
   }
 
@@ -700,6 +881,10 @@ export class GameEngine {
     playerB.hand = removedB.hand;
     playerA.hand.push(removedB.card);
     playerB.hand.push(removedA.card);
+    this.log(
+      `${this.playerName(a!)}と${this.playerName(b!)}が${CARD_LABELS[removedA.card.type]}と${CARD_LABELS[removedB.card.type]}を交換`,
+      "torihiki",
+    );
     this.afterEffectResolved();
   }
 
@@ -714,6 +899,12 @@ export class GameEngine {
       const { hand } = removeCardById(target.hand, cardId);
       target.hand = hand;
       this.players.get(userId)!.hand.push(peeked);
+      this.log(
+        `${this.playerName(userId)}が${CARD_LABELS[peeked.type]}を手札に加えた（新人教育）`,
+        peeked.type,
+      );
+    } else {
+      this.log(`${this.playerName(userId)}はカードを加えなかった（新人教育）`);
     }
     this.afterEffectResolved();
     return null;
@@ -749,11 +940,16 @@ export class GameEngine {
   }
 
   private checkRetirement(): boolean {
+    const retiredNow: string[] = [];
     for (const id of this.activePlayerIds()) {
       const p = this.players.get(id)!;
       if (p.hand.length === 0) {
         p.status = "retired";
+        retiredNow.push(this.playerName(id));
       }
+    }
+    if (retiredNow.length > 0) {
+      this.log(`${retiredNow.join("、")}が手札0枚で退社`);
     }
     const active = this.activePlayerIds();
     if (active.length <= 1) {
@@ -774,6 +970,11 @@ export class GameEngine {
       winnerIds: retired,
       loserIds: loser ? [loser] : [],
     };
+    this.log(
+      loser
+        ? `ゲーム終了: ${this.playerName(loser)}の負け`
+        : "ゲーム終了",
+    );
   }
 
   private endGameRouki(roukiUserId: PlayerId, zangyoUserId: PlayerId): void {
@@ -787,6 +988,7 @@ export class GameEngine {
       roukiPlayerId: roukiUserId,
       zangyoPlayerId: zangyoUserId,
     };
+    this.log("ゲーム終了: 労基摘発");
   }
 
   private endTurn(): void {
@@ -796,6 +998,8 @@ export class GameEngine {
     this.pending = null;
     this.currentSeatIndex = this.nextActiveSeat(this.currentSeatIndex);
     if (this.checkRetirement()) return;
+    const nextId = this.seats[this.currentSeatIndex]!;
+    this.log(`${this.playerName(nextId)}のターン`);
     this.beginDrawPhase();
   }
 

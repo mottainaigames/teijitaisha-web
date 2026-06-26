@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CARD_LABELS,
   MAX_PLAYERS,
@@ -7,6 +7,7 @@ import {
   type GameView,
   type RoomPublic,
 } from "@teijitaisha/shared";
+import { CardFan, PairCard, PlayingCard } from "./cards-ui";
 
 interface Props {
   room: RoomPublic;
@@ -120,6 +121,66 @@ export function GameScreen({
   }
 
   const pairable = countPairs(view.myHand);
+  const activityLogRef = useRef<HTMLDivElement>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+
+  const pendingKey = view.pending
+    ? `${view.pending.type}:${view.pending.playerIds.join(",")}:${view.pending.sourcePlayerId ?? ""}`
+    : null;
+
+  useEffect(() => {
+    setSelectedCardId(null);
+    setSelectedPairType(null);
+    setSelectedTargetId(null);
+  }, [pendingKey]);
+
+  useEffect(() => {
+    const el = activityLogRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [view.activityLog.length, view.activityLog[view.activityLog.length - 1]?.id]);
+
+  const isDrawPhase =
+    view.canAct && view.pending?.type === "draw" && !!view.pending.sourcePlayerId;
+  const handPickMode =
+    view.canAct && view.pending
+      ? view.pending.type === "info_share" || view.pending.type === "trade"
+        ? view.pending.type
+        : view.pending.type === "play_or_skip"
+          ? "play_or_skip"
+          : view.pending.type === "select_card" && view.effectCard === "pawahara"
+            ? "pawahara_give"
+            : null
+      : null;
+
+  const handleDrawPick = (cardId: string) => {
+    twoStepPick(cardId, selectedCardId, setSelectedCardId, onDraw);
+  };
+
+  const handleMyCardClick = (card: GameView["myHand"][0]) => {
+    if (handPickMode === "pawahara_give") {
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onSelectCard);
+      return;
+    }
+    if (handPickMode === "info_share") {
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onInfoShare);
+      return;
+    }
+    if (handPickMode === "trade") {
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onTrade);
+      return;
+    }
+    if (handPickMode === "play_or_skip" && pairable.includes(card.type)) {
+      setSelectedPairType(card.type);
+    }
+  };
+
+  const isMyCardSelected = (card: GameView["myHand"][0]) => {
+    if (selectedCardId === card.id) return true;
+    if (handPickMode === "play_or_skip" && selectedPairType === card.type) return true;
+    return false;
+  };
 
   return (
     <div className="game">
@@ -133,6 +194,20 @@ export function GameScreen({
         )}
       </div>
 
+      {view.cpuStatus && (
+        <div className={`cpu-banner cpu-banner--${view.cpuStatus.step}`}>
+          {view.cpuStatus.message}
+        </div>
+      )}
+
+      {view.lastPlay && (
+        <div className="field-cards">
+          <p className="field-cards__label">場に出た（{view.lastPlay.actorName}）</p>
+          <PlayingCard cardType={view.lastPlay.cardType} />
+          <PlayingCard cardType={view.lastPlay.cardType} />
+        </div>
+      )}
+
       <div className="opponents">
         {view.seats
           .filter((s) => s.playerId !== playerId)
@@ -142,6 +217,14 @@ export function GameScreen({
               seat={s}
               isCurrent={s.playerId === view.currentPlayerId}
               isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
+              isDrawSource={isDrawPhase && view.pending?.sourcePlayerId === s.playerId}
+              drawableCards={
+                isDrawPhase && view.pending?.sourcePlayerId === s.playerId
+                  ? (view.drawableHands[s.playerId] ?? [])
+                  : []
+              }
+              selectedDrawId={selectedCardId}
+              onSelectDraw={handleDrawPick}
             />
           ))}
       </div>
@@ -164,26 +247,32 @@ export function GameScreen({
       {view.peekedCards.length > 0 && (
         <div className="peek">
           <p>見えたカード:</p>
-          <div className="hand">
-            {view.peekedCards.map((c) => (
-              <span key={c.id} className="card-chip">
-                {CARD_LABELS[c.type]}
-              </span>
+          <CardFan>
+            {view.peekedCards.map((c, i) => (
+              <PlayingCard
+                key={c.id}
+                cardType={c.type}
+                index={i}
+                total={view.peekedCards.length}
+              />
             ))}
-          </div>
+          </CardFan>
         </div>
       )}
 
       <PendingActions
         view={view}
         pairable={pairable}
-        onDraw={onDraw}
+        selectedCardId={selectedCardId}
+        selectedPairType={selectedPairType}
+        selectedTargetId={selectedTargetId}
+        onSelectCardId={setSelectedCardId}
+        onSelectPairType={setSelectedPairType}
+        onSelectTargetId={setSelectedTargetId}
         onPlayPair={onPlayPair}
         onSkipPlay={onSkipPlay}
         onSelectTarget={onSelectTarget}
         onSelectCard={onSelectCard}
-        onInfoShare={onInfoShare}
-        onTrade={onTrade}
         onTrainingTake={onTrainingTake}
       />
 
@@ -191,18 +280,58 @@ export function GameScreen({
         <p>
           あなたの手札（{me?.handCount ?? 0}枚）
           {me?.status === "retired" && " — 退社済み"}
+          {handPickMode === "play_or_skip" && " — ペアをタップして選択"}
+          {handPickMode === "info_share" && " — タップで選択 → もう一度で渡す"}
+          {handPickMode === "trade" && " — タップで選択 → もう一度で交換"}
+          {handPickMode === "pawahara_give" && " — タップで選択 → もう一度で渡す"}
         </p>
-        <div className="hand">
-          {view.myHand.map((c) => (
-            <span key={c.id} className="card-chip">
-              {CARD_LABELS[c.type]}
-            </span>
-          ))}
-        </div>
+        {view.myHand.length > 0 ? (
+          <CardFan>
+            {view.myHand.map((c, i) => (
+              <PlayingCard
+                key={c.id}
+                cardType={c.type}
+                index={i}
+                total={view.myHand.length}
+                selectable={
+                  handPickMode === "info_share" ||
+                  handPickMode === "trade" ||
+                  handPickMode === "pawahara_give" ||
+                  (handPickMode === "play_or_skip" && pairable.includes(c.type))
+                }
+                selected={isMyCardSelected(c)}
+                confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
+                onClick={
+                  handPickMode
+                    ? () => handleMyCardClick(c)
+                    : undefined
+                }
+              />
+            ))}
+          </CardFan>
+        ) : (
+          <p className="status">手札なし</p>
+        )}
       </div>
 
       {view.discardTypes.length > 0 && (
-        <p className="status">場: {view.discardTypes.slice(-6).map((t) => CARD_LABELS[t]).join("、")}</p>
+        <p className="status">場の履歴: {view.discardTypes.slice(-8).map((t) => CARD_LABELS[t]).join("、")}</p>
+      )}
+
+      {view.activityLog.length > 0 && (
+        <div className="activity-log" ref={activityLogRef}>
+          <p className="activity-log-title">ログ</p>
+          <ul>
+            {view.activityLog.map((entry) => (
+              <li key={entry.id}>
+                {entry.cardType && (
+                  <span className="card-chip small">{CARD_LABELS[entry.cardType]}</span>
+                )}
+                {entry.message}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
@@ -212,11 +341,20 @@ function Opponent({
   seat,
   isCurrent,
   isCpu,
+  isDrawSource,
+  drawableCards,
+  selectedDrawId,
+  onSelectDraw,
 }: {
   seat: GameView["seats"][0];
   isCurrent: boolean;
   isCpu: boolean;
+  isDrawSource?: boolean;
+  drawableCards?: { id: string }[];
+  selectedDrawId?: string | null;
+  onSelectDraw?: (id: string) => void;
 }) {
+  const cards = drawableCards ?? [];
   return (
     <div className={`opponent ${isCurrent ? "current" : ""} ${seat.status}`}>
       <strong>
@@ -226,6 +364,26 @@ function Opponent({
       <span>{seat.handCount}枚</span>
       {seat.status === "retired" && <span>退社</span>}
       {seat.status === "disconnected" && <span>切断</span>}
+      {isDrawSource && cards.length > 0 && (
+        <div className="opponent-draw">
+          <p className="opponent-draw-label">✋ 引くカードを選ぶ</p>
+          <CardFan className="card-fan--opponent">
+            {cards.map((c, i) => (
+              <PlayingCard
+                key={c.id}
+                faceDown
+                size="sm"
+                index={i}
+                total={cards.length}
+                selectable
+                selected={selectedDrawId === c.id}
+                confirmReady={selectedDrawId === c.id}
+                onClick={() => onSelectDraw?.(c.id)}
+              />
+            ))}
+          </CardFan>
+        </div>
+      )}
     </div>
   );
 }
@@ -233,40 +391,32 @@ function Opponent({
 function PendingActions({
   view,
   pairable,
-  onDraw,
+  selectedCardId,
+  selectedPairType,
+  selectedTargetId,
+  onSelectCardId,
+  onSelectPairType,
+  onSelectTargetId,
   onPlayPair,
   onSkipPlay,
   onSelectTarget,
   onSelectCard,
-  onInfoShare,
-  onTrade,
   onTrainingTake,
 }: {
   view: GameView;
   pairable: CardType[];
-  onDraw: (cardId: string) => void;
+  selectedCardId: string | null;
+  selectedPairType: CardType | null;
+  selectedTargetId: string | null;
+  onSelectCardId: (id: string | null) => void;
+  onSelectPairType: (t: CardType | null) => void;
+  onSelectTargetId: (id: string | null) => void;
   onPlayPair: (cardType: CardType) => void;
   onSkipPlay: () => void;
   onSelectTarget: (targetId: string) => void;
   onSelectCard: (cardId: string) => void;
-  onInfoShare: (cardId: string) => void;
-  onTrade: (cardId: string) => void;
   onTrainingTake: (take: boolean, cardId?: string) => void;
 }) {
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
-  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
-
-  const pendingKey = view.pending
-    ? `${view.pending.type}:${view.pending.playerIds.join(",")}:${view.pending.sourcePlayerId ?? ""}`
-    : null;
-
-  useEffect(() => {
-    setSelectedCardId(null);
-    setSelectedPairType(null);
-    setSelectedTargetId(null);
-  }, [pendingKey]);
-
   if (!view.canAct || !view.pending) {
     return view.pending ? (
       <p className="status">他のプレイヤーの操作を待っています…</p>
@@ -276,29 +426,11 @@ function PendingActions({
   const p = view.pending;
 
   if (p.type === "draw" && p.sourcePlayerId) {
-    const cards = view.drawableHands[p.sourcePlayerId] ?? [];
+    const sourceName = nameOf(view.seats, p.sourcePlayerId);
     return (
       <div className="actions">
-        <p>右隣から1枚引く（タップして選択 → 確定）:</p>
-        <div className="option-row">
-          {cards.map((c, index) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`option-btn card-back ${selectedCardId === c.id ? "selected" : ""}`}
-              onClick={() => setSelectedCardId(c.id)}
-            >
-              カード{index + 1}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          disabled={!selectedCardId}
-          onClick={() => selectedCardId && onDraw(selectedCardId)}
-        >
-          このカードを引く
-        </button>
+        <p>{sourceName}の手札から1枚引く</p>
+        <p className="status">カードをタップで選択 → もう一度タップで引く</p>
       </div>
     );
   }
@@ -306,21 +438,22 @@ function PendingActions({
   if (p.type === "play_or_skip") {
     return (
       <div className="actions">
-        <p>ペアを出しますか？（種類を選んでから確定）</p>
-        <div className="option-row">
+        <p>ペアを出しますか？</p>
+        <p className="status">手札のカードをタップするか、下のペアから選んでください</p>
+        <div className="pair-row">
           {pairable.map((t) => (
-            <button
+            <PairCard
               key={t}
-              type="button"
-              className={`option-btn ${selectedPairType === t ? "selected" : ""}`}
-              onClick={() => setSelectedPairType(t)}
-            >
-              {CARD_LABELS[t]} ×2
-            </button>
+              cardType={t}
+              selectable
+              selected={selectedPairType === t}
+              onClick={() => onSelectPairType(t)}
+            />
           ))}
         </div>
         <button
           type="button"
+          className="action-confirm"
           disabled={!selectedPairType}
           onClick={() => selectedPairType && onPlayPair(selectedPairType)}
         >
@@ -343,7 +476,7 @@ function PendingActions({
               key={id}
               type="button"
               className={`option-btn ${selectedTargetId === id ? "selected" : ""}`}
-              onClick={() => setSelectedTargetId(id)}
+              onClick={() => onSelectTargetId(id)}
             >
               {nameOf(view.seats, id)}
             </button>
@@ -351,6 +484,7 @@ function PendingActions({
         </div>
         <button
           type="button"
+          className="action-confirm"
           disabled={!selectedTargetId}
           onClick={() => selectedTargetId && onSelectTarget(selectedTargetId)}
         >
@@ -361,31 +495,37 @@ function PendingActions({
   }
 
   if (p.type === "select_card" && p.validCardIds) {
+    if (view.effectCard === "pawahara") {
+      return (
+        <div className="actions">
+          <p>パワハラ: 相手に渡すカードを選ぶ</p>
+          <p className="status">下の手札をタップ → もう一度タップで渡す</p>
+        </div>
+      );
+    }
+
+    const cards = p.validCardIds.map((id) => ({ id, card: findCard(view, id) }));
     return (
       <div className="actions">
         <p>カードを選ぶ:</p>
-        <div className="option-row">
-          {p.validCardIds.map((id) => {
-            const card = findCard(view, id);
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`option-btn ${selectedCardId === id ? "selected" : ""}`}
-                onClick={() => setSelectedCardId(id)}
-              >
-                {card ? CARD_LABELS[card.type] : "？"}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          disabled={!selectedCardId}
-          onClick={() => selectedCardId && onSelectCard(selectedCardId)}
-        >
-          このカードを選ぶ
-        </button>
+        <p className="status">タップで選択 → もう一度タップで確定</p>
+        <CardFan>
+          {cards.map((item, i) => (
+            <PlayingCard
+              key={item.id}
+              faceDown={!item.card}
+              cardType={item.card?.type}
+              index={i}
+              total={cards.length}
+              selectable
+              selected={selectedCardId === item.id}
+              confirmReady={selectedCardId === item.id}
+              onClick={() =>
+                twoStepPick(item.id, selectedCardId, onSelectCardId, onSelectCard)
+              }
+            />
+          ))}
+        </CardFan>
       </div>
     );
   }
@@ -393,26 +533,8 @@ function PendingActions({
   if (p.type === "info_share") {
     return (
       <div className="actions">
-        <p>左隣に渡すカードを選ぶ:</p>
-        <div className="option-row">
-          {view.myHand.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`option-btn ${selectedCardId === c.id ? "selected" : ""}`}
-              onClick={() => setSelectedCardId(c.id)}
-            >
-              {CARD_LABELS[c.type]}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          disabled={!selectedCardId}
-          onClick={() => selectedCardId && onInfoShare(selectedCardId)}
-        >
-          このカードを渡す
-        </button>
+        <p>左隣に渡すカードを選ぶ</p>
+        <p className="status">下の手札をタップ → もう一度タップで渡す</p>
       </div>
     );
   }
@@ -420,7 +542,7 @@ function PendingActions({
   if (p.type === "trade") {
     return (
       <div className="actions">
-        <p>交換するカードを選ぶ:</p>
+        <p>交換するカードを選ぶ</p>
         {p.tradeReady && (
           <p className="status">
             {Object.entries(p.tradeReady)
@@ -429,25 +551,7 @@ function PendingActions({
               .join(" / ") || "相手の選択を待っています…"}
           </p>
         )}
-        <div className="option-row">
-          {view.myHand.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`option-btn ${selectedCardId === c.id ? "selected" : ""}`}
-              onClick={() => setSelectedCardId(c.id)}
-            >
-              {CARD_LABELS[c.type]}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          disabled={!selectedCardId}
-          onClick={() => selectedCardId && onTrade(selectedCardId)}
-        >
-          このカードで交換
-        </button>
+        <p className="status">下の手札をタップ → もう一度タップで交換</p>
       </div>
     );
   }
@@ -456,25 +560,25 @@ function PendingActions({
     return (
       <div className="actions">
         <p>1枚加えますか？</p>
-        <div className="option-row">
-          {view.peekedCards.map((c) => (
-            <button
+        <p className="status">タップで選択 → もう一度タップで加える</p>
+        <CardFan>
+          {view.peekedCards.map((c, i) => (
+            <PlayingCard
               key={c.id}
-              type="button"
-              className={`option-btn ${selectedCardId === c.id ? "selected" : ""}`}
-              onClick={() => setSelectedCardId(c.id)}
-            >
-              {CARD_LABELS[c.type]}
-            </button>
+              cardType={c.type}
+              index={i}
+              total={view.peekedCards.length}
+              selectable
+              selected={selectedCardId === c.id}
+              confirmReady={selectedCardId === c.id}
+              onClick={() =>
+                twoStepPick(c.id, selectedCardId, onSelectCardId, (id) =>
+                  onTrainingTake(true, id),
+                )
+              }
+            />
           ))}
-        </div>
-        <button
-          type="button"
-          disabled={!selectedCardId}
-          onClick={() => selectedCardId && onTrainingTake(true, selectedCardId)}
-        >
-          選んだカードを加える
-        </button>
+        </CardFan>
         <button type="button" className="secondary" onClick={() => onTrainingTake(false)}>
           加えない
         </button>
@@ -483,6 +587,20 @@ function PendingActions({
   }
 
   return null;
+}
+
+function twoStepPick(
+  cardId: string,
+  selectedId: string | null,
+  setSelectedId: (id: string | null) => void,
+  onConfirm: (id: string) => void,
+) {
+  if (selectedId === cardId) {
+    onConfirm(cardId);
+    setSelectedId(null);
+  } else {
+    setSelectedId(cardId);
+  }
 }
 
 function nameOf(seats: GameView["seats"], id: string): string {
