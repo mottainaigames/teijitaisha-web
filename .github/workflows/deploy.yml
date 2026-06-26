@@ -69,8 +69,18 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Verify Fly token
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN is empty. Add it to Environment staging (name must be exactly FLY_API_TOKEN)."
+            exit 1
+          fi
+          echo "FLY_API_TOKEN is set (${#FLY_API_TOKEN} chars)"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Deploy server to Fly.io (staging)
-        run: flyctl deploy --config fly.staging.toml --remote-only --buildkit --app teijitaisha-web-api-staging
+        run: flyctl deploy --config fly.staging.toml --remote-only --app teijitaisha-web-api-staging
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -112,6 +122,6 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy server to Fly.io (production)
-        run: flyctl deploy --config fly.toml --remote-only --buildkit --app teijitaisha-web-api
+        run: flyctl deploy --config fly.toml --remote-only --app teijitaisha-web-api
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

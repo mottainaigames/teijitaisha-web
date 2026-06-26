@@ -278,6 +278,43 @@ fly deploy --config fly.staging.toml --remote-only --buildkit --verbose
 | CORS エラー | Fly の `CORS_ORIGIN` が `fly.staging.toml` と一致しているか |
 | API 502 / deploy 失敗 | `fly deploy --config fly.staging.toml --remote-only --buildkit` |
 | カスタムドメインが効かない | DNS 伝播待ち（最大数時間）、Cloudflare プロキシ ON |
+| Fly deploy `unauthorized` | 下記「Fly unauthorized」を参照 |
+
+### Fly deploy `unauthorized`（GitHub Actions）
+
+```
+Error: failed to fetch an image or build from source: unauthorized
+```
+
+**原因:** `FLY_API_TOKEN` が未設定・名前違い・値が壊れている。
+
+**確認:**
+
+1. GitHub → **Settings → Environments → staging → Environment secrets**
+2. 名前が **`FLY_API_TOKEN`** であること（`FLY_API_TOKEN_STAGING` ではない）
+3. 値が `FlyV1 ...` で始まる**全文**（改行や空白なし）
+
+**再発行して登録し直す:**
+
+```bash
+fly tokens create deploy -a teijitaisha-web-api-staging -x 999999h
+```
+
+1. 出力をコピー（1 行丸ごと）
+2. GitHub → staging → **FLY_API_TOKEN** を **Update**（または削除して再追加）
+3. Actions を **Re-run failed jobs**
+
+**トークンは設定済みなのに `unauthorized` が出る場合:**
+
+Fly のリモートビルダーが停止・削除されていると、deploy 専用トークンではビルダーを再作成できません。ローカルから 1 回デプロイしてビルダーを起動してください:
+
+```bash
+fly deploy --config fly.staging.toml --remote-only --buildkit
+```
+
+その後 GitHub Actions を Re-run。CI では `--buildkit` は不要（`--remote-only` のみ）。
+
+> Repository secrets ではなく **Environment `staging` の secrets** に入れること。ワークフローは `environment: staging` を参照しています。
 
 ---
 
