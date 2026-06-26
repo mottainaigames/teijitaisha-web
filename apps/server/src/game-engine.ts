@@ -148,6 +148,90 @@ export class GameEngine {
     this.autoResolve();
   }
 
+  /** CPU 用: 有効ならランダム行動、なければスキップ相当の操作 */
+  actRandom(playerId: PlayerId): string | null {
+    const action = this.pickRandomAction(playerId);
+    if (!action) return "行動できません";
+    return this.handleAction(playerId, action);
+  }
+
+  pickRandomAction(playerId: PlayerId): { type: string; [key: string]: unknown } | null {
+    if (!this.pending || this.phase === "game_end") return null;
+
+    const p = this.pending;
+
+    switch (p.type) {
+      case "draw": {
+        if (playerId !== p.playerIds[0]) return null;
+        const source = this.players.get(p.sourcePlayerId!);
+        if (!source?.hand.length) return null;
+        const card = pickRandom(source.hand, this.random);
+        return { type: "draw_card", cardId: card.id };
+      }
+      case "play_or_skip": {
+        if (playerId !== p.playerIds[0]) return null;
+        const player = this.players.get(playerId)!;
+        const pairable = getPairableTypes(player.hand);
+        const options: { type: string; [key: string]: unknown }[] = [{ type: "skip_play" }];
+        for (const cardType of pairable) {
+          options.push({ type: "play_pair", cardType });
+        }
+        return pickRandom(options, this.random);
+      }
+      case "select_target": {
+        if (playerId !== p.effectUserId) return null;
+        const targets = this.getValidTargets(playerId, p.effectCard ?? this.effectCard!);
+        if (targets.length === 0) return null;
+        return { type: "select_target", targetId: pickRandom(targets, this.random) };
+      }
+      case "select_card": {
+        if (playerId !== p.effectUserId) return null;
+        const cardIds = this.getSelectableCardIds(playerId);
+        if (cardIds.length === 0) return null;
+        return { type: "select_card", cardId: pickRandom(cardIds, this.random) };
+      }
+      case "info_share": {
+        const player = this.players.get(playerId);
+        if (!player || player.status !== "active") return null;
+        if (p.infoShareSelections?.has(playerId)) return null;
+        if (!player.hand.length) return null;
+        const card = pickRandom(player.hand, this.random);
+        return { type: "info_share_select", cardId: card.id };
+      }
+      case "trade": {
+        if (!p.playerIds.includes(playerId)) return null;
+        if (p.tradeSelections?.has(playerId)) return null;
+        const player = this.players.get(playerId);
+        if (!player?.hand.length) return null;
+        const card = pickRandom(player.hand, this.random);
+        return { type: "trade_select", cardId: card.id };
+      }
+      case "training_take": {
+        if (playerId !== p.effectUserId) return null;
+        const peeked = p.peekedCards ?? [];
+        const options: { type: string; [key: string]: unknown }[] = [{ type: "training_take", take: false }];
+        for (const card of peeked) {
+          options.push({ type: "training_take", take: true, cardId: card.id });
+        }
+        return pickRandom(options, this.random);
+      }
+      default:
+        return null;
+    }
+  }
+
+  private getSelectableCardIds(_playerId: PlayerId): string[] {
+    if (!this.pending || this.pending.type !== "select_card") return [];
+    const p = this.pending;
+    if (p.effectCard === "pawahara") {
+      return this.players.get(p.effectUserId!)?.hand.map((c) => c.id) ?? [];
+    }
+    if (p.targetId) {
+      return this.players.get(p.targetId)?.hand.map((c) => c.id) ?? [];
+    }
+    return [];
+  }
+
   getView(forPlayerId: PlayerId): GameView {
     const me = this.players.get(forPlayerId);
     const currentId = this.seats[this.currentSeatIndex] ?? null;
@@ -356,6 +440,7 @@ export class GameEngine {
     }
     player.hand = removeCardsByType(player.hand, cardType, 2);
     this.discardTypes.push(cardType, cardType);
+    this.pairsRemainingThisTurn = Math.max(0, this.pairsRemainingThisTurn - 1);
     this.effectCard = cardType;
     this.effectUserId = playerId;
     this.phase = "effect";

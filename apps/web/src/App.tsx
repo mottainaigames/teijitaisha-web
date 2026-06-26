@@ -22,14 +22,30 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return wsRef.current;
+    const existing = wsRef.current;
+    if (
+      existing?.readyState === WebSocket.OPEN ||
+      existing?.readyState === WebSocket.CONNECTING
+    ) {
+      return existing;
+    }
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setError("サーバーに接続できません");
+    ws.onopen = () => {
+      if (wsRef.current !== ws) return;
+      setConnected(true);
+      setError(null);
+    };
+    ws.onclose = () => {
+      if (wsRef.current !== ws) return;
+      setConnected(false);
+    };
+    ws.onerror = () => {
+      if (wsRef.current !== ws) return;
+      setError("サーバーに接続できません");
+    };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data) as ServerMessage;
@@ -63,7 +79,10 @@ export default function App() {
 
   useEffect(() => {
     const ws = connect();
-    return () => ws.close();
+    return () => {
+      if (wsRef.current === ws) wsRef.current = null;
+      ws.close();
+    };
   }, [connect]);
 
   const send = (payload: object) => {
@@ -170,6 +189,8 @@ export default function App() {
           view={view}
           playerId={playerId}
           onStart={() => send({ type: "start_game" })}
+          onAddCpu={() => send({ type: "add_cpu" })}
+          onRemoveCpu={() => send({ type: "remove_cpu" })}
           onDraw={(cardId) => send({ type: "draw_card", cardId })}
           onPlayPair={(cardType) => send({ type: "play_pair", cardType })}
           onSkipPlay={() => send({ type: "skip_play" })}

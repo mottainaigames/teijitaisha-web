@@ -9,6 +9,7 @@ export interface PlayerPublic {
   status: PlayerStatus;
   handCount: number;
   seatIndex: number;
+  isCpu?: boolean;
 }
 
 export interface RoomPublic {
@@ -27,6 +28,8 @@ import type { GameClientMessage } from "./game.js";
 export type ClientMessage =
   | { type: "create_room"; playerName: string }
   | { type: "join_room"; code: RoomCode; playerName: string }
+  | { type: "add_cpu" }
+  | { type: "remove_cpu" }
   | { type: "ping" }
   | GameClientMessage;
 

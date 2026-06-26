@@ -82,6 +82,18 @@ function broadcastGameState(code: RoomCode): void {
   }
 }
 
+function flushRoom(code: RoomCode): void {
+  broadcastRoom(code);
+  broadcastGameState(code);
+
+  let guard = 0;
+  while (roomManager.processCpuActionsForCode(code) && guard < 50) {
+    guard++;
+    broadcastRoom(code);
+    broadcastGameState(code);
+  }
+}
+
 wss.on("connection", (ws) => {
   const id = getSocketId(ws);
 
@@ -118,7 +130,37 @@ wss.on("connection", (ws) => {
           return;
         }
         send(ws, { type: "room_joined", room: result.room, playerId: result.playerId });
-        broadcastRoom(result.room.code);
+        flushRoom(result.room.code);
+        break;
+      }
+
+      case "add_cpu": {
+        const ref = roomManager.getSocketRef(id);
+        if (!ref) {
+          send(ws, { type: "error", message: "ルームに参加していません" });
+          return;
+        }
+        const err = roomManager.addCpu(ref.playerId, ref.code);
+        if (err) {
+          send(ws, { type: "error", message: err });
+          return;
+        }
+        flushRoom(ref.code);
+        break;
+      }
+
+      case "remove_cpu": {
+        const ref = roomManager.getSocketRef(id);
+        if (!ref) {
+          send(ws, { type: "error", message: "ルームに参加していません" });
+          return;
+        }
+        const err = roomManager.removeCpu(ref.playerId, ref.code);
+        if (err) {
+          send(ws, { type: "error", message: err });
+          return;
+        }
+        flushRoom(ref.code);
         break;
       }
 
@@ -141,7 +183,7 @@ wss.on("connection", (ws) => {
           if (!socketIds.has(getSocketId(client))) return;
           client.send(startedMsg);
         });
-        broadcastGameState(ref.code);
+        flushRoom(ref.code);
         break;
       }
 
@@ -156,8 +198,7 @@ wss.on("connection", (ws) => {
           send(ws, { type: "error", message: err });
           return;
         }
-        broadcastRoom(ref.code);
-        broadcastGameState(ref.code);
+        flushRoom(ref.code);
         break;
       }
     }
@@ -166,8 +207,7 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     const code = roomManager.removeSocket(id);
     if (code) {
-      broadcastRoom(code);
-      broadcastGameState(code);
+      flushRoom(code);
     }
   });
 });
@@ -175,8 +215,7 @@ wss.on("connection", (ws) => {
 setInterval(() => {
   const codes = roomManager.tickGames(Date.now());
   for (const code of codes) {
-    broadcastRoom(code);
-    broadcastGameState(code);
+    flushRoom(code);
   }
 }, 1000);
 
