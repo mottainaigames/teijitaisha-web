@@ -2723,36 +2723,41 @@ body.lobby-seat-order-dragging * {
   }
 }
 
-.rouki-reveal--zangyo .rouki-reveal__backdrop {
-  background: rgb(69 10 10 / 65%);
-  animation: rouki-backdrop-pulse 1.2s ease-in-out infinite;
-}
-
 .rouki-reveal--zangyo .rouki-reveal__title {
   font-size: 1.15rem;
   letter-spacing: 0.04em;
 }
 
-.rouki-reveal--expose .rouki-reveal__title {
-  font-size: 1.45rem;
-  color: #fecaca;
-  animation: rouki-title-shake 0.55s ease-in-out;
+/* --- 残業摘発: 役割別背景 --- */
+
+.rouki-reveal--role-winner .rouki-reveal__backdrop {
+  background: linear-gradient(160deg, rgb(30 58 95 / 82%), rgb(15 23 42 / 88%));
 }
 
-.rouki-reveal--expose .rouki-reveal__flip-inner {
-  filter: drop-shadow(0 0 18px rgb(239 68 68 / 75%));
+.rouki-reveal--role-winner.rouki-reveal--expose .rouki-reveal__backdrop,
+.rouki-reveal--role-winner.rouki-reveal--ending .rouki-reveal__backdrop {
+  animation: rouki-winner-glow 1.6s ease-in-out infinite;
 }
 
-.rouki-reveal--zangyo .rouki-reveal__result {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 2px solid #f87171;
-  font-size: 1rem;
+.rouki-reveal--role-loser .rouki-reveal__backdrop {
+  background: linear-gradient(160deg, rgb(91 17 17 / 80%), rgb(45 7 7 / 90%));
 }
+
+.rouki-reveal--role-loser.rouki-reveal--expose .rouki-reveal__backdrop,
+.rouki-reveal--role-loser.rouki-reveal--ending .rouki-reveal__backdrop {
+  animation: rouki-loser-pulse 1.1s ease-in-out infinite;
+}
+
+.rouki-reveal--role-spectator .rouki-reveal__backdrop {
+  background: linear-gradient(160deg, rgb(51 65 85 / 78%), rgb(15 23 42 / 88%));
+}
+
+/* --- 残業摘発: 役割別 expose / ending --- */
 
 .rouki-reveal--role-winner.rouki-reveal--expose .rouki-reveal__title {
+  font-size: 1.45rem;
   color: #fef08a;
-  text-shadow: 0 0 12px rgb(250 204 21 / 55%);
+  text-shadow: 0 0 14px rgb(250 204 21 / 60%);
 }
 
 .rouki-reveal--role-winner.rouki-reveal--ending .rouki-reveal__title {
@@ -2761,20 +2766,41 @@ body.lobby-seat-order-dragging * {
   animation: rouki-winner-pop 0.6s ease-out;
 }
 
-.rouki-reveal--role-winner .rouki-reveal__backdrop {
-  background: rgb(30 58 95 / 70%);
+.rouki-reveal--role-winner.rouki-reveal--expose .rouki-reveal__flip-inner,
+.rouki-reveal--role-winner.rouki-reveal--ending .rouki-reveal__flip-inner {
+  filter: drop-shadow(0 0 22px rgb(250 204 21 / 75%));
 }
 
-.rouki-reveal--role-winner.rouki-reveal--expose .rouki-reveal__flip-inner {
-  filter: drop-shadow(0 0 20px rgb(250 204 21 / 70%));
+.rouki-reveal--role-winner .rouki-reveal__result {
+  background: #fffbeb;
+  color: #854d0e;
+  border: 2px solid #facc15;
+}
+
+.rouki-reveal--role-winner .rouki-reveal__zangyo-callout {
+  color: #fde68a;
 }
 
 .rouki-reveal--role-loser.rouki-reveal--expose .rouki-reveal__title {
+  font-size: 1.45rem;
   color: #fecaca;
+  animation: rouki-title-shake 0.55s ease-in-out;
 }
 
-.rouki-reveal--role-loser .rouki-reveal__backdrop {
-  background: rgb(69 10 10 / 72%);
+.rouki-reveal--role-loser.rouki-reveal--ending .rouki-reveal__title {
+  font-size: 1.5rem;
+  color: #fca5a5;
+}
+
+.rouki-reveal--role-loser.rouki-reveal--expose .rouki-reveal__flip-inner,
+.rouki-reveal--role-loser.rouki-reveal--ending .rouki-reveal__flip-inner {
+  filter: drop-shadow(0 0 20px rgb(239 68 68 / 80%));
+}
+
+.rouki-reveal--role-loser .rouki-reveal__result {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 2px solid #f87171;
 }
 
 .rouki-reveal--role-loser .rouki-reveal__zangyo-callout {
@@ -2782,11 +2808,19 @@ body.lobby-seat-order-dragging * {
 }
 
 .rouki-reveal--role-spectator.rouki-reveal--expose .rouki-reveal__title {
+  font-size: 1.35rem;
   color: #e2e8f0;
 }
 
-.rouki-reveal--role-spectator .rouki-reveal__backdrop {
-  background: rgb(30 41 59 / 68%);
+.rouki-reveal--role-spectator.rouki-reveal--ending .rouki-reveal__title {
+  font-size: 1.4rem;
+  color: #cbd5e1;
+}
+
+.rouki-reveal--role-spectator .rouki-reveal__result {
+  background: rgb(255 255 255 / 95%);
+  color: #334155;
+  border: 2px solid #94a3b8;
 }
 
 .rouki-reveal--role-spectator .rouki-reveal__zangyo-callout {
@@ -2813,7 +2847,6 @@ body.lobby-seat-order-dragging * {
   margin: 0;
   font-size: 1rem;
   font-weight: 800;
-  color: #fca5a5;
   text-shadow: 0 2px 8px rgb(0 0 0 / 45%);
   animation: rouki-result-in 0.4s ease-out;
 }
@@ -2826,14 +2859,25 @@ body.lobby-seat-order-dragging * {
   animation: rouki-result-in 0.5s ease-out;
 }
 
-@keyframes rouki-backdrop-pulse {
+@keyframes rouki-winner-glow {
   0%,
   100% {
-    background: rgb(69 10 10 / 60%);
+    background: linear-gradient(160deg, rgb(30 58 95 / 78%), rgb(15 23 42 / 86%));
   }
 
   50% {
-    background: rgb(127 29 29 / 72%);
+    background: linear-gradient(160deg, rgb(37 99 168 / 72%), rgb(21 37 63 / 92%));
+  }
+}
+
+@keyframes rouki-loser-pulse {
+  0%,
+  100% {
+    background: linear-gradient(160deg, rgb(91 17 17 / 76%), rgb(45 7 7 / 88%));
+  }
+
+  50% {
+    background: linear-gradient(160deg, rgb(153 27 27 / 84%), rgb(69 10 10 / 94%));
   }
 }
 
