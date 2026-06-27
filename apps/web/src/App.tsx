@@ -150,6 +150,8 @@ export default function App() {
           onInfoShare={(cardId) => send({ type: "info_share_select", cardId })}
           onTrade={(cardId) => send({ type: "trade_select", cardId })}
           onTrainingTake={(take, cardId) => send({ type: "training_take", take, cardId })}
+          onTrainingPeekSelect={(cardId) => send({ type: "training_peek_select", cardId })}
+          onTrainingPeekConfirm={() => send({ type: "training_peek_confirm" })}
           onSelectionPreview={(payload) => send({ type: "selection_preview", ...payload })}
           onLeave={leaveRoom}
           onReturnToLobby={returnToLobby}

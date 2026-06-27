@@ -1909,8 +1909,12 @@ button.secondary {
 
 .game-hand-dock--picking {
   box-shadow:
-    0 -4px 24px rgb(37 99 235 / 18%),
-    0 0 0 2px rgb(37 99 235 / 35%);
+    0 -4px 24px rgb(99 102 241 / 16%),
+    0 0 0 2px rgb(99 102 241 / 30%);
+}
+
+.game-hand-dock--selecting {
+  box-shadow: 0 -2px 16px rgb(15 23 42 / 8%);
 }
 
 .my-hand--picking {
@@ -1946,40 +1950,72 @@ button.secondary {
   background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
 }
 
-.hand-pick-banner--pawahara {
-  border-color: #94a3b8;
-  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+.hand-pick-banner__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
-.hand-pick-banner--play {
-  border-color: #2563eb;
+.hand-pick-banner__badge {
+  display: inline-flex;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.hand-pick-banner__eyebrow {
-  margin: 0 0 0.2rem;
-  font-size: 0.65rem;
+.hand-pick-banner--info_share .hand-pick-banner__badge {
+  background: #c7d2fe;
+  color: #312e81;
+}
+
+.hand-pick-banner--trade .hand-pick-banner__badge {
+  background: #fed7aa;
+  color: #7c2d12;
+}
+
+.hand-pick-banner__progress,
+.hand-pick-banner__partner {
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: #64748b;
 }
 
-.hand-pick-banner__title {
-  margin: 0 0 0.35rem;
-  font-size: 1.05rem;
-  color: #1e3a5f;
+.hand-pick-banner__flow {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #1e293b;
 }
 
-.hand-pick-banner__desc {
-  margin: 0 0 0.65rem;
+.hand-pick-banner__arrow {
+  display: inline-block;
+  margin: 0 0.15rem;
+  font-weight: 800;
+  color: #6366f1;
+}
+
+.hand-pick-banner__waiting {
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 75%);
+  border: 1px dashed rgb(100 116 139 / 35%);
+}
+
+.hand-pick-banner__waiting-title {
+  margin: 0 0 0.25rem;
   font-size: 0.85rem;
-  line-height: 1.45;
+  font-weight: 800;
   color: #334155;
 }
 
-.hand-pick-banner__status {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
+.hand-pick-banner__waiting-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
   color: #64748b;
 }
 
@@ -2002,10 +2038,26 @@ button.secondary {
   background: rgb(255 255 255 / 70%);
 }
 
-.hand-pick-banner__steps li.is-active {
-  color: #1d4ed8;
+.hand-pick-banner--info_share .hand-pick-banner__steps li.is-active {
+  color: #4338ca;
   font-weight: 700;
-  background: #dbeafe;
+  background: #e0e7ff;
+}
+
+.hand-pick-banner--info_share .hand-pick-banner__steps li.is-active .hand-pick-banner__step-num {
+  background: #6366f1;
+  color: #fff;
+}
+
+.hand-pick-banner--trade .hand-pick-banner__steps li.is-active {
+  color: #c2410c;
+  font-weight: 700;
+  background: #ffedd5;
+}
+
+.hand-pick-banner--trade .hand-pick-banner__steps li.is-active .hand-pick-banner__step-num {
+  background: #ea580c;
+  color: #fff;
 }
 
 .hand-pick-banner__step-num {
@@ -2019,11 +2071,6 @@ button.secondary {
   font-size: 0.7rem;
   font-weight: 800;
   flex-shrink: 0;
-}
-
-.hand-pick-banner__steps li.is-active .hand-pick-banner__step-num {
-  background: #2563eb;
-  color: #fff;
 }
 
 .hand-pick-banner__preview {
@@ -2041,6 +2088,14 @@ button.secondary {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.hand-pick-banner--info_share .hand-pick-banner__pointer {
+  color: #6366f1;
+}
+
+.hand-pick-banner--trade .hand-pick-banner__pointer {
+  color: #ea580c;
 }
 
 .hand-pick-banner__pointer {

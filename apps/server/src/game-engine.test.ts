@@ -165,6 +165,11 @@ describe("GameEngine", () => {
 
     expect(engine.handleAction("p1", { type: "play_pair", cardType: "shinjin_kyouiku" })).toBeNull();
     expect(engine.handleAction("p1", { type: "select_target", targetId: "p2" })).toBeNull();
+    expect(engine.pending?.type).toBe("training_peek");
+
+    expect(engine.handleAction("p1", { type: "training_peek_select", cardId: "t1" })).toBeNull();
+    expect(engine.handleAction("p1", { type: "training_peek_select", cardId: "t2" })).toBeNull();
+    expect(engine.handleAction("p1", { type: "training_peek_confirm" })).toBeNull();
 
     expect(actor.status).toBe("retired");
     expect(actor.hand).toHaveLength(0);

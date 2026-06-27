@@ -21,6 +21,7 @@ export type PendingInputType =
   | "select_card"
   | "info_share"
   | "trade"
+  | "training_peek"
   | "training_take"
   | "meeting_declare"
   | "romance_view";
@@ -149,6 +150,10 @@ export interface PendingView {
   infoShareReady?: Record<PlayerId, boolean>;
   /** 社内恋愛: 誰がスキップしたか */
   romanceSkipped?: Record<PlayerId, boolean>;
+  /** 新人教育: 見るカードの選択数上限 */
+  trainingPeekMax?: number;
+  /** 新人教育: 選択中のカードID */
+  trainingPeekSelected?: string[];
   sourcePlayerId?: PlayerId;
 }
 
@@ -162,6 +167,8 @@ export type GameClientMessage =
   | { type: "select_card"; cardId: string }
   | { type: "info_share_select"; cardId: string }
   | { type: "trade_select"; cardId: string }
+  | { type: "training_peek_select"; cardId: string }
+  | { type: "training_peek_confirm" }
   | { type: "training_take"; take: boolean; cardId?: string }
   | { type: "meeting_declare" }
   | { type: "romance_skip" }

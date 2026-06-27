@@ -35,6 +35,8 @@ interface Props {
   onInfoShare: (cardId: string) => void;
   onTrade: (cardId: string) => void;
   onTrainingTake: (take: boolean, cardId?: string) => void;
+  onTrainingPeekSelect: (cardId: string) => void;
+  onTrainingPeekConfirm: () => void;
   onSelectionPreview: (payload: {
     cardId: string | null;
     targetPlayerId: string | null;
@@ -73,6 +75,8 @@ export function GameScreen({
   onInfoShare,
   onTrade,
   onTrainingTake,
+  onTrainingPeekSelect,
+  onTrainingPeekConfirm,
   onSelectionPreview,
   onLeave,
   onReturnToLobby,
@@ -322,16 +326,23 @@ export function GameScreen({
   const myDrawableCards =
     isDrawPhase && drawSourceId ? (view.drawableHands[drawSourceId] ?? []) : [];
   const anyoneDrawing = view.phase === "draw" && !!drawSourceId;
-  const handPickMode =
+  const handPickGuideMode: "info_share" | "trade" | null =
     view.canAct && view.pending
       ? view.pending.type === "info_share" || view.pending.type === "trade"
         ? view.pending.type
-        : view.pending.type === "play_or_skip"
-          ? "play_or_skip"
-          : view.pending.type === "select_card" && view.effectCard === "pawahara"
-            ? "pawahara_give"
-            : null
+        : null
       : null;
+  const hasHandPickSubmitted =
+    handPickGuideMode === "info_share"
+      ? (view.pending?.infoShareReady?.[playerId] ?? false)
+      : handPickGuideMode === "trade"
+        ? (view.pending?.tradeReady?.[playerId] ?? false)
+        : false;
+  const isPawaharaGive =
+    view.canAct && view.pending?.type === "select_card" && view.effectCard === "pawahara";
+  const isPlayOrSkipPick = view.canAct && view.pending?.type === "play_or_skip";
+  const isMyHandPicking =
+    (handPickGuideMode !== null && !hasHandPickSubmitted) || isPawaharaGive || isPlayOrSkipPick;
 
   const handleDrawPick = (cardId: string) => {
     twoStepPick(cardId, selectedCardId, setSelectedCardId, onDraw, (id) =>
@@ -340,39 +351,39 @@ export function GameScreen({
   };
 
   const handleMyCardClick = (card: GameView["myHand"][0]) => {
-    if (handPickMode === "pawahara_give") {
-      twoStepPick(card.id, selectedCardId, setSelectedCardId, onSelectCard, (id) =>
-        sendCardPreview(id, "selected"),
-      );
-      return;
-    }
-    if (handPickMode === "info_share") {
+    if (handPickGuideMode === "info_share" && !hasHandPickSubmitted) {
       twoStepPick(card.id, selectedCardId, setSelectedCardId, onInfoShare, (id) =>
         sendCardPreview(id, "selected"),
       );
       return;
     }
-    if (handPickMode === "trade") {
+    if (handPickGuideMode === "trade" && !hasHandPickSubmitted) {
       twoStepPick(card.id, selectedCardId, setSelectedCardId, onTrade, (id) =>
         sendCardPreview(id, "selected"),
       );
       return;
     }
-    if (handPickMode === "play_or_skip" && pairable.includes(card.type)) {
+    if (isPawaharaGive) {
+      twoStepPick(card.id, selectedCardId, setSelectedCardId, onSelectCard, (id) =>
+        sendCardPreview(id, "selected"),
+      );
+      return;
+    }
+    if (isPlayOrSkipPick && pairable.includes(card.type)) {
       setSelectedPairType(card.type);
     }
   };
 
   const isMyCardSelected = (card: GameView["myHand"][0]) => {
     if (selectedCardId === card.id) return true;
-    if (handPickMode === "play_or_skip" && selectedPairType === card.type) return true;
+    if (isPlayOrSkipPick && selectedPairType === card.type) return true;
     return false;
   };
 
   const inspectedHandCardType: CardType | null = (() => {
-    if (handPickMode === "play_or_skip" && selectedPairType) return selectedPairType;
+    if (isPlayOrSkipPick && selectedPairType) return selectedPairType;
     const id =
-      handPickMode && selectedCardId
+      isMyHandPicking && selectedCardId
         ? selectedCardId
         : focusedHandCardId;
     if (!id) return null;
@@ -381,10 +392,10 @@ export function GameScreen({
 
   const handleHandCardTap = (card: GameView["myHand"][0]) => {
     setFocusedHandCardId(card.id);
-    if (handPickMode) handleMyCardClick(card);
+    if (isMyHandPicking) handleMyCardClick(card);
   };
 
-  const canReorderHand = view.canReorderHand && !handPickMode;
+  const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickGuideMode;
   const handleReorderDrop = (draggedCardId: string, targetCardId: string) => {
     if (!canReorderHand) return;
     const ids = view.myHand.map((c) => c.id);
@@ -506,6 +517,8 @@ export function GameScreen({
           onSelectTarget={onSelectTarget}
           onSelectCard={onSelectCard}
           onTrainingTake={onTrainingTake}
+          onTrainingPeekSelect={onTrainingPeekSelect}
+          onTrainingPeekConfirm={onTrainingPeekConfirm}
           sendCardPreview={sendCardPreview}
           sendTargetPreview={sendTargetPreview}
         />
@@ -606,22 +619,30 @@ export function GameScreen({
           <p className="spectator-dock-note">退社済み — 観戦中</p>
         </div>
       ) : (
-      <div className={`game-hand-dock${handPickMode && view.canAct ? " game-hand-dock--picking" : ""}`}>
-        {handPickMode && view.canAct && (
+      <div
+        className={`game-hand-dock${
+          handPickGuideMode && view.canAct ? " game-hand-dock--picking" : ""
+        }${isMyHandPicking && !handPickGuideMode ? " game-hand-dock--selecting" : ""}`}
+      >
+        {handPickGuideMode && view.canAct && (
           <HandPickBanner
-            mode={handPickMode}
+            mode={handPickGuideMode}
             view={view}
             playerId={playerId}
             selectedCardId={selectedCardId}
-            selectedPairType={selectedPairType}
           />
         )}
-        <div className={`my-hand${handPickMode && view.canAct ? " my-hand--picking" : ""}`}>
+        <div
+          className={`my-hand${
+            handPickGuideMode && view.canAct && !hasHandPickSubmitted ? " my-hand--picking" : ""
+          }`}
+        >
           <div className="my-hand__toolbar">
             <p className="my-hand__label">
               あなたの手札（{me?.handCount ?? 0}枚）
               {me?.status === "retired" && " — 退社済み"}
-              {!handPickMode && !canReorderHand && view.myHand.length > 0 && " — タップで効果を表示"}
+              {!isMyHandPicking && !handPickGuideMode && !canReorderHand && view.myHand.length > 0 &&
+                " — タップで効果を表示"}
             </p>
             {canReorderHand && view.myHand.length > 1 && (
               <button type="button" className="my-hand__shuffle secondary" onClick={onShuffleHand}>
@@ -632,7 +653,7 @@ export function GameScreen({
           {canReorderHand && view.myHand.length > 1 && (
             <p className="status my-hand__hint">ドラッグで並べ替え</p>
           )}
-          {!canReorderHand && view.canReorderHand === false && view.myHand.length > 0 && !handPickMode && (
+          {!canReorderHand && view.canReorderHand === false && view.myHand.length > 0 && !isMyHandPicking && !handPickGuideMode && (
             <p className="status my-hand__hint my-hand__hint--locked">
               手札が選ばれている間は並べ替えできません
             </p>
@@ -657,27 +678,26 @@ export function GameScreen({
                     reorderable={canReorderHand}
                     dragCardId={c.id}
                     onReorderDrop={handleReorderDrop}
-                    muted={handPickMode === "play_or_skip" && !pairable.includes(c.type)}
+                    muted={isPlayOrSkipPick && !pairable.includes(c.type)}
                     selectable={
                       !canReorderHand &&
-                      (handPickMode === "info_share" ||
-                        handPickMode === "trade" ||
-                        handPickMode === "pawahara_give" ||
-                        (handPickMode === "play_or_skip" && pairable.includes(c.type)))
+                      ((handPickGuideMode !== null && !hasHandPickSubmitted) ||
+                        isPawaharaGive ||
+                        (isPlayOrSkipPick && pairable.includes(c.type)))
                     }
                     selected={selected}
-                    inspected={!selected && !handPickMode && focusedHandCardId === c.id}
-                    confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
+                    inspected={!selected && !isMyHandPicking && !handPickGuideMode && focusedHandCardId === c.id}
+                    confirmReady={selectedCardId === c.id && !isPlayOrSkipPick}
                     remoteHover={remote.remoteHover}
                     remoteSelected={remote.remoteSelected}
                     onHoverStart={
-                      handPickMode && view.canAct ? () => sendCardPreview(c.id, "hover") : undefined
+                      isMyHandPicking && view.canAct ? () => sendCardPreview(c.id, "hover") : undefined
                     }
                     onHoverEnd={
-                      handPickMode && view.canAct ? () => sendCardPreview(null, "clear") : undefined
+                      isMyHandPicking && view.canAct ? () => sendCardPreview(null, "clear") : undefined
                     }
                     onClick={
-                      canReorderHand || handPickMode || view.myHand.length > 0
+                      canReorderHand || isMyHandPicking || view.myHand.length > 0
                         ? () => handleHandCardTap(c)
                         : undefined
                     }
@@ -843,6 +863,8 @@ function PendingActions({
   onSelectTarget,
   onSelectCard,
   onTrainingTake,
+  onTrainingPeekSelect,
+  onTrainingPeekConfirm,
   sendCardPreview,
   sendTargetPreview,
 }: {
@@ -859,6 +881,8 @@ function PendingActions({
   onSelectTarget: (targetId: string) => void;
   onSelectCard: (cardId: string) => void;
   onTrainingTake: (take: boolean, cardId?: string) => void;
+  onTrainingPeekSelect: (cardId: string) => void;
+  onTrainingPeekConfirm: () => void;
   sendCardPreview: (cardId: string | null, mode: "hover" | "selected" | "clear") => void;
   sendTargetPreview: (targetId: string | null, mode: "hover" | "selected" | "clear") => void;
 }) {
@@ -969,25 +993,49 @@ function PendingActions({
   }
 
   if (p.type === "info_share") {
-    return (
-      <div className="actions actions--compact">
-        <p className="actions__compact-note">全員が選び終わると一斉に交換されます</p>
-      </div>
-    );
+    return null;
   }
 
   if (p.type === "trade") {
-    const waiting =
-      p.tradeReady &&
-      !Object.entries(p.tradeReady).every(([, ready]) => ready);
+    return null;
+  }
+
+  if (p.type === "training_peek" && p.validCardIds) {
+    const max = p.trainingPeekMax ?? 2;
+    const selected = new Set(p.trainingPeekSelected ?? []);
+    const targetName = p.sourcePlayerId ? nameOf(view.seats, p.sourcePlayerId) : "相手";
     return (
-      <div className="actions actions--compact">
-        {waiting && (
-          <p className="actions__compact-note">相手の選択を待っています…</p>
-        )}
-        {!waiting && p.tradeReady && (
-          <p className="actions__compact-note">双方の選択が揃いました</p>
-        )}
+      <div className="actions">
+        <p>
+          {targetName}の手札から見るカードを選ぶ（最大{max}枚）
+        </p>
+        <p className="status">
+          タップで選択・解除 — {selected.size}/{max}枚
+        </p>
+        <CardFan>
+          {p.validCardIds.map((id, i) => (
+            <PlayingCard
+              key={id}
+              faceDown
+              index={i}
+              total={p.validCardIds!.length}
+              selectable
+              selected={selected.has(id)}
+              confirmReady={selected.has(id)}
+              onHoverStart={() => sendCardPreview(id, "hover")}
+              onHoverEnd={() => sendCardPreview(null, "clear")}
+              onClick={() => onTrainingPeekSelect(id)}
+            />
+          ))}
+        </CardFan>
+        <button
+          type="button"
+          className="action-confirm"
+          disabled={selected.size === 0}
+          onClick={onTrainingPeekConfirm}
+        >
+          選んだカードを見る
+        </button>
       </div>
     );
   }
@@ -1044,6 +1092,7 @@ function getCardTargetPlayerId(view: GameView): string | null {
   if (!p) return null;
   if (p.type === "draw") return p.sourcePlayerId ?? null;
   if (p.type === "select_card") return p.sourcePlayerId ?? null;
+  if (p.type === "training_peek") return p.sourcePlayerId ?? null;
   return null;
 }
 

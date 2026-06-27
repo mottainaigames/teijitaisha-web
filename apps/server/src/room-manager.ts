@@ -50,6 +50,8 @@ const GAME_MESSAGE_TYPES = new Set([
   "select_card",
   "info_share_select",
   "trade_select",
+  "training_peek_select",
+  "training_peek_confirm",
   "training_take",
   "meeting_declare",
   "romance_skip",

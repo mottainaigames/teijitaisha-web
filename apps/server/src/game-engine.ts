@@ -46,6 +46,7 @@ interface PendingInput {
   peekedCards?: CardInstance[];
   infoShareSelections?: Map<PlayerId, string>;
   tradeSelections?: Map<PlayerId, string>;
+  trainingPeekSelections?: Set<string>;
   sourcePlayerId?: PlayerId;
   romanceSkips?: Set<PlayerId>;
 }
@@ -215,6 +216,15 @@ export class GameEngine {
         if (action.type !== "trade_select") return "カードを選んでください";
         result = this.resolveTrade(playerId, action.cardId as string);
         break;
+      case "training_peek":
+        if (action.type === "training_peek_select") {
+          result = this.resolveTrainingPeekSelect(playerId, action.cardId as string);
+        } else if (action.type === "training_peek_confirm") {
+          result = this.resolveTrainingPeekConfirm(playerId);
+        } else {
+          result = "見るカードを選んでください";
+        }
+        break;
       case "training_take":
         if (action.type !== "training_take") return "選択してください";
         result = this.resolveTrainingTake(
@@ -285,6 +295,10 @@ export class GameEngine {
         targetPlayerId =
           this.pending?.effectCard === "pawahara" ? playerId : (this.pending?.targetId ?? null);
         break;
+      case "training_peek_select":
+        cardId = action.cardId as string;
+        targetPlayerId = this.pending?.targetId ?? null;
+        break;
       case "select_target":
         targetPlayerId = action.targetId as PlayerId;
         break;
@@ -354,6 +368,10 @@ export class GameEngine {
         return "左隣に渡すカードを選ぶ";
       case "trade_select":
         return "交換するカードを選ぶ";
+      case "training_peek_select":
+        return "見るカードを選ぶ";
+      case "training_peek_confirm":
+        return "選んだカードを見る";
       case "training_take":
         if (action.take) {
           const card = this.peekedCards.find((c) => c.id === action.cardId);
@@ -447,6 +465,22 @@ export class GameEngine {
         const card = pickRandom(player.hand, this.random);
         return { type: "trade_select", cardId: card.id };
       }
+      case "training_peek": {
+        if (playerId !== p.effectUserId) return null;
+        const target = this.players.get(p.targetId!);
+        if (!target?.hand.length) return null;
+        const max = Math.min(2, target.hand.length);
+        const selected = p.trainingPeekSelections ?? new Set<string>();
+        if (selected.size < max) {
+          const remaining = target.hand.filter((c) => !selected.has(c.id));
+          if (remaining.length === 0) {
+            return { type: "training_peek_confirm" };
+          }
+          const card = pickRandom(remaining, this.random);
+          return { type: "training_peek_select", cardId: card.id };
+        }
+        return { type: "training_peek_confirm" };
+      }
       case "training_take": {
         if (playerId !== p.effectUserId) return null;
         const peeked = p.peekedCards ?? [];
@@ -485,6 +519,16 @@ export class GameEngine {
       const source = this.players.get(this.pending.sourcePlayerId);
       if (source) {
         drawableHands[source.id] = source.hand.map((c) => ({ id: c.id }));
+      }
+    }
+    if (
+      this.pending?.type === "training_peek" &&
+      forPlayerId === this.pending.effectUserId &&
+      this.pending.targetId
+    ) {
+      const target = this.players.get(this.pending.targetId);
+      if (target) {
+        drawableHands[target.id] = target.hand.map((c) => ({ id: c.id }));
       }
     }
 
@@ -564,6 +608,7 @@ export class GameEngine {
     const pending = this.pending;
     if (pending?.type === "draw" && pending.sourcePlayerId === playerId) return false;
     if (pending?.type === "select_card" && pending.targetId === playerId) return false;
+    if (pending?.type === "training_peek" && pending.targetId === playerId) return false;
     return true;
   }
 
@@ -638,6 +683,13 @@ export class GameEngine {
         view.infoShareReady[id] = p.infoShareSelections?.has(id) ?? false;
       }
     }
+    if (p.type === "training_peek" && forPlayerId === p.effectUserId && p.targetId) {
+      const target = this.players.get(p.targetId);
+      view.validCardIds = target?.hand.map((c) => c.id);
+      view.sourcePlayerId = p.targetId;
+      view.trainingPeekMax = Math.min(2, target?.hand.length ?? 0);
+      view.trainingPeekSelected = [...(p.trainingPeekSelections ?? [])];
+    }
     if (p.type === "training_take" && forPlayerId === p.effectUserId) {
       view.validCardIds = p.peekedCards?.map((c) => c.id);
     }
@@ -706,6 +758,22 @@ export class GameEngine {
           }
         }
         this.finishTrade();
+        break;
+      }
+      case "training_peek": {
+        const user = this.pending.effectUserId!;
+        const target = this.players.get(this.pending.targetId!)!;
+        const max = Math.min(2, target.hand.length);
+        const selected = new Set<string>();
+        const pool = [...target.hand];
+        const count = Math.max(1, Math.min(max, Math.floor(this.random() * max) + 1));
+        for (let i = 0; i < count && pool.length > 0; i++) {
+          const card = pickRandom(pool, this.random);
+          pool.splice(pool.indexOf(card), 1);
+          selected.add(card.id);
+        }
+        this.pending.trainingPeekSelections = selected;
+        this.finishTrainingPeek(user);
         break;
       }
       case "training_take":
@@ -984,38 +1052,24 @@ export class GameEngine {
         return null;
       case "shinjin_kyouiku": {
         const target = this.players.get(targetId)!;
-        const peekCount = Math.min(2, target.hand.length);
-        const pool = [...target.hand];
-        this.peekedCards = [];
-        for (let i = 0; i < peekCount; i++) {
-          const card = pickRandom(pool, this.random);
-          pool.splice(pool.indexOf(card), 1);
-          this.peekedCards.push(card);
+        if (target.hand.length === 0) {
+          this.afterEffectResolved();
+          return null;
         }
         this.effectStep = "training";
-        if (peekCount === 0) {
-          this.afterEffectResolved();
-          return null;
-        }
+        this.peekedCards = [];
         this.log(
-          `${this.playerName(userId)}が${this.playerName(targetId)}のカードを${peekCount}枚見た（新人教育）`,
+          `${this.playerName(userId)}が${this.playerName(targetId)}のカードを見る（新人教育）`,
           "shinjin_kyouiku",
         );
-        const actor = this.players.get(userId)!;
-        if (actor.hand.length === 0) {
-          actor.status = "retired";
-          this.log(`${this.playerName(userId)}が新人教育のペアを出して定時退社`);
-          this.afterEffectResolved();
-          return null;
-        }
         this.pending = {
-          type: "training_take",
+          type: "training_peek",
           playerIds: [userId],
           deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
           effectCard: cardType,
           effectUserId: userId,
           targetId,
-          peekedCards: [...this.peekedCards],
+          trainingPeekSelections: new Set(),
         };
         return null;
       }
@@ -1192,6 +1246,67 @@ export class GameEngine {
       "torihiki",
     );
     this.afterEffectResolved();
+  }
+
+  private resolveTrainingPeekSelect(userId: PlayerId, cardId: string): string | null {
+    if (!this.pending || this.pending.type !== "training_peek") return "不正な操作です";
+    if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
+    const target = this.players.get(this.pending.targetId!);
+    if (!target) return "対象が見つかりません";
+    if (!target.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
+
+    const max = Math.min(2, target.hand.length);
+    if (!this.pending.trainingPeekSelections) {
+      this.pending.trainingPeekSelections = new Set();
+    }
+    const selected = this.pending.trainingPeekSelections;
+    if (selected.has(cardId)) {
+      selected.delete(cardId);
+      return null;
+    }
+    if (selected.size >= max) return `最大${max}枚まで選べます`;
+    selected.add(cardId);
+    return null;
+  }
+
+  private resolveTrainingPeekConfirm(userId: PlayerId): string | null {
+    if (!this.pending || this.pending.type !== "training_peek") return "不正な操作です";
+    if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
+    const selected = this.pending.trainingPeekSelections;
+    if (!selected?.size) return "見るカードを1枚以上選んでください";
+    return this.finishTrainingPeek(userId);
+  }
+
+  private finishTrainingPeek(userId: PlayerId): string | null {
+    if (!this.pending || this.pending.type !== "training_peek") return "不正な操作です";
+    const targetId = this.pending.targetId!;
+    const cardType = this.pending.effectCard!;
+    const target = this.players.get(targetId)!;
+    const selected = this.pending.trainingPeekSelections ?? new Set<string>();
+    this.peekedCards = target.hand.filter((c) => selected.has(c.id));
+    this.log(
+      `${this.playerName(userId)}が${this.playerName(targetId)}のカードを${this.peekedCards.length}枚見た（新人教育）`,
+      "shinjin_kyouiku",
+    );
+
+    const actor = this.players.get(userId)!;
+    if (actor.hand.length === 0) {
+      actor.status = "retired";
+      this.log(`${this.playerName(userId)}が新人教育のペアを出して定時退社`);
+      this.afterEffectResolved();
+      return null;
+    }
+
+    this.pending = {
+      type: "training_take",
+      playerIds: [userId],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: cardType,
+      effectUserId: userId,
+      targetId,
+      peekedCards: [...this.peekedCards],
+    };
+    return null;
   }
 
   private resolveTrainingTake(userId: PlayerId, take: boolean, cardId?: string): string | null {
