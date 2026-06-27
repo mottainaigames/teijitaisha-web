@@ -165,3 +165,68 @@ describe("RoomManager rejoin", () => {
     expect(room.players.get(guest.playerId)?.status).toBe("active");
   });
 });
+
+describe("RoomManager lobby seat order", () => {
+  it("ホストがプレイ順を入れ替えできる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+    const guest2 = rm.joinRoom(host.room.code, "ゲスト2", "socket-g2");
+    if ("error" in guest2) throw new Error(guest2.error);
+
+    const reordered = [guest2.playerId, guest.playerId, host.playerId];
+    expect(rm.reorderSeats(host.playerId, host.room.code, reordered)).toBeNull();
+
+    const room = rm.getRoomPublic(host.room.code)!;
+    const playing = room.players.filter((p) => !p.isObserver).sort((a, b) => a.seatIndex - b.seatIndex);
+    expect(playing.map((p) => p.id)).toEqual(reordered);
+  });
+
+  it("ホストがプレイ順をシャッフルできる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    rm.joinRoom(host.room.code, "ゲスト1", "socket-g1");
+    rm.joinRoom(host.room.code, "ゲスト2", "socket-g2");
+    rm.joinRoom(host.room.code, "ゲスト3", "socket-g3");
+
+    const before = rm.getRoomPublic(host.room.code)!.players
+      .filter((p) => !p.isObserver)
+      .sort((a, b) => a.seatIndex - b.seatIndex)
+      .map((p) => p.id);
+
+    expect(rm.shuffleSeats(host.playerId, host.room.code)).toBeNull();
+
+    const after = rm.getRoomPublic(host.room.code)!.players
+      .filter((p) => !p.isObserver)
+      .sort((a, b) => a.seatIndex - b.seatIndex)
+      .map((p) => p.id);
+
+    expect(after).toHaveLength(before.length);
+    expect([...after].sort()).toEqual([...before].sort());
+  });
+
+  it("非ホストはプレイ順を変更できない", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+
+    expect(rm.reorderSeats(guest.playerId, host.room.code, [guest.playerId, host.playerId])).toBe(
+      "ホストのみ操作できます",
+    );
+  });
+
+  it("ゲーム開始時にロビーの座席順が使われる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+
+    expect(rm.reorderSeats(host.playerId, host.room.code, [guest.playerId, host.playerId])).toBeNull();
+    expect(rm.startGame(host.playerId, host.room.code)).toBeNull();
+
+    const room = rm.getRoom(host.room.code)!;
+    expect(room.game?.seats).toEqual([guest.playerId, host.playerId]);
+  });
+});

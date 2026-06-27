@@ -151,15 +151,15 @@ interface MottainaiLinksProps {
 
 export function MottainaiLinks({ className = "" }: MottainaiLinksProps) {
   return (
-    <nav className={`mottainai-links ${className}`.trim()} aria-label="Mottainai Games">
+    <nav className={`mottainai-links ${className}`.trim()} aria-label="MottainaiGames のリンク">
       <a href={MOTTAINAI_HP_URL} target="_blank" rel="noopener noreferrer">
-        公式サイト
+        MottainaiGames 公式HP
       </a>
       <span className="mottainai-links__sep" aria-hidden="true">
         ·
       </span>
       <a href={MOTTAINAI_X_URL} target="_blank" rel="noopener noreferrer">
-        {MOTTAINAI_X_HANDLE}
+        X @MottainaiGames
       </a>
     </nav>
   );
@@ -217,9 +217,9 @@ export function RoomInviteShare({ roomCode }: RoomInviteShareProps) {
           type="button"
           className="share-x-btn share-x-btn--compact"
           onClick={handleTweetInvite}
-          title="Xで招待"
+          title="Xでルーム招待をポスト"
         >
-          X
+          Xで招待
         </button>
       </div>
     </div>

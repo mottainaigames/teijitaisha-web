@@ -17,6 +17,8 @@ import { CardEffectText } from "./card-effects-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
 import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
+import { LobbyAnnouncementStack, useLobbyAnnouncements } from "./lobby-announcement";
+import { LobbySeatOrder } from "./lobby-seat-order";
 import { ReorderableHandFan } from "./reorderable-hand-fan";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
@@ -52,6 +54,8 @@ interface Props {
   onRomanceSkip: () => void;
   onShuffleHand: () => void;
   onReorderHand: (cardIds: string[]) => void;
+  onReorderSeats: (playerIds: string[]) => void;
+  onShuffleSeats: () => void;
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
@@ -88,6 +92,8 @@ export function GameScreen({
   onRomanceSkip,
   onShuffleHand,
   onReorderHand,
+  onReorderSeats,
+  onShuffleSeats,
 }: Props) {
   const isHost = room.hostId === playerId;
   const me = view.seats.find((s) => s.playerId === playerId);
@@ -141,6 +147,13 @@ export function GameScreen({
     return () => clearTimeout(timer);
   }, [view.lastTransfer]);
 
+  const isLobby = view.phase === "lobby" || !room.started;
+  const lobbyAnnouncements = useLobbyAnnouncements({
+    room,
+    playerId,
+    enabled: isLobby,
+  });
+
   const seatOrder = (
     <SeatOrderBar
       seats={view.seats}
@@ -152,9 +165,10 @@ export function GameScreen({
 
   const menuExtra = (
     <>
-      <CollapsibleSection title="プレイ順" defaultOpen={false}>
+      <section className="menu-section" aria-label="プレイ順">
+        <h3 className="menu-section__title">プレイ順</h3>
         {seatOrder}
-      </CollapsibleSection>
+      </section>
       {view.activityLog.length > 0 && (
         <CollapsibleSection title="ログ" badge={view.activityLog.length}>
           <ActivityLogList entries={view.activityLog} />
@@ -190,7 +204,7 @@ export function GameScreen({
     </GameMenu>
   );
 
-  if (view.phase === "lobby" || !room.started) {
+  if (isLobby) {
     const playerCount = playingMembers.length;
     const recommended = isRecommendedPlayerCount(playerCount);
     const canStart =
@@ -200,6 +214,7 @@ export function GameScreen({
 
     return (
       <div className="game-shell game-shell--lobby">
+        <LobbyAnnouncementStack items={lobbyAnnouncements} />
         {gameMenu}
         {showProductAdPopup && (
           <div className="product-ad-popup-backdrop">
@@ -297,9 +312,18 @@ export function GameScreen({
                 </ul>
               </>
             )}
-            <CollapsibleSection title="プレイ順（座席）" defaultOpen={playerCount <= 8}>
-              {seatOrder}
-            </CollapsibleSection>
+            <section className="lobby-section" aria-label="プレイ順">
+              <div className="lobby-section__head">
+                <h2 className="lobby-section__title">プレイ順（座席）</h2>
+              </div>
+              <LobbySeatOrder
+                players={playingMembers}
+                myPlayerId={playerId}
+                editable={isHost && !isObserverMode}
+                onReorder={onReorderSeats}
+                onShuffle={onShuffleSeats}
+              />
+            </section>
           </section>
 
           <footer className="lobby-screen__footer">

@@ -406,6 +406,44 @@ export class RoomManager {
     return null;
   }
 
+  reorderSeats(hostId: PlayerId, code: RoomCode, playerIds: PlayerId[]): string | null {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return "ルームが見つかりません";
+    if (room.hostId !== hostId) return "ホストのみ操作できます";
+    if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
+    if (room.started) return "ゲーム開始後は変更できません";
+
+    const playing = [...room.players.values()].filter((p) => !p.isObserver);
+    const expected = new Set(playing.map((p) => p.id));
+    if (playerIds.length !== playing.length) return "不正な座席順です";
+    if (!playerIds.every((id) => expected.has(id))) return "不正な座席順です";
+
+    playerIds.forEach((id, index) => {
+      room.players.get(id)!.seatIndex = index;
+    });
+    this.reindexSeats(room);
+    this.touchRoom(room);
+    return null;
+  }
+
+  shuffleSeats(hostId: PlayerId, code: RoomCode): string | null {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return "ルームが見つかりません";
+    if (room.hostId !== hostId) return "ホストのみ操作できます";
+    if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
+    if (room.started) return "ゲーム開始後は変更できません";
+
+    const ids = [...room.players.values()]
+      .filter((p) => !p.isObserver)
+      .sort((a, b) => a.seatIndex - b.seatIndex)
+      .map((p) => p.id);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    }
+    return this.reorderSeats(hostId, code, ids);
+  }
+
   startGame(hostId: PlayerId, code: RoomCode): string | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return "ルームが見つかりません";
@@ -420,10 +458,13 @@ export class RoomManager {
       return `最大${MAX_PLAYERS}人までです`;
     }
 
-    const entries = [...room.players.values()]
+    const playing = [...room.players.values()]
       .filter((p) => !p.isObserver)
-      .map((p) => ({ id: p.id, name: p.name }));
-    const game = new GameEngine(entries);
+      .sort((a, b) => a.seatIndex - b.seatIndex);
+    const entries = playing.map((p) => ({ id: p.id, name: p.name }));
+    const seatOrder = playing.map((p) => p.id);
+    const firstSeatIndex = Math.floor(Math.random() * seatOrder.length);
+    const game = new GameEngine(entries, Math.random, { seats: seatOrder, firstSeatIndex });
     const err = game.start();
     if (err) return err;
 
@@ -796,6 +837,13 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return { type: "add_cpu" };
     case "remove_cpu":
       return { type: "remove_cpu" };
+    case "reorder_seats":
+      if (!Array.isArray(msg.playerIds) || !msg.playerIds.every((id) => typeof id === "string")) {
+        return null;
+      }
+      return { type: "reorder_seats", playerIds: msg.playerIds as string[] };
+    case "shuffle_seats":
+      return { type: "shuffle_seats" };
     case "selection_preview":
       if (!("mode" in msg)) return null;
       return {

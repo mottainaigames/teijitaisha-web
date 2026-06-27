@@ -41,6 +41,8 @@ export type ClientMessage =
   | { type: "advance_cpu" }
   | { type: "add_cpu" }
   | { type: "remove_cpu" }
+  | { type: "reorder_seats"; playerIds: PlayerId[] }
+  | { type: "shuffle_seats" }
   | { type: "ping" }
   | {
       type: "selection_preview";

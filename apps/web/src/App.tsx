@@ -94,8 +94,7 @@ export default function App() {
     <div className={`app${screen === "game" && room ? " app--in-game" : ""}`}>
       <div className="app-brand">
         <h1>定時退社</h1>
-        <p className="subtitle">Mottainai Games — Web版</p>
-        <MottainaiLinks />
+        <p className="subtitle">定時退社web版</p>
       </div>
 
       {!showRejoinFallback && !connected && reconnecting && (
@@ -128,7 +127,6 @@ export default function App() {
       {screen === "home" && (
         <>
           <ProductAdBanner className="product-ad-banner--home" />
-          <HomeRules />
           <div className="card">
           <label htmlFor="name">表示名</label>
           <input
@@ -171,7 +169,8 @@ export default function App() {
             オブザーバーとして参加
           </button>
           <HomePromoShareButton />
-        </div>
+          </div>
+          <HomeRules />
         </>
       )}
 
@@ -201,7 +200,16 @@ export default function App() {
           onRomanceSkip={() => send({ type: "romance_skip" })}
           onShuffleHand={() => send({ type: "shuffle_hand" })}
           onReorderHand={(cardIds) => send({ type: "reorder_hand", cardIds })}
+          onReorderSeats={(playerIds) => send({ type: "reorder_seats", playerIds })}
+          onShuffleSeats={() => send({ type: "shuffle_seats" })}
         />
+      )}
+
+      {!(screen === "game" && room) && (
+        <footer className="app-footer">
+          <MottainaiLinks className="mottainai-links--footer" />
+          <p className="app-footer__copy">© MottainaiGames 2026</p>
+        </footer>
       )}
     </div>
   );

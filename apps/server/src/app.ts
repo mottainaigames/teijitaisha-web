@@ -381,6 +381,36 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           break;
         }
 
+        case "reorder_seats": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          const err = roomManager.reorderSeats(ref.playerId, ref.code, message.playerIds);
+          if (err) {
+            send(ws, { type: "error", message: err });
+            return;
+          }
+          flushRoom(ref.code);
+          break;
+        }
+
+        case "shuffle_seats": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          const err = roomManager.shuffleSeats(ref.playerId, ref.code);
+          if (err) {
+            send(ws, { type: "error", message: err });
+            return;
+          }
+          flushRoom(ref.code);
+          break;
+        }
+
         case "start_game": {
           const ref = roomManager.getSocketRef(id);
           if (!ref) {
