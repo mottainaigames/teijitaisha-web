@@ -52,6 +52,9 @@ const GAME_MESSAGE_TYPES = new Set([
   "trade_select",
   "training_take",
   "meeting_declare",
+  "romance_skip",
+  "shuffle_hand",
+  "reorder_hand",
 ]);
 
 export class RoomManager {
@@ -347,6 +350,9 @@ export class RoomManager {
     if (room.players.size < MIN_PLAYERS) {
       return `最低${MIN_PLAYERS}人必要です`;
     }
+    if (room.players.size > MAX_PLAYERS) {
+      return `最大${MAX_PLAYERS}人までです`;
+    }
 
     const entries = [...room.players.values()].map((p) => ({ id: p.id, name: p.name }));
     const game = new GameEngine(entries);
@@ -385,8 +391,10 @@ export class RoomManager {
   handleGameAction(playerId: PlayerId, code: RoomCode, action: GameClientMessage): string | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game) return "ゲームが開始されていません";
+    this.syncCpuIds(room);
     const err = room.game.handleAction(playerId, action);
     if (!err) {
+      room.game.applyRomanceCpuSkips();
       this.syncHandCounts(room);
       this.touchRoom(room);
     }
@@ -451,8 +459,12 @@ export class RoomManager {
   executePreparedCpuAction(code: RoomCode): boolean {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game) return false;
+    this.syncCpuIds(room);
     const err = room.game.executePreparedCpuAction();
-    if (!err) this.syncHandCounts(room);
+    if (!err) {
+      room.game.applyRomanceCpuSkips();
+      this.syncHandCounts(room);
+    }
     return !err;
   }
 
@@ -565,11 +577,20 @@ export class RoomManager {
 
   private syncHandCounts(room: Room): void {
     if (!room.game) return;
+    this.syncCpuIds(room);
     for (const p of room.players.values()) {
       const gp = room.game.players.get(p.id);
       p.handCount = gp?.hand.length ?? 0;
       if (gp) p.status = gp.status;
     }
+  }
+
+  private syncCpuIds(room: Room): void {
+    if (!room.game) return;
+    const cpuIds = new Set(
+      [...room.players.values()].filter((p) => p.isCpu).map((p) => p.id),
+    );
+    room.game.setCpuPlayerIds(cpuIds);
   }
 
   toPublic(room: Room): RoomPublic {
@@ -632,6 +653,13 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return { type: "cycle_cpu_speed" };
     case "advance_cpu":
       return { type: "advance_cpu" };
+    case "shuffle_hand":
+      return { type: "shuffle_hand" };
+    case "reorder_hand":
+      if (!Array.isArray(msg.cardIds) || !msg.cardIds.every((id) => typeof id === "string")) {
+        return null;
+      }
+      return { type: "reorder_hand", cardIds: msg.cardIds as string[] };
     case "add_cpu":
       return { type: "add_cpu" };
     case "remove_cpu":

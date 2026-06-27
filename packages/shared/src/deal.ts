@@ -33,3 +33,28 @@ export function dealHands(
 
   return { hands, deck: deck.slice(offset) };
 }
+
+/** 手札枚数に差があるか（49枚 ÷ 人数 の余りがある場合など） */
+export function hasUnequalHandSizes(
+  playerIds: PlayerId[],
+  hands: Record<PlayerId, CardInstance[]>,
+): boolean {
+  if (playerIds.length === 0) return false;
+  const sizes = playerIds.map((id) => hands[id]?.length ?? 0);
+  return Math.min(...sizes) !== Math.max(...sizes);
+}
+
+/**
+ * 先攻席を決める: 左隣が手札最多のプレイヤーになる席（最初の引きが最多手札から）。
+ */
+export function firstSeatDrawingFromMaxHand(
+  playerIds: PlayerId[],
+  hands: Record<PlayerId, CardInstance[]>,
+  random: () => number,
+): number {
+  const maxCount = Math.max(...playerIds.map((id) => hands[id]?.length ?? 0));
+  const maxIds = playerIds.filter((id) => (hands[id]?.length ?? 0) === maxCount);
+  const sourceId = maxIds[Math.floor(random() * maxIds.length)]!;
+  const sourceSeatIndex = playerIds.indexOf(sourceId);
+  return (sourceSeatIndex + 1) % playerIds.length;
+}

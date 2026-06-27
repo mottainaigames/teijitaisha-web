@@ -50,6 +50,10 @@ interface PlayingCardProps {
   remoteSelected?: boolean;
   removing?: boolean;
   inspected?: boolean;
+  reorderable?: boolean;
+  dragCardId?: string;
+  onReorderDrop?: (draggedCardId: string, targetCardId: string) => void;
+  muted?: boolean;
   onHoverStart?: () => void;
   onHoverEnd?: () => void;
   onClick?: () => void;
@@ -66,6 +70,10 @@ export function PlayingCard({
   remoteSelected = false,
   removing = false,
   inspected = false,
+  reorderable = false,
+  dragCardId,
+  onReorderDrop,
+  muted = false,
   index = 0,
   total = 1,
   size = "md",
@@ -88,6 +96,8 @@ export function PlayingCard({
     remoteSelected ? "playing-card--remote-selected" : "",
     removing ? "playing-card--pulling-away" : "",
     inspected ? "playing-card--inspected" : "",
+    reorderable ? "playing-card--reorderable" : "",
+    muted ? "playing-card--muted" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -102,14 +112,33 @@ export function PlayingCard({
       : {}),
   };
 
-  const Tag = onClick ? "button" : "div";
+  const Tag = onClick && !reorderable ? "button" : "div";
 
   return (
     <Tag
-      type={onClick ? "button" : undefined}
+      type={Tag === "button" ? "button" : undefined}
       className={className}
       style={style}
+      draggable={reorderable}
       onClick={onClick}
+      onDragStart={(e) => {
+        if (!reorderable || !dragCardId) return;
+        e.dataTransfer.setData("text/plain", dragCardId);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragOver={(e) => {
+        if (!reorderable) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(e) => {
+        if (!reorderable || !dragCardId || !onReorderDrop) return;
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData("text/plain");
+        if (draggedId && draggedId !== dragCardId) {
+          onReorderDrop(draggedId, dragCardId);
+        }
+      }}
       onPointerEnter={onHoverStart}
       onPointerLeave={onHoverEnd}
       aria-label={faceDown ? "裏向きのカード" : displayLabel}

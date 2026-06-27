@@ -51,6 +51,7 @@ export default function App() {
           meetingDeclarations: {},
           peekedCards: [],
           canAct: false,
+          canReorderHand: false,
           deadlineAt: null,
           activityLog: [],
           cpuStatus: null,
@@ -153,6 +154,9 @@ export default function App() {
           onReturnToLobby={returnToLobby}
           onCycleCpuSpeed={cycleCpuSpeed}
           onAdvanceCpu={advanceCpu}
+          onRomanceSkip={() => send({ type: "romance_skip" })}
+          onShuffleHand={() => send({ type: "shuffle_hand" })}
+          onReorderHand={(cardIds) => send({ type: "reorder_hand", cardIds })}
         />
       )}
     </div>

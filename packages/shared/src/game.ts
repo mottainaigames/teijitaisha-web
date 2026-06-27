@@ -117,6 +117,8 @@ export interface GameView {
   meetingDeclarations: Record<PlayerId, boolean>;
   peekedCards: CardInstance[];
   canAct: boolean;
+  /** 手札の並べ替え・シャッフルが可能 */
+  canReorderHand: boolean;
   deadlineAt: number | null;
   /** 直近の出来事ログ（古い順） */
   activityLog: GameActivityEntry[];
@@ -143,6 +145,8 @@ export interface PendingView {
   tradeReady?: Record<PlayerId, boolean>;
   /** 情報共有: 誰が選んだか */
   infoShareReady?: Record<PlayerId, boolean>;
+  /** 社内恋愛: 誰がスキップしたか */
+  romanceSkipped?: Record<PlayerId, boolean>;
   sourcePlayerId?: PlayerId;
 }
 
@@ -157,4 +161,7 @@ export type GameClientMessage =
   | { type: "info_share_select"; cardId: string }
   | { type: "trade_select"; cardId: string }
   | { type: "training_take"; take: boolean; cardId?: string }
-  | { type: "meeting_declare" };
+  | { type: "meeting_declare" }
+  | { type: "romance_skip" }
+  | { type: "shuffle_hand" }
+  | { type: "reorder_hand"; cardIds: string[] };

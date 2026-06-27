@@ -1,11 +1,14 @@
 import {
   CARD_LABELS,
   IDLE_TIMEOUT_MS,
+  MAX_PLAYERS,
   MIN_PLAYERS,
   SHANAI_RENAI_VIEW_MS,
   type CardType,
   dealHands,
+  firstSeatDrawingFromMaxHand,
   getPairableTypes,
+  hasUnequalHandSizes,
   pickRandom,
   removeCardById,
   removeCardsByType,
@@ -44,6 +47,7 @@ interface PendingInput {
   infoShareSelections?: Map<PlayerId, string>;
   tradeSelections?: Map<PlayerId, string>;
   sourcePlayerId?: PlayerId;
+  romanceSkips?: Set<PlayerId>;
 }
 
 export class GameEngine {
@@ -87,6 +91,7 @@ export class GameEngine {
 
   private readonly random: () => number;
   private readonly layout?: { seats: PlayerId[]; firstSeatIndex: number };
+  private cpuPlayerIds = new Set<PlayerId>();
 
   constructor(
     entries: { id: PlayerId; name: string }[],
@@ -109,6 +114,9 @@ export class GameEngine {
     if (this.players.size < MIN_PLAYERS) {
       return `最低${MIN_PLAYERS}人必要です`;
     }
+    if (this.players.size > MAX_PLAYERS) {
+      return `最大${MAX_PLAYERS}人までです`;
+    }
     this.seats = [...this.players.keys()];
     if (this.layout) {
       this.seats = [...this.layout.seats];
@@ -119,17 +127,25 @@ export class GameEngine {
         const j = Math.floor(this.random() * (i + 1));
         [this.seats[i], this.seats[j]] = [this.seats[j]!, this.seats[i]!];
       }
-      this.firstPlayerSeatIndex = Math.floor(this.random() * this.seats.length);
     }
-    this.currentSeatIndex = this.firstPlayerSeatIndex;
 
-    const { hands } = dealHands(this.seats, this.firstPlayerSeatIndex, this.random, () =>
-      randomUUID(),
-    );
+    const dealStartIndex = this.layout
+      ? 0
+      : Math.floor(this.random() * this.seats.length);
+    const { hands } = dealHands(this.seats, dealStartIndex, this.random, () => randomUUID());
     for (const [id, hand] of Object.entries(hands)) {
       const p = this.players.get(id as PlayerId);
       if (p) p.hand = hand;
     }
+
+    if (this.layout) {
+      this.firstPlayerSeatIndex = this.layout.firstSeatIndex;
+    } else if (hasUnequalHandSizes(this.seats, hands)) {
+      this.firstPlayerSeatIndex = firstSeatDrawingFromMaxHand(this.seats, hands, this.random);
+    } else {
+      this.firstPlayerSeatIndex = Math.floor(this.random() * this.seats.length);
+    }
+    this.currentSeatIndex = this.firstPlayerSeatIndex;
 
     this.phase = "draw";
     this.pairsRemainingThisTurn = 1;
@@ -140,11 +156,34 @@ export class GameEngine {
     return null;
   }
 
+  setCpuPlayerIds(ids: Set<PlayerId>): void {
+    this.cpuPlayerIds = ids;
+  }
+
+  applyRomanceCpuSkips(): void {
+    if (this.pending?.type !== "romance_view") return;
+    if (!this.pending.romanceSkips) this.pending.romanceSkips = new Set();
+    for (const id of this.pending.playerIds) {
+      if (this.cpuPlayerIds.has(id)) {
+        this.pending.romanceSkips.add(id);
+      }
+    }
+    this.tryFinishRomanceView();
+  }
+
   handleAction(
     playerId: PlayerId,
     action: { type: string; [key: string]: unknown },
   ): string | null {
     if (this.phase === "game_end") return "ゲームは終了しています";
+
+    if (action.type === "shuffle_hand") {
+      return this.shuffleHand(playerId);
+    }
+    if (action.type === "reorder_hand") {
+      return this.reorderHand(playerId, action.cardIds as string[]);
+    }
+
     if (!this.pending) return "入力待ちではありません";
 
     this.remoteSelection = null;
@@ -183,6 +222,10 @@ export class GameEngine {
           action.take as boolean,
           action.cardId as string | undefined,
         );
+        break;
+      case "romance_view":
+        if (action.type !== "romance_skip") return "スキップするか待ってください";
+        result = this.skipRomanceView(playerId);
         break;
       default:
         result = "未対応の入力です";
@@ -472,6 +515,7 @@ export class GameEngine {
       meetingDeclarations: { ...this.meetingDeclarations },
       peekedCards: this.buildPeekedCards(forPlayerId),
       canAct: this.canPlayerAct(forPlayerId),
+      canReorderHand: this.canReorderHand(forPlayerId),
       deadlineAt: this.pending?.deadlineAt ?? null,
       activityLog: [...this.activityLog],
       cpuStatus: this.cpuStatus ? { ...this.cpuStatus } : null,
@@ -499,6 +543,40 @@ export class GameEngine {
   private canPlayerAct(forPlayerId: PlayerId): boolean {
     if (!this.pending || this.pending.type === "romance_view") return false;
     return this.pending.playerIds.includes(forPlayerId);
+  }
+
+  canReorderHand(playerId: PlayerId): boolean {
+    if (this.phase === "game_end") return false;
+    const player = this.players.get(playerId);
+    if (!player || player.status !== "active") return false;
+    const pending = this.pending;
+    if (pending?.type === "draw" && pending.sourcePlayerId === playerId) return false;
+    if (pending?.type === "select_card" && pending.targetId === playerId) return false;
+    return true;
+  }
+
+  shuffleHand(playerId: PlayerId): string | null {
+    if (!this.canReorderHand(playerId)) return "今は並べ替えできません";
+    const player = this.players.get(playerId);
+    if (!player) return "不正な操作です";
+    const hand = [...player.hand];
+    for (let i = hand.length - 1; i > 0; i--) {
+      const j = Math.floor(this.random() * (i + 1));
+      [hand[i], hand[j]] = [hand[j]!, hand[i]!];
+    }
+    player.hand = hand;
+    return null;
+  }
+
+  reorderHand(playerId: PlayerId, cardIds: string[]): string | null {
+    if (!this.canReorderHand(playerId)) return "今は並べ替えできません";
+    const player = this.players.get(playerId);
+    if (!player) return "不正な操作です";
+    if (cardIds.length !== player.hand.length) return "不正な手札です";
+    const handMap = new Map(player.hand.map((c) => [c.id, c]));
+    if (cardIds.some((id) => !handMap.has(id))) return "不正なカードです";
+    player.hand = cardIds.map((id) => handMap.get(id)!);
+    return null;
   }
 
   private buildTransferView(forPlayerId: PlayerId): CardTransfer | null {
@@ -555,6 +633,10 @@ export class GameEngine {
       const partnerId =
         forPlayerId === p.effectUserId ? p.targetId! : p.effectUserId!;
       view.sourcePlayerId = partnerId;
+      view.romanceSkipped = {};
+      for (const id of p.playerIds) {
+        view.romanceSkipped[id] = p.romanceSkips?.has(id) ?? false;
+      }
     }
 
     return view;
@@ -618,10 +700,38 @@ export class GameEngine {
         this.resolveTrainingTake(this.pending.effectUserId!, false);
         break;
       case "romance_view":
-        this.log("社内恋愛の手札確認が終了", "shanai_renai");
-        this.afterEffectResolved();
+        this.finishRomanceView("timeout");
         break;
     }
+  }
+
+  private skipRomanceView(playerId: PlayerId): string | null {
+    if (this.pending?.type !== "romance_view") return "スキップできません";
+    if (!this.pending.playerIds.includes(playerId)) return "対象外です";
+    if (!this.pending.romanceSkips) this.pending.romanceSkips = new Set();
+    if (this.pending.romanceSkips.has(playerId)) return null;
+    this.pending.romanceSkips.add(playerId);
+    this.log(`${this.playerName(playerId)}が社内恋愛の確認をスキップ`, "shanai_renai");
+    this.tryFinishRomanceView();
+    return null;
+  }
+
+  private tryFinishRomanceView(): void {
+    if (this.pending?.type !== "romance_view") return;
+    const skips = this.pending.romanceSkips ?? new Set();
+    if (this.pending.playerIds.every((id) => skips.has(id))) {
+      this.finishRomanceView("skip");
+    }
+  }
+
+  private finishRomanceView(reason: "skip" | "timeout"): void {
+    if (this.pending?.type !== "romance_view") return;
+    if (reason === "timeout") {
+      this.log("社内恋愛の手札確認が終了", "shanai_renai");
+    } else {
+      this.log("社内恋愛の手札確認を双方がスキップ", "shanai_renai");
+    }
+    this.afterEffectResolved();
   }
 
   private beginDrawPhase(): void {
@@ -649,7 +759,7 @@ export class GameEngine {
     if (!this.players.get(sourceId)?.hand.some((c) => c.id === cardId)) {
       return "そのカードは選べません";
     }
-    this.transferCard(sourceId, playerId, cardId);
+    this.transferCard(sourceId, playerId, cardId, true);
     this.log(`${this.playerName(playerId)}が${this.playerName(sourceId)}からカードを1枚引きました`);
     this.afterDraw(playerId);
     return null;
@@ -857,6 +967,7 @@ export class GameEngine {
           effectCard: cardType,
           effectUserId: userId,
           targetId,
+          romanceSkips: new Set(),
         };
         return null;
       case "shinjin_kyouiku": {
@@ -1212,11 +1323,22 @@ export class GameEngine {
     return this.seats[j]!;
   }
 
-  private transferCard(fromId: PlayerId, toId: PlayerId, cardId: string): void {
+  private transferCard(
+    fromId: PlayerId,
+    toId: PlayerId,
+    cardId: string,
+    insertRandom = false,
+  ): void {
     const from = this.players.get(fromId)!;
     const { card, hand } = removeCardById(from.hand, cardId);
     from.hand = hand;
-    this.players.get(toId)!.hand.push(card);
+    const toHand = this.players.get(toId)!.hand;
+    if (insertRandom) {
+      const index = Math.floor(this.random() * (toHand.length + 1));
+      toHand.splice(index, 0, card);
+    } else {
+      toHand.push(card);
+    }
     this.lastTransfer = {
       cardId: card.id,
       cardType: card.type,

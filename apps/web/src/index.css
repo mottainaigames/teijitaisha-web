@@ -96,6 +96,35 @@ button.secondary {
   margin: 1rem 0;
 }
 
+.lobby-screen__recommended {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.lobby-warning {
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.lobby-warning__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.lobby-warning__body {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #78350f;
+}
+
 .player-list {
   list-style: none;
   padding: 0;
@@ -1167,6 +1196,19 @@ button.secondary {
   margin-left: 0;
 }
 
+.romance-peek__actions {
+  margin-top: 0.75rem;
+}
+
+.romance-peek__actions button {
+  margin-top: 0;
+}
+
+.romance-peek__waiting {
+  margin: 0;
+  text-align: center;
+}
+
 /* カード効果 */
 
 .game-status__effects-btn,
@@ -1218,6 +1260,40 @@ button.secondary {
 .my-hand .playing-card[type="button"],
 .my-hand .playing-card {
   cursor: pointer;
+}
+
+@media (hover: hover) {
+  .my-hand .playing-card:not(.playing-card--muted):hover {
+    transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 14px)) scale(1.05) !important;
+    z-index: 110 !important;
+    filter: brightness(1.1) saturate(1.2);
+    box-shadow:
+      0 0 0 2px rgb(99 102 241 / 50%),
+      0 8px 20px rgb(99 102 241 / 28%),
+      0 3px 8px rgb(0 0 0 / 12%) !important;
+  }
+
+  .my-hand .playing-card--selectable:not(.playing-card--muted):hover {
+    transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 22px)) scale(1.1) !important;
+    z-index: 200 !important;
+    filter: brightness(1.12) saturate(1.25);
+    box-shadow:
+      0 0 0 3px rgb(37 99 235 / 55%),
+      0 12px 28px rgb(37 99 235 / 38%),
+      0 4px 12px rgb(0 0 0 / 15%) !important;
+  }
+
+  .my-hand .playing-card--selected:hover {
+    transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 20px)) scale(1.08) !important;
+    filter: brightness(1.1) saturate(1.22);
+  }
+
+  .my-hand .playing-card--inspected:hover {
+    box-shadow:
+      0 0 0 2px #8b5cf6,
+      0 10px 22px rgb(139 92 246 / 35%),
+      0 3px 8px rgb(0 0 0 / 12%) !important;
+  }
 }
 
 .playing-card--inspected {
@@ -1583,10 +1659,220 @@ button.secondary {
 }
 
 .my-hand__label {
-  margin: 0 0 0.35rem;
+  margin: 0;
   padding: 0 0.35rem;
   font-weight: 600;
   font-size: 0.78rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.my-hand__toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.my-hand__shuffle {
+  width: auto;
+  min-width: 0;
+  flex-shrink: 0;
+  padding: 0.35rem 0.6rem;
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.my-hand__hint {
+  margin: 0 0 0.35rem;
+  padding: 0 0.35rem;
+  font-size: 0.7rem;
+}
+
+.my-hand__hint--locked {
+  color: #b45309;
+}
+
+.playing-card--reorderable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.playing-card--reorderable:active {
+  cursor: grabbing;
+}
+
+.playing-card--muted {
+  opacity: 0.35;
+  filter: grayscale(0.35);
+}
+
+.game-hand-dock--picking {
+  box-shadow:
+    0 -4px 24px rgb(37 99 235 / 18%),
+    0 0 0 2px rgb(37 99 235 / 35%);
+}
+
+.my-hand--picking {
+  animation: hand-pick-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hand-pick-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgb(37 99 235 / 0%);
+  }
+
+  50% {
+    box-shadow: inset 0 0 0 2px rgb(37 99 235 / 25%);
+  }
+}
+
+.hand-pick-banner {
+  margin: 0 0.35rem 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 2px solid #93c5fd;
+  background: linear-gradient(180deg, #eff6ff 0%, #fff 100%);
+}
+
+.hand-pick-banner--info_share {
+  border-color: #818cf8;
+  background: linear-gradient(180deg, #eef2ff 0%, #fff 100%);
+}
+
+.hand-pick-banner--trade {
+  border-color: #fb923c;
+  background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
+}
+
+.hand-pick-banner--pawahara {
+  border-color: #94a3b8;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.hand-pick-banner--play {
+  border-color: #2563eb;
+}
+
+.hand-pick-banner__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.hand-pick-banner__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  color: #1e3a5f;
+}
+
+.hand-pick-banner__desc {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.hand-pick-banner__status {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.hand-pick-banner__steps {
+  list-style: none;
+  margin: 0 0 0.65rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.hand-pick-banner__steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #64748b;
+  background: rgb(255 255 255 / 70%);
+}
+
+.hand-pick-banner__steps li.is-active {
+  color: #1d4ed8;
+  font-weight: 700;
+  background: #dbeafe;
+}
+
+.hand-pick-banner__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.hand-pick-banner__steps li.is-active .hand-pick-banner__step-num {
+  background: #2563eb;
+  color: #fff;
+}
+
+.hand-pick-banner__preview {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px dashed #93c5fd;
+}
+
+.hand-pick-banner__preview p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.hand-pick-banner__pointer {
+  margin: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2563eb;
+  animation: hand-pick-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes hand-pick-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+.actions--compact {
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.actions__compact-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  text-align: center;
 }
 
 .game-menu {

@@ -1,5 +1,12 @@
-export const MIN_PLAYERS = 3;
-export const MAX_PLAYERS = 6;
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 48;
+/** ルール上の推奨人数（この範囲外はバランスが崩れる可能性あり） */
+export const RECOMMENDED_MIN_PLAYERS = 3;
+export const RECOMMENDED_MAX_PLAYERS = 6;
+
+export function isRecommendedPlayerCount(count: number): boolean {
+  return count >= RECOMMENDED_MIN_PLAYERS && count <= RECOMMENDED_MAX_PLAYERS;
+}
 export const ROOM_CODE_LENGTH = 6;
 export const IDLE_TIMEOUT_MS = 20_000;
 /** 社内恋愛: 互いの手札を見せ合う時間 */

@@ -3,8 +3,11 @@ import {
   CARD_EFFECTS,
   CARD_LABELS,
   CPU_SPEED_LABELS,
+  isRecommendedPlayerCount,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  RECOMMENDED_MAX_PLAYERS,
+  RECOMMENDED_MIN_PLAYERS,
   type CardType,
   type GameView,
   type RoomPublic,
@@ -13,6 +16,7 @@ import { CardFan, PairCard, PlayingCard } from "./cards-ui";
 import { CardEffectText } from "./card-effects-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
+import { HandPickBanner } from "./hand-pick-banner";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 
@@ -40,6 +44,9 @@ interface Props {
   onReturnToLobby: () => void;
   onCycleCpuSpeed: () => void;
   onAdvanceCpu: () => void;
+  onRomanceSkip: () => void;
+  onShuffleHand: () => void;
+  onReorderHand: (cardIds: string[]) => void;
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
@@ -71,6 +78,9 @@ export function GameScreen({
   onReturnToLobby,
   onCycleCpuSpeed,
   onAdvanceCpu,
+  onRomanceSkip,
+  onShuffleHand,
+  onReorderHand,
 }: Props) {
   const isHost = room.hostId === playerId;
   const me = view.seats.find((s) => s.playerId === playerId);
@@ -161,6 +171,11 @@ export function GameScreen({
   );
 
   if (view.phase === "lobby" || !room.started) {
+    const playerCount = room.players.length;
+    const recommended = isRecommendedPlayerCount(playerCount);
+    const canStart =
+      playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS;
+
     return (
       <>
         {gameMenu}
@@ -174,8 +189,23 @@ export function GameScreen({
             このコードを共有してください
           </p>
           <p className="status">
-            参加者 {room.players.length} / {MAX_PLAYERS}
+            参加者 {playerCount} / {MAX_PLAYERS}
+            <span className="lobby-screen__recommended">
+              （推奨 {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人）
+            </span>
           </p>
+          {!recommended && playerCount >= MIN_PLAYERS && (
+            <div className="lobby-warning" role="status">
+              <p className="lobby-warning__title">推奨人数外でプレイします</p>
+              <p className="lobby-warning__body">
+                ルール上の推奨は {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人です。
+                {playerCount < RECOMMENDED_MIN_PLAYERS
+                  ? "人数が少ないとゲームが短く終わりやすく、バランスが崩れる可能性があります。"
+                  : "人数が多いと手札が極端に少なくなり、待ち時間やバランスが崩れる可能性があります。"}
+                問題なければこのまま開始できます。
+              </p>
+            </div>
+          )}
           {seatOrder}
           <ul className="player-list">
             {room.players.map((p) => (
@@ -207,8 +237,8 @@ export function GameScreen({
             </div>
           )}
           {isHost && (
-            <button type="button" onClick={onStart} disabled={room.players.length < MIN_PLAYERS}>
-              ゲームを開始（{MIN_PLAYERS}人〜）
+            <button type="button" onClick={onStart} disabled={!canStart}>
+              ゲームを開始（{MIN_PLAYERS}〜{MAX_PLAYERS}人）
             </button>
           )}
           {!isHost && <p className="status">ホストの開始を待っています…</p>}
@@ -338,6 +368,18 @@ export function GameScreen({
   const handleHandCardTap = (card: GameView["myHand"][0]) => {
     setFocusedHandCardId(card.id);
     if (handPickMode) handleMyCardClick(card);
+  };
+
+  const canReorderHand = view.canReorderHand && !handPickMode;
+  const handleReorderDrop = (draggedCardId: string, targetCardId: string) => {
+    if (!canReorderHand) return;
+    const ids = view.myHand.map((c) => c.id);
+    const fromIdx = ids.indexOf(draggedCardId);
+    const toIdx = ids.indexOf(targetCardId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, draggedCardId);
+    onReorderHand(ids);
   };
 
   return (
@@ -506,6 +548,17 @@ export function GameScreen({
                 />
               ))}
             </CardFan>
+            {view.pending.playerIds.includes(playerId) && (
+              <div className="romance-peek__actions">
+                {view.pending.romanceSkipped?.[playerId] ? (
+                  <p className="status romance-peek__waiting">相手のスキップ待ち…</p>
+                ) : (
+                  <button type="button" className="secondary" onClick={onRomanceSkip}>
+                    確認をスキップ
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -526,17 +579,37 @@ export function GameScreen({
         )}
       </div>
 
-      <div className="game-hand-dock">
-        <div className="my-hand">
-          <p className="my-hand__label">
-            あなたの手札（{me?.handCount ?? 0}枚）
-            {me?.status === "retired" && " — 退社済み"}
-            {handPickMode === "play_or_skip" && " — ペアをタップして選択"}
-            {handPickMode === "info_share" && " — タップで選択 → もう一度で渡す"}
-            {handPickMode === "trade" && " — タップで選択 → もう一度で交換"}
-            {handPickMode === "pawahara_give" && " — タップで選択 → もう一度で渡す"}
-            {!handPickMode && view.myHand.length > 0 && " — タップで効果を表示"}
-          </p>
+      <div className={`game-hand-dock${handPickMode && view.canAct ? " game-hand-dock--picking" : ""}`}>
+        {handPickMode && view.canAct && (
+          <HandPickBanner
+            mode={handPickMode}
+            view={view}
+            playerId={playerId}
+            selectedCardId={selectedCardId}
+            selectedPairType={selectedPairType}
+          />
+        )}
+        <div className={`my-hand${handPickMode && view.canAct ? " my-hand--picking" : ""}`}>
+          <div className="my-hand__toolbar">
+            <p className="my-hand__label">
+              あなたの手札（{me?.handCount ?? 0}枚）
+              {me?.status === "retired" && " — 退社済み"}
+              {!handPickMode && !canReorderHand && view.myHand.length > 0 && " — タップで効果を表示"}
+            </p>
+            {canReorderHand && view.myHand.length > 1 && (
+              <button type="button" className="my-hand__shuffle secondary" onClick={onShuffleHand}>
+                シャッフル
+              </button>
+            )}
+          </div>
+          {canReorderHand && view.myHand.length > 1 && (
+            <p className="status my-hand__hint">ドラッグで並べ替え</p>
+          )}
+          {!canReorderHand && view.canReorderHand === false && view.myHand.length > 0 && !handPickMode && (
+            <p className="status my-hand__hint my-hand__hint--locked">
+              手札が選ばれている間は並べ替えできません
+            </p>
+          )}
           {inspectedHandCardType && (
             <CollapsibleSection title={`効果: ${CARD_LABELS[inspectedHandCardType]}`} defaultOpen>
               <CardEffectText cardType={inspectedHandCardType} />
@@ -554,14 +627,19 @@ export function GameScreen({
                     cardType={c.type}
                     index={i}
                     total={view.myHand.length}
+                    reorderable={canReorderHand}
+                    dragCardId={c.id}
+                    onReorderDrop={handleReorderDrop}
+                    muted={handPickMode === "play_or_skip" && !pairable.includes(c.type)}
                     selectable={
-                      handPickMode === "info_share" ||
-                      handPickMode === "trade" ||
-                      handPickMode === "pawahara_give" ||
-                      (handPickMode === "play_or_skip" && pairable.includes(c.type))
+                      !canReorderHand &&
+                      (handPickMode === "info_share" ||
+                        handPickMode === "trade" ||
+                        handPickMode === "pawahara_give" ||
+                        (handPickMode === "play_or_skip" && pairable.includes(c.type)))
                     }
                     selected={selected}
-                    inspected={!selected && focusedHandCardId === c.id}
+                    inspected={!selected && !handPickMode && focusedHandCardId === c.id}
                     confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
                     remoteHover={remote.remoteHover}
                     remoteSelected={remote.remoteSelected}
@@ -571,7 +649,11 @@ export function GameScreen({
                     onHoverEnd={
                       handPickMode && view.canAct ? () => sendCardPreview(null, "clear") : undefined
                     }
-                    onClick={() => handleHandCardTap(c)}
+                    onClick={
+                      canReorderHand || handPickMode || view.myHand.length > 0
+                        ? () => handleHandCardTap(c)
+                        : undefined
+                    }
                   />
                 );
               })}
@@ -803,9 +885,8 @@ function PendingActions({
   if (p.type === "select_card" && p.validCardIds) {
     if (view.effectCard === "pawahara") {
       return (
-        <div className="actions">
-          <p>パワハラ: 相手に渡すカードを選ぶ</p>
-          <p className="status">下の手札をタップ → もう一度タップで渡す</p>
+        <div className="actions actions--compact">
+          <p className="actions__compact-note">相手のカードを選ぶフェーズです（あなたは下の手札から選びます）</p>
         </div>
       );
     }
@@ -842,26 +923,24 @@ function PendingActions({
 
   if (p.type === "info_share") {
     return (
-      <div className="actions">
-        <p>左隣に渡すカードを選ぶ</p>
-        <p className="status">下の手札をタップ → もう一度タップで渡す</p>
+      <div className="actions actions--compact">
+        <p className="actions__compact-note">全員が選び終わると一斉に交換されます</p>
       </div>
     );
   }
 
   if (p.type === "trade") {
+    const waiting =
+      p.tradeReady &&
+      !Object.entries(p.tradeReady).every(([, ready]) => ready);
     return (
-      <div className="actions">
-        <p>交換するカードを選ぶ</p>
-        {p.tradeReady && (
-          <p className="status">
-            {Object.entries(p.tradeReady)
-              .filter(([, ready]) => ready)
-              .map(([id]) => `${nameOf(view.seats, id)} 選択済み`)
-              .join(" / ") || "相手の選択を待っています…"}
-          </p>
+      <div className="actions actions--compact">
+        {waiting && (
+          <p className="actions__compact-note">相手の選択を待っています…</p>
         )}
-        <p className="status">下の手札をタップ → もう一度タップで交換</p>
+        {!waiting && p.tradeReady && (
+          <p className="actions__compact-note">双方の選択が揃いました</p>
+        )}
       </div>
     );
   }
