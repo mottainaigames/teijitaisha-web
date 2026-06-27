@@ -69,8 +69,8 @@ interface PlayingCardProps {
   removing?: boolean;
   inspected?: boolean;
   reorderable?: boolean;
-  dragCardId?: string;
-  onReorderDrop?: (draggedCardId: string, targetCardId: string) => void;
+  /** 親要素で扇形配置する場合は true */
+  flat?: boolean;
   muted?: boolean;
   onHoverStart?: () => void;
   onHoverEnd?: () => void;
@@ -89,8 +89,7 @@ export function PlayingCard({
   removing = false,
   inspected = false,
   reorderable = false,
-  dragCardId,
-  onReorderDrop,
+  flat = false,
   muted = false,
   index = 0,
   total = 1,
@@ -101,7 +100,7 @@ export function PlayingCard({
 }: PlayingCardProps) {
   const theme = cardType ? CARD_THEMES[cardType] : null;
   const displayLabel = label ?? (cardType ? CARD_LABELS[cardType] : "?");
-  const fan = fanTransform(index, total);
+  const fan = flat ? {} : fanTransform(index, total);
 
   const className = [
     "playing-card",
@@ -133,26 +132,8 @@ export function PlayingCard({
       type={Tag === "button" ? "button" : undefined}
       className={className}
       style={style}
-      draggable={reorderable}
+      draggable={false}
       onClick={onClick}
-      onDragStart={(e) => {
-        if (!reorderable || !dragCardId) return;
-        e.dataTransfer.setData("text/plain", dragCardId);
-        e.dataTransfer.effectAllowed = "move";
-      }}
-      onDragOver={(e) => {
-        if (!reorderable) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-      }}
-      onDrop={(e) => {
-        if (!reorderable || !dragCardId || !onReorderDrop) return;
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData("text/plain");
-        if (draggedId && draggedId !== dragCardId) {
-          onReorderDrop(draggedId, dragCardId);
-        }
-      }}
       onPointerEnter={onHoverStart}
       onPointerLeave={onHoverEnd}
       aria-label={faceDown ? "裏向きのカード" : displayLabel}

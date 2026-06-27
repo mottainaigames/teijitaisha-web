@@ -17,6 +17,7 @@ import { CardEffectText } from "./card-effects-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
 import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
+import { ReorderableHandFan } from "./reorderable-hand-fan";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 
@@ -399,16 +400,6 @@ export function GameScreen({
   };
 
   const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickPurpose;
-  const handleReorderDrop = (draggedCardId: string, targetCardId: string) => {
-    if (!canReorderHand) return;
-    const ids = view.myHand.map((c) => c.id);
-    const fromIdx = ids.indexOf(draggedCardId);
-    const toIdx = ids.indexOf(targetCardId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    ids.splice(fromIdx, 1);
-    ids.splice(toIdx, 0, draggedCardId);
-    onReorderHand(ids);
-  };
 
   return (
     <div className="game-shell">
@@ -670,6 +661,14 @@ export function GameScreen({
             </CollapsibleSection>
           )}
           {view.myHand.length > 0 ? (
+            canReorderHand ? (
+              <ReorderableHandFan
+                cards={view.myHand.map((c) => ({ id: c.id, type: c.type }))}
+                onReorder={onReorderHand}
+                onCardTap={(card) => handleHandCardTap({ id: card.id, type: card.type })}
+                focusedCardId={focusedHandCardId}
+              />
+            ) : (
             <CardFan>
               {view.myHand.map((c, i) => {
                 const remote = cardRemoteState(c.id);
@@ -680,9 +679,6 @@ export function GameScreen({
                     cardType={c.type}
                     index={i}
                     total={view.myHand.length}
-                    reorderable={canReorderHand}
-                    dragCardId={c.id}
-                    onReorderDrop={handleReorderDrop}
                     muted={handPickPurpose === "play_or_skip" && !pairable.includes(c.type)}
                     selectable={
                       !canReorderHand &&
@@ -700,15 +696,12 @@ export function GameScreen({
                     onHoverEnd={
                       isMyHandPicking && view.canAct ? () => sendCardPreview(null, "clear") : undefined
                     }
-                    onClick={
-                      canReorderHand || handPickPurpose || view.myHand.length > 0
-                        ? () => handleHandCardTap(c)
-                        : undefined
-                    }
+                    onClick={() => handleHandCardTap(c)}
                   />
                 );
               })}
             </CardFan>
+            )
           ) : (
             <p className="status">手札なし</p>
           )}
