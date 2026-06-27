@@ -1438,31 +1438,26 @@ button.secondary {
 
 @media (hover: hover) {
   .my-hand .playing-card:not(.playing-card--muted):hover {
-    transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 14px)) scale(1.05) !important;
-    z-index: 110 !important;
-    filter: brightness(1.1) saturate(1.2);
-    box-shadow:
-      0 0 0 2px rgb(99 102 241 / 50%),
-      0 8px 20px rgb(99 102 241 / 28%),
-      0 3px 8px rgb(0 0 0 / 12%) !important;
-  }
-
-  .my-hand .playing-card--selectable:not(.playing-card--muted):hover {
     transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 22px)) scale(1.1) !important;
     z-index: 200 !important;
-    filter: brightness(1.12) saturate(1.25);
     box-shadow:
-      0 0 0 3px rgb(37 99 235 / 55%),
-      0 12px 28px rgb(37 99 235 / 38%),
+      0 0 0 3px rgb(37 99 235 / 45%),
+      0 12px 28px rgb(37 99 235 / 35%),
       0 4px 12px rgb(0 0 0 / 15%) !important;
+    filter: brightness(1.05);
   }
 
-  .my-hand .playing-card--selected:hover {
+  .my-hand .playing-card--selectable:not(.playing-card--muted):hover .playing-card__hand {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  .my-hand .playing-card--selected:not(.playing-card--muted):hover {
     transform: rotate(var(--fan-rotate)) translateY(calc(var(--fan-lift) - 20px)) scale(1.08) !important;
     filter: brightness(1.1) saturate(1.22);
   }
 
-  .my-hand .playing-card--inspected:hover {
+  .my-hand .playing-card--inspected:not(.playing-card--muted):hover {
     box-shadow:
       0 0 0 2px #8b5cf6,
       0 10px 22px rgb(139 92 246 / 35%),
@@ -1907,215 +1902,76 @@ button.secondary {
   filter: grayscale(0.35);
 }
 
-.game-hand-dock--picking {
-  box-shadow:
-    0 -4px 24px rgb(99 102 241 / 16%),
-    0 0 0 2px rgb(99 102 241 / 30%);
-}
-
 .game-hand-dock--selecting {
   box-shadow: 0 -2px 16px rgb(15 23 42 / 8%);
 }
 
-.my-hand--picking {
-  animation: hand-pick-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes hand-pick-pulse {
-  0%,
-  100% {
-    box-shadow: inset 0 0 0 0 rgb(37 99 235 / 0%);
-  }
-
-  50% {
-    box-shadow: inset 0 0 0 2px rgb(37 99 235 / 25%);
-  }
-}
-
-.hand-pick-banner {
-  margin: 0 0.35rem 0.5rem;
-  padding: 0.75rem 0.85rem;
+.my-hand--purpose-info_share,
+.my-hand--purpose-trade,
+.my-hand--purpose-pawahara_give,
+.my-hand--purpose-play_or_skip {
+  padding: 0.55rem 0.5rem 0.65rem;
   border-radius: 12px;
-  border: 2px solid #93c5fd;
-  background: linear-gradient(180deg, #eff6ff 0%, #fff 100%);
+  border: 2px solid transparent;
 }
 
-.hand-pick-banner--info_share {
+.my-hand--purpose-info_share {
   border-color: #818cf8;
-  background: linear-gradient(180deg, #eef2ff 0%, #fff 100%);
+  background: linear-gradient(180deg, rgb(238 242 255 / 90%) 0%, rgb(255 255 255 / 40%) 100%);
 }
 
-.hand-pick-banner--trade {
+.my-hand--purpose-trade {
   border-color: #fb923c;
-  background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
+  background: linear-gradient(180deg, rgb(255 247 237 / 90%) 0%, rgb(255 255 255 / 40%) 100%);
 }
 
-.hand-pick-banner__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+.my-hand--purpose-pawahara_give {
+  border-color: #94a3b8;
+  background: linear-gradient(180deg, rgb(248 250 252 / 90%) 0%, rgb(255 255 255 / 40%) 100%);
 }
 
-.hand-pick-banner__badge {
-  display: inline-flex;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+.my-hand--purpose-play_or_skip {
+  border-color: #2563eb;
+  background: linear-gradient(180deg, rgb(239 246 255 / 90%) 0%, rgb(255 255 255 / 40%) 100%);
 }
 
-.hand-pick-banner--info_share .hand-pick-banner__badge {
-  background: #c7d2fe;
-  color: #312e81;
+.my-hand--purpose-waiting {
+  opacity: 0.92;
 }
 
-.hand-pick-banner--trade .hand-pick-banner__badge {
-  background: #fed7aa;
-  color: #7c2d12;
-}
-
-.hand-pick-banner__progress,
-.hand-pick-banner__partner {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #64748b;
-}
-
-.hand-pick-banner__flow {
-  margin: 0 0 0.65rem;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: #1e293b;
-}
-
-.hand-pick-banner__arrow {
-  display: inline-block;
-  margin: 0 0.15rem;
-  font-weight: 800;
-  color: #6366f1;
-}
-
-.hand-pick-banner__waiting {
-  padding: 0.55rem 0.65rem;
-  border-radius: 10px;
-  background: rgb(255 255 255 / 75%);
-  border: 1px dashed rgb(100 116 139 / 35%);
-}
-
-.hand-pick-banner__waiting-title {
-  margin: 0 0 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #334155;
-}
-
-.hand-pick-banner__waiting-desc {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: #64748b;
-}
-
-.hand-pick-banner__steps {
-  list-style: none;
-  margin: 0 0 0.65rem;
-  padding: 0;
-  display: grid;
-  gap: 0.35rem;
-}
-
-.hand-pick-banner__steps li {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
+.hand-pick-hint {
+  margin: 0 0 0.45rem;
   padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.4;
   border-radius: 8px;
-  font-size: 0.78rem;
-  color: #64748b;
-  background: rgb(255 255 255 / 70%);
 }
 
-.hand-pick-banner--info_share .hand-pick-banner__steps li.is-active {
+.hand-pick-hint--info_share {
   color: #4338ca;
-  font-weight: 700;
-  background: #e0e7ff;
+  background: rgb(255 255 255 / 65%);
 }
 
-.hand-pick-banner--info_share .hand-pick-banner__steps li.is-active .hand-pick-banner__step-num {
-  background: #6366f1;
-  color: #fff;
-}
-
-.hand-pick-banner--trade .hand-pick-banner__steps li.is-active {
+.hand-pick-hint--trade {
   color: #c2410c;
-  font-weight: 700;
-  background: #ffedd5;
+  background: rgb(255 255 255 / 65%);
 }
 
-.hand-pick-banner--trade .hand-pick-banner__steps li.is-active .hand-pick-banner__step-num {
-  background: #ea580c;
-  color: #fff;
+.hand-pick-hint--pawahara_give {
+  color: #475569;
+  background: rgb(255 255 255 / 65%);
 }
 
-.hand-pick-banner__step-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  background: #e2e8f0;
-  font-size: 0.7rem;
-  font-weight: 800;
-  flex-shrink: 0;
+.hand-pick-hint--play_or_skip {
+  color: #1d4ed8;
+  background: rgb(255 255 255 / 65%);
 }
 
-.hand-pick-banner__preview {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem 0.65rem;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px dashed #93c5fd;
-}
-
-.hand-pick-banner__preview p {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.hand-pick-banner--info_share .hand-pick-banner__pointer {
-  color: #6366f1;
-}
-
-.hand-pick-banner--trade .hand-pick-banner__pointer {
-  color: #ea580c;
-}
-
-.hand-pick-banner__pointer {
-  margin: 0;
-  text-align: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #2563eb;
-  animation: hand-pick-bounce 1.2s ease-in-out infinite;
-}
-
-@keyframes hand-pick-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(3px);
-  }
+.hand-pick-hint--waiting {
+  font-weight: 600;
+  color: #64748b;
+  background: rgb(255 255 255 / 55%);
 }
 
 .actions--compact {

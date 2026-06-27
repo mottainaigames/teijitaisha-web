@@ -16,7 +16,7 @@ import { CardFan, PairCard, PlayingCard } from "./cards-ui";
 import { CardEffectText } from "./card-effects-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
-import { HandPickBanner } from "./hand-pick-banner";
+import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 
@@ -326,23 +326,26 @@ export function GameScreen({
   const myDrawableCards =
     isDrawPhase && drawSourceId ? (view.drawableHands[drawSourceId] ?? []) : [];
   const anyoneDrawing = view.phase === "draw" && !!drawSourceId;
-  const handPickGuideMode: "info_share" | "trade" | null =
+  const handPickPurpose: HandPickPurpose | null =
     view.canAct && view.pending
       ? view.pending.type === "info_share" || view.pending.type === "trade"
         ? view.pending.type
-        : null
+        : view.pending.type === "play_or_skip"
+          ? "play_or_skip"
+          : view.pending.type === "select_card" && view.effectCard === "pawahara"
+            ? "pawahara_give"
+            : null
       : null;
   const hasHandPickSubmitted =
-    handPickGuideMode === "info_share"
+    handPickPurpose === "info_share"
       ? (view.pending?.infoShareReady?.[playerId] ?? false)
-      : handPickGuideMode === "trade"
+      : handPickPurpose === "trade"
         ? (view.pending?.tradeReady?.[playerId] ?? false)
         : false;
-  const isPawaharaGive =
-    view.canAct && view.pending?.type === "select_card" && view.effectCard === "pawahara";
-  const isPlayOrSkipPick = view.canAct && view.pending?.type === "play_or_skip";
-  const isMyHandPicking =
-    (handPickGuideMode !== null && !hasHandPickSubmitted) || isPawaharaGive || isPlayOrSkipPick;
+  const isPickingFromHand =
+    (handPickPurpose !== null && !hasHandPickSubmitted) ||
+    (handPickPurpose !== null && hasHandPickSubmitted);
+  const isMyHandPicking = handPickPurpose !== null && !hasHandPickSubmitted;
 
   const handleDrawPick = (cardId: string) => {
     twoStepPick(cardId, selectedCardId, setSelectedCardId, onDraw, (id) =>
@@ -351,37 +354,37 @@ export function GameScreen({
   };
 
   const handleMyCardClick = (card: GameView["myHand"][0]) => {
-    if (handPickGuideMode === "info_share" && !hasHandPickSubmitted) {
+    if (handPickPurpose === "info_share" && !hasHandPickSubmitted) {
       twoStepPick(card.id, selectedCardId, setSelectedCardId, onInfoShare, (id) =>
         sendCardPreview(id, "selected"),
       );
       return;
     }
-    if (handPickGuideMode === "trade" && !hasHandPickSubmitted) {
+    if (handPickPurpose === "trade" && !hasHandPickSubmitted) {
       twoStepPick(card.id, selectedCardId, setSelectedCardId, onTrade, (id) =>
         sendCardPreview(id, "selected"),
       );
       return;
     }
-    if (isPawaharaGive) {
+    if (handPickPurpose === "pawahara_give") {
       twoStepPick(card.id, selectedCardId, setSelectedCardId, onSelectCard, (id) =>
         sendCardPreview(id, "selected"),
       );
       return;
     }
-    if (isPlayOrSkipPick && pairable.includes(card.type)) {
+    if (handPickPurpose === "play_or_skip" && pairable.includes(card.type)) {
       setSelectedPairType(card.type);
     }
   };
 
   const isMyCardSelected = (card: GameView["myHand"][0]) => {
     if (selectedCardId === card.id) return true;
-    if (isPlayOrSkipPick && selectedPairType === card.type) return true;
+    if (handPickPurpose === "play_or_skip" && selectedPairType === card.type) return true;
     return false;
   };
 
   const inspectedHandCardType: CardType | null = (() => {
-    if (isPlayOrSkipPick && selectedPairType) return selectedPairType;
+    if (handPickPurpose === "play_or_skip" && selectedPairType) return selectedPairType;
     const id =
       isMyHandPicking && selectedCardId
         ? selectedCardId
@@ -395,7 +398,7 @@ export function GameScreen({
     if (isMyHandPicking) handleMyCardClick(card);
   };
 
-  const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickGuideMode;
+  const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickPurpose;
   const handleReorderDrop = (draggedCardId: string, targetCardId: string) => {
     if (!canReorderHand) return;
     const ids = view.myHand.map((c) => c.id);
@@ -619,29 +622,31 @@ export function GameScreen({
           <p className="spectator-dock-note">退社済み — 観戦中</p>
         </div>
       ) : (
-      <div
-        className={`game-hand-dock${
-          handPickGuideMode && view.canAct ? " game-hand-dock--picking" : ""
-        }${isMyHandPicking && !handPickGuideMode ? " game-hand-dock--selecting" : ""}`}
-      >
-        {handPickGuideMode && view.canAct && (
-          <HandPickBanner
-            mode={handPickGuideMode}
-            view={view}
-            playerId={playerId}
-            selectedCardId={selectedCardId}
-          />
-        )}
+      <div className="game-hand-dock">
         <div
-          className={`my-hand${
-            handPickGuideMode && view.canAct && !hasHandPickSubmitted ? " my-hand--picking" : ""
-          }`}
+          className={[
+            "my-hand",
+            handPickPurpose && view.canAct && isPickingFromHand
+              ? `my-hand--purpose-${handPickPurpose}`
+              : "",
+            hasHandPickSubmitted ? "my-hand--purpose-waiting" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
+          {handPickPurpose && view.canAct && isPickingFromHand && (
+            <HandPickHint
+              mode={handPickPurpose}
+              view={view}
+              playerId={playerId}
+              submitted={hasHandPickSubmitted}
+            />
+          )}
           <div className="my-hand__toolbar">
             <p className="my-hand__label">
               あなたの手札（{me?.handCount ?? 0}枚）
               {me?.status === "retired" && " — 退社済み"}
-              {!isMyHandPicking && !handPickGuideMode && !canReorderHand && view.myHand.length > 0 &&
+              {!handPickPurpose && !canReorderHand && view.myHand.length > 0 &&
                 " — タップで効果を表示"}
             </p>
             {canReorderHand && view.myHand.length > 1 && (
@@ -653,7 +658,7 @@ export function GameScreen({
           {canReorderHand && view.myHand.length > 1 && (
             <p className="status my-hand__hint">ドラッグで並べ替え</p>
           )}
-          {!canReorderHand && view.canReorderHand === false && view.myHand.length > 0 && !isMyHandPicking && !handPickGuideMode && (
+          {!canReorderHand && view.canReorderHand === false && view.myHand.length > 0 && !handPickPurpose && (
             <p className="status my-hand__hint my-hand__hint--locked">
               手札が選ばれている間は並べ替えできません
             </p>
@@ -678,16 +683,15 @@ export function GameScreen({
                     reorderable={canReorderHand}
                     dragCardId={c.id}
                     onReorderDrop={handleReorderDrop}
-                    muted={isPlayOrSkipPick && !pairable.includes(c.type)}
+                    muted={handPickPurpose === "play_or_skip" && !pairable.includes(c.type)}
                     selectable={
                       !canReorderHand &&
-                      ((handPickGuideMode !== null && !hasHandPickSubmitted) ||
-                        isPawaharaGive ||
-                        (isPlayOrSkipPick && pairable.includes(c.type)))
+                      isMyHandPicking &&
+                      !(handPickPurpose === "play_or_skip" && !pairable.includes(c.type))
                     }
                     selected={selected}
-                    inspected={!selected && !isMyHandPicking && !handPickGuideMode && focusedHandCardId === c.id}
-                    confirmReady={selectedCardId === c.id && !isPlayOrSkipPick}
+                    inspected={!selected && !handPickPurpose && focusedHandCardId === c.id}
+                    confirmReady={selectedCardId === c.id && handPickPurpose !== "play_or_skip"}
                     remoteHover={remote.remoteHover}
                     remoteSelected={remote.remoteSelected}
                     onHoverStart={
@@ -697,7 +701,7 @@ export function GameScreen({
                       isMyHandPicking && view.canAct ? () => sendCardPreview(null, "clear") : undefined
                     }
                     onClick={
-                      canReorderHand || isMyHandPicking || view.myHand.length > 0
+                      canReorderHand || handPickPurpose || view.myHand.length > 0
                         ? () => handleHandCardTap(c)
                         : undefined
                     }
@@ -955,11 +959,7 @@ function PendingActions({
 
   if (p.type === "select_card" && p.validCardIds) {
     if (view.effectCard === "pawahara") {
-      return (
-        <div className="actions actions--compact">
-          <p className="actions__compact-note">相手のカードを選ぶフェーズです（あなたは下の手札から選びます）</p>
-        </div>
-      );
+      return null;
     }
 
     const cards = p.validCardIds.map((id) => ({ id, card: findCard(view, id) }));
