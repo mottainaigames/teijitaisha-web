@@ -42,6 +42,7 @@ pnpm dev:web
 
 ## ドキュメント
 
+- [TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md) — 技術スタック・構成・仕組み（note 用たたき台）
 - [RULES_RECOGNITION.md](./RULES_RECOGNITION.md) — ゲームルール
 - [STATE_DIAGRAM.md](./STATE_DIAGRAM.md) — 状態遷移
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — デプロイ方針
