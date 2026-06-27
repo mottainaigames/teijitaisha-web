@@ -1,21 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { CardType } from "@teijitaisha/shared";
 import { CARD_LABELS } from "@teijitaisha/shared";
-
-const CARD_THEMES: Record<CardType, { from: string; to: string; text: string }> = {
-  norma: { from: "#dbeafe", to: "#93c5fd", text: "#1e3a8a" },
-  rouki: { from: "#fecaca", to: "#f87171", text: "#7f1d1d" },
-  nomikai: { from: "#fde68a", to: "#fbbf24", text: "#78350f" },
-  shanai_renai: { from: "#fbcfe8", to: "#f472b6", text: "#831843" },
-  shinjin_kyouiku: { from: "#bbf7d0", to: "#4ade80", text: "#14532d" },
-  jouhou_kyouyu: { from: "#c7d2fe", to: "#818cf8", text: "#312e81" },
-  torihiki: { from: "#fed7aa", to: "#fb923c", text: "#7c2d12" },
-  enadori: { from: "#a5f3fc", to: "#22d3ee", text: "#164e63" },
-  kaigi: { from: "#e9d5ff", to: "#c084fc", text: "#581c87" },
-  pawahara: { from: "#d1d5db", to: "#6b7280", text: "#1f2937" },
-  tabako_kyuukei: { from: "#e5e7eb", to: "#9ca3af", text: "#374151" },
-  zangyo: { from: "#1e293b", to: "#0f172a", text: "#f8fafc" },
-};
+import { CARD_BACK_URL, CARD_ICON_URLS, CARD_THEMES, type CardTheme } from "./card-assets";
 
 export function fanTransform(index: number, total: number): CSSProperties {
   if (total <= 1) {
@@ -34,6 +20,41 @@ export function fanTransform(index: number, total: number): CSSProperties {
     transform: "rotate(var(--fan-rotate)) translateY(var(--fan-lift))",
     zIndex: index,
   };
+}
+
+function cardThemeVars(theme: CardTheme): CSSProperties {
+  return {
+    ["--card-band" as string]: theme.band,
+    ["--card-accent" as string]: theme.accent,
+    ["--card-body" as string]: theme.body,
+    ["--card-title" as string]: theme.title,
+  };
+}
+
+function CardFaceContent({
+  cardType,
+  label,
+  size,
+}: {
+  cardType: CardType;
+  label: string;
+  size: "sm" | "md" | "lg";
+}) {
+  const iconUrl = CARD_ICON_URLS[cardType];
+
+  return (
+    <div className={`playing-card__inner playing-card__inner--${size}`}>
+      <div className="playing-card__band">
+        <span className="playing-card__band-accent" aria-hidden />
+        <span className="playing-card__name">{label}</span>
+      </div>
+      <div className="playing-card__body">
+        <div className="playing-card__icon-ring">
+          <img className="playing-card__icon" src={iconUrl} alt="" draggable={false} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface PlayingCardProps {
@@ -89,6 +110,7 @@ export function PlayingCard({
     "playing-card",
     `playing-card--${size}`,
     faceDown ? "playing-card--back" : "playing-card--face",
+    cardType ? `playing-card--type-${cardType}` : "",
     selectable ? "playing-card--selectable" : "",
     selected ? "playing-card--selected" : "",
     confirmReady ? "playing-card--confirm-ready" : "",
@@ -104,12 +126,7 @@ export function PlayingCard({
 
   const style: CSSProperties = {
     ...fan,
-    ...(theme && !faceDown
-      ? {
-          background: `linear-gradient(145deg, ${theme.from} 0%, ${theme.to} 100%)`,
-          color: theme.text,
-        }
-      : {}),
+    ...(theme && !faceDown ? cardThemeVars(theme) : {}),
   };
 
   const Tag = onClick && !reorderable ? "button" : "div";
@@ -144,16 +161,11 @@ export function PlayingCard({
       aria-label={faceDown ? "裏向きのカード" : displayLabel}
     >
       {faceDown ? (
-        <>
-          <span className="playing-card__pattern" aria-hidden />
-          <span className="playing-card__back-mark">?</span>
-        </>
+        <img className="playing-card__back-img" src={CARD_BACK_URL} alt="" draggable={false} />
+      ) : cardType ? (
+        <CardFaceContent cardType={cardType} label={displayLabel} size={size} />
       ) : (
-        <>
-          <span className="playing-card__corner playing-card__corner--tl">{displayLabel}</span>
-          <span className="playing-card__center">{displayLabel}</span>
-          <span className="playing-card__corner playing-card__corner--br">{displayLabel}</span>
-        </>
+        <div className="playing-card__unknown">{displayLabel}</div>
       )}
       {selectable && (
         <span className="playing-card__hand" aria-hidden>
@@ -203,20 +215,20 @@ export function PairCard({
       type="button"
       className={[
         "pair-card",
+        `playing-card--type-${cardType}`,
         selectable ? "playing-card--selectable" : "",
         selected ? "playing-card--selected" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      style={{
-        background: `linear-gradient(145deg, ${theme.from} 0%, ${theme.to} 100%)`,
-        color: theme.text,
-      }}
+      style={cardThemeVars(theme)}
       onClick={onClick}
     >
       <div className="pair-card__stack">
         <span className="pair-card__layer pair-card__layer--back" />
-        <span className="pair-card__layer pair-card__layer--front">{label}</span>
+        <span className="pair-card__layer pair-card__layer--front">
+          <CardFaceContent cardType={cardType} label={label} size="md" />
+        </span>
       </div>
       <span className="pair-card__badge">×2</span>
       {selectable && (
