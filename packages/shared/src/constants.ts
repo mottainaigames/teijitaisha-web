@@ -1,5 +1,7 @@
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 48;
+/** 1ルームあたりのオブザーバー上限 */
+export const MAX_OBSERVERS = 20;
 /** ルール上の推奨人数（この範囲外はバランスが崩れる可能性あり） */
 export const RECOMMENDED_MIN_PLAYERS = 3;
 export const RECOMMENDED_MAX_PLAYERS = 6;

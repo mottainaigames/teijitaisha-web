@@ -899,17 +899,56 @@ describe("GameEngine", () => {
     expect(engine.pending?.type).toBe("draw");
   });
 
-  it("切断20秒後はCPU自動プレイに委譲しタイムアウト処理を保留する", () => {
+  it("切断20秒後はタイムアウトで自動処理される", () => {
     const engine = createStartedEngine();
     const drawerId = engine.seats[engine.currentSeatIndex]!;
     const player = engine.players.get(drawerId)!;
     player.status = "disconnected";
     player.disconnectedAt = Date.now() - IDLE_TIMEOUT_MS - 1;
     engine.setCpuPlayerIds(new Set([drawerId]));
+    const handBefore = player.hand.length;
 
     const deadline = engine.pending!.deadlineAt;
-    expect(engine.tick(deadline)).toBe(false);
-    expect(engine.pending?.type).toBe("draw");
+    expect(engine.tick(deadline)).toBe(true);
+    expect(player.hand.length).not.toBe(handBefore);
+  });
+
+  it("手札2枚でペア成立後: タイムアウトでペアを出して進む", () => {
+    const engine = createStartedEngine();
+    const actor = "p1";
+    engine.players.get(actor)!.hand = [
+      { id: "n1", type: "norma" },
+      { id: "n2", type: "norma" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.currentSeatIndex = engine.seats.indexOf(actor);
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: [actor],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    const before = engine.seats[engine.currentSeatIndex];
+    engine.tick(Date.now() + IDLE_TIMEOUT_MS + 1);
+    expect(engine.lastPlay?.cardType).toBe("norma");
+    expect(engine.seats[engine.currentSeatIndex]).not.toBe(before);
+  });
+
+  it("エナドリ後に出せるペアがなければ追加枠を消費してターン終了", () => {
+    const engine = createStartedEngine();
+    const actor = "p1";
+    engine.players.get(actor)!.hand = [{ id: "x1", type: "norma" }];
+    engine.effectUserId = actor;
+    engine.pairsRemainingThisTurn = 1;
+    engine.currentSeatIndex = engine.seats.indexOf(actor);
+
+    engine["afterEffectResolved"]();
+
+    expect(engine.pending?.type).not.toBe("play_or_skip");
+    expect(engine.seats[engine.currentSeatIndex]).not.toBe(actor);
   });
 
   it("切断中のプレイヤーは操作できない", () => {

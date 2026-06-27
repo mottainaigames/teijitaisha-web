@@ -141,6 +141,8 @@ export interface GameView {
   lastTransfer: CardTransfer | null;
   /** 労基で公開されたカード（演出用） */
   lastRoukiReveal: RoukiReveal | null;
+  /** オブザーバー（全員の手札が見える観戦モード） */
+  isObserver?: boolean;
 }
 
 export interface PendingView {

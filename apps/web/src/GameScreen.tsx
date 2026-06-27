@@ -91,6 +91,10 @@ export function GameScreen({
 }: Props) {
   const isHost = room.hostId === playerId;
   const me = view.seats.find((s) => s.playerId === playerId);
+  const roomMe = room.players.find((p) => p.id === playerId);
+  const isObserverMode = Boolean(view.isObserver ?? roomMe?.isObserver);
+  const playingMembers = room.players.filter((p) => !p.isObserver);
+  const observerMembers = room.players.filter((p) => p.isObserver);
   const current = view.seats.find((s) => s.playerId === view.currentPlayerId);
   const hasCpu = room.players.some((p) => p.isCpu);
   const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
@@ -187,10 +191,12 @@ export function GameScreen({
   );
 
   if (view.phase === "lobby" || !room.started) {
-    const playerCount = room.players.length;
+    const playerCount = playingMembers.length;
     const recommended = isRecommendedPlayerCount(playerCount);
     const canStart =
-      playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS;
+      !isObserverMode &&
+      playerCount >= MIN_PLAYERS &&
+      playerCount <= MAX_PLAYERS;
 
     return (
       <div className="game-shell game-shell--lobby">
@@ -200,80 +206,142 @@ export function GameScreen({
             <ProductAdPopup onClose={() => setShowProductAdPopup(false)} />
           </div>
         )}
-        <ProductAdBanner className="product-ad-banner--lobby" />
-        <div className="card lobby-screen">
-          <div className="lobby-screen__top">
-            <div className="screen-header">
-              <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
-              <GameMenuButton onClick={() => setMenuOpen(true)} />
+        <div className="lobby-screen">
+          <header className="lobby-screen__header">
+            <div className="lobby-screen__header-main">
+              <p className="lobby-screen__role">
+                {isObserverMode
+                  ? "オブザーバーとして参加中"
+                  : isHost
+                    ? "あなたがホスト"
+                    : "プレイヤーとして参加"}
+              </p>
+              <p className="lobby-screen__count">
+                プレイヤー {playerCount} / {MAX_PLAYERS}
+                <span className="lobby-screen__recommended">
+                  （推奨 {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人）
+                </span>
+              </p>
             </div>
+            <GameMenuButton onClick={() => setMenuOpen(true)} />
+          </header>
+
+          <div className="lobby-screen__invite">
             <RoomInviteShare roomCode={room.code} />
-            <p className="status lobby-screen__count">
-              参加者 {playerCount} / {MAX_PLAYERS}
-              <span className="lobby-screen__recommended">
-                （推奨 {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人）
-              </span>
-            </p>
-            {!recommended && playerCount >= MIN_PLAYERS && (
-              <div className="lobby-warning" role="status">
-                <p className="lobby-warning__title">推奨人数外でプレイします</p>
-                <p className="lobby-warning__body">
-                  ルール上の推奨は {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人です。
-                  {playerCount < RECOMMENDED_MIN_PLAYERS
-                    ? "人数が少ないとゲームが短く終わりやすく、バランスが崩れる可能性があります。"
-                    : "人数が多いと手札が極端に少なくなり、待ち時間やバランスが崩れる可能性があります。"}
-                  問題なければこのまま開始できます。
-                </p>
-              </div>
-            )}
           </div>
 
-          <div className="lobby-screen__members">
-            <p className="lobby-screen__members-label">参加メンバー</p>
-            <div className="lobby-screen__members-scroll">
-              {seatOrder}
-              <ul className="player-list">
-                {room.players.map((p) => (
-                  <li key={p.id}>
-                    {p.name}
-                    {p.id === room.hostId && "（ホスト）"}
-                    {p.isCpu && "（CPU）"}
-                  </li>
-                ))}
-              </ul>
+          {!recommended && playerCount >= MIN_PLAYERS && !isObserverMode && (
+            <div className="lobby-warning" role="status">
+              <p className="lobby-warning__title">推奨人数外でプレイします</p>
+              <p className="lobby-warning__body">
+                ルール上の推奨は {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人です。
+                {playerCount < RECOMMENDED_MIN_PLAYERS
+                  ? "人数が少ないとゲームが短く終わりやすく、バランスが崩れる可能性があります。"
+                  : "人数が多いと手札が極端に少なくなり、待ち時間やバランスが崩れる可能性があります。"}
+                問題なければこのまま開始できます。
+              </p>
             </div>
-          </div>
+          )}
 
-          <div className="lobby-screen__actions">
-            {isHost && !room.started && (
-              <div className="cpu-controls">
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={onAddCpu}
-                  disabled={room.players.length >= MAX_PLAYERS}
+          <section className="lobby-screen__members" aria-label="参加メンバー">
+            <div className="lobby-screen__members-head">
+              <h2 className="lobby-screen__members-title">プレイヤー</h2>
+              <span className="lobby-screen__members-count">{playerCount}人</span>
+            </div>
+            <ul className="lobby-player-grid">
+              {playingMembers.map((p) => (
+                <li
+                  key={p.id}
+                  className={[
+                    "lobby-player-card",
+                    p.id === playerId ? "lobby-player-card--me" : "",
+                    p.id === room.hostId ? "lobby-player-card--host" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
-                  CPUを追加
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={onRemoveCpu}
-                  disabled={!room.players.some((p) => p.isCpu)}
-                >
-                  CPUを削除
-                </button>
-              </div>
+                  <span className="lobby-player-card__seat">{p.seatIndex + 1}</span>
+                  <span className="lobby-player-card__name">{p.name}</span>
+                  <span className="lobby-player-card__tags">
+                    {p.id === room.hostId && <span className="lobby-player-card__tag">ホスト</span>}
+                    {p.isCpu && <span className="lobby-player-card__tag">CPU</span>}
+                    {p.id === playerId && <span className="lobby-player-card__tag">あなた</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {observerMembers.length > 0 && (
+              <>
+                <div className="lobby-screen__members-head lobby-screen__members-head--observers">
+                  <h2 className="lobby-screen__members-title">オブザーバー</h2>
+                  <span className="lobby-screen__members-count">{observerMembers.length}人</span>
+                </div>
+                <ul className="lobby-player-grid lobby-player-grid--observers">
+                  {observerMembers.map((p) => (
+                    <li
+                      key={p.id}
+                      className={[
+                        "lobby-player-card lobby-player-card--observer",
+                        p.id === playerId ? "lobby-player-card--me" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <span className="lobby-player-card__name">{p.name}</span>
+                      <span className="lobby-player-card__tags">
+                        <span className="lobby-player-card__tag">観戦</span>
+                        {p.id === playerId && <span className="lobby-player-card__tag">あなた</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
-            {isHost && (
-              <button type="button" onClick={onStart} disabled={!canStart}>
-                ゲームを開始（{MIN_PLAYERS}〜{MAX_PLAYERS}人）
-              </button>
-            )}
-            {!isHost && <p className="status">ホストの開始を待っています…</p>}
-          </div>
+            <CollapsibleSection title="プレイ順（座席）" defaultOpen={playerCount <= 8}>
+              {seatOrder}
+            </CollapsibleSection>
+          </section>
+
+          <footer className="lobby-screen__footer">
+            <div className="lobby-screen__actions">
+              {isHost && !room.started && !isObserverMode && (
+                <div className="cpu-controls">
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={onAddCpu}
+                    disabled={playingMembers.length >= MAX_PLAYERS}
+                  >
+                    CPUを追加
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={onRemoveCpu}
+                    disabled={!room.players.some((p) => p.isCpu)}
+                  >
+                    CPUを削除
+                  </button>
+                </div>
+              )}
+              {isHost && !isObserverMode && (
+                <button type="button" onClick={onStart} disabled={!canStart}>
+                  ゲームを開始（{MIN_PLAYERS}〜{MAX_PLAYERS}人）
+                </button>
+              )}
+              {!isHost && !isObserverMode && (
+                <p className="status lobby-screen__waiting">ホストの開始を待っています…</p>
+              )}
+              {isObserverMode && (
+                <p className="status lobby-screen__waiting">
+                  観戦モード — 全員の手札が見える状態でプレイを見られます
+                </p>
+              )}
+            </div>
+            <ProductAdBanner className="product-ad-banner--lobby" />
+            <MottainaiLinks className="mottainai-links--lobby" />
+          </footer>
         </div>
-        <MottainaiLinks className="mottainai-links--lobby" />
       </div>
     );
   }
@@ -392,7 +460,8 @@ export function GameScreen({
     );
   }
 
-  const isSpectating = me?.status === "retired" && view.phase !== "game_end";
+  const isSpectating =
+    isObserverMode || (me?.status === "retired" && view.phase !== "game_end");
   const pairable = countPairs(view.myHand);
   const cardTargetPlayerId = getCardTargetPlayerId(view);
   const remoteOnMe = view.remoteSelection?.targetPlayerId === playerId;
@@ -538,8 +607,14 @@ export function GameScreen({
       <div className="game-main">
         {isSpectating && (
           <div className="spectator-banner" role="status">
-            <p className="spectator-banner__title">定時退社しました</p>
-            <p className="spectator-banner__body">在籍中のプレイヤーの手札がすべて見えます</p>
+            <p className="spectator-banner__title">
+              {isObserverMode ? "オブザーバモード" : "定時退社しました"}
+            </p>
+            <p className="spectator-banner__body">
+              {isObserverMode
+                ? "全員の手札が見える状態でプレイを観戦しています"
+                : "在籍中のプレイヤーの手札がすべて見えます"}
+            </p>
           </div>
         )}
 
@@ -581,6 +656,11 @@ export function GameScreen({
             {isDrawPhase && myDrawableCards.length > 0 ? (
               <>
                 <p className="draw-zone__title">{drawSourceName}の手札から1枚引く</p>
+                {pairable.length > 0 && (
+                  <p className="draw-zone__pair-hint" role="status">
+                    手札にペアがあります。ルール上、先に1枚引いてからペアを出せます
+                  </p>
+                )}
                 <p className="draw-zone__hint">タップで選択 → もう一度タップで引く</p>
                 <CardFan className="card-fan--draw">
                   {myDrawableCards.map((c, i) => (
@@ -639,7 +719,9 @@ export function GameScreen({
                 isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
                 compact={anyoneDrawing && !isSpectating}
                 isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
-                visibleHand={isSpectating ? view.otherHands[s.playerId] : undefined}
+                visibleHand={
+                  isObserverMode || isSpectating ? view.otherHands[s.playerId] : undefined
+                }
                 remoteTarget={
                   view.remoteSelection?.targetPlayerId === s.playerId &&
                   view.remoteSelection.actorId !== playerId
@@ -721,7 +803,9 @@ export function GameScreen({
 
       {isSpectating ? (
         <div className="game-hand-dock game-hand-dock--spectator">
-          <p className="spectator-dock-note">退社済み — 観戦中</p>
+          <p className="spectator-dock-note">
+            {isObserverMode ? "オブザーバー — 操作はできません" : "退社済み — 観戦中"}
+          </p>
         </div>
       ) : (
       <div
@@ -1030,9 +1114,15 @@ function PendingActions({
 
   if (p.type === "play_or_skip") {
     const extraPair = view.pairsRemainingThisTurn > 1;
+    const onlyPair = pairable.length === 1 && view.myHand.length === 2;
     return (
       <div className="actions">
         <p>{extraPair ? "もう1組ペアを出しますか？" : "ペアを出しますか？"}</p>
+        {onlyPair && (
+          <p className="status actions__pair-ready" role="status">
+            手札2枚が揃っています。ペアを出すか「ペアを出さない」を選んでください
+          </p>
+        )}
         <p className="status">手札のカードを2回タップ、または下のペアから選んでください</p>
         {pairable.length > 0 ? (
           <>

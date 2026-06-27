@@ -357,7 +357,6 @@ export class GameEngine {
     for (const id of this.pendingActorIds()) {
       const player = this.players.get(id);
       if (!player) continue;
-      if (this.cpuPlayerIds.has(id)) return true;
       if (
         player.status === "disconnected" &&
         player.disconnectedAt != null &&
@@ -365,6 +364,8 @@ export class GameEngine {
       ) {
         return true;
       }
+      // ロビーCPUのみ runCpuTurns に委譲。切断後の自動プレイは tick で処理する
+      if (this.cpuPlayerIds.has(id) && player.status === "active") return true;
     }
     return false;
   }
@@ -631,6 +632,57 @@ export class GameEngine {
     };
   }
 
+  /** オブザーバー向け: 全プレイヤーの手札を公開 */
+  getObserverView(observerId: PlayerId): GameView {
+    const currentId = this.seats[this.currentSeatIndex] ?? null;
+    const pendingView = this.buildPendingView(observerId);
+
+    const otherHands: Record<PlayerId, CardInstance[]> = {};
+    for (const id of this.seats) {
+      otherHands[id] = [...(this.players.get(id)?.hand ?? [])];
+    }
+
+    return {
+      phase: this.phase,
+      seats: this.seats.map((id, seatIndex) => {
+        const p = this.players.get(id)!;
+        return {
+          playerId: id,
+          name: p.name,
+          status: p.status,
+          handCount: p.hand.length,
+          seatIndex,
+          autoPlay: p.status === "disconnected" && this.cpuPlayerIds.has(id),
+        };
+      }),
+      currentPlayerId: currentId,
+      myPlayerId: observerId,
+      myHand: [],
+      drawableHands: {},
+      otherHands,
+      discardTypes: [...this.discardTypes],
+      pairsRemainingThisTurn: this.pairsRemainingThisTurn,
+      nomikaiBlocked: false,
+      effectCard: this.effectCard,
+      effectStep: this.effectStep,
+      pending: pendingView,
+      result: this.result,
+      revealedCard: this.revealedCard,
+      meetingDeclarations: { ...this.meetingDeclarations },
+      peekedCards: [],
+      canAct: false,
+      canReorderHand: false,
+      deadlineAt: this.pending?.deadlineAt ?? null,
+      activityLog: [...this.activityLog],
+      cpuStatus: this.cpuStatus ? { ...this.cpuStatus } : null,
+      lastPlay: this.lastPlay ? { ...this.lastPlay } : null,
+      remoteSelection: this.remoteSelection ? { ...this.remoteSelection } : null,
+      lastTransfer: this.buildTransferView(observerId),
+      lastRoukiReveal: this.lastRoukiReveal ? { ...this.lastRoukiReveal } : null,
+      isObserver: true,
+    };
+  }
+
   private buildPeekedCards(forPlayerId: PlayerId): CardInstance[] {
     if (this.pending?.type === "romance_view") {
       const userId = this.pending.effectUserId!;
@@ -782,9 +834,16 @@ export class GameEngine {
         this.resolveDraw(drawer, card.id);
         break;
       }
-      case "play_or_skip":
-        this.resolveSkipPlay(this.pending.playerIds[0]!);
+      case "play_or_skip": {
+        const user = this.pending.playerIds[0]!;
+        const action = this.pickRandomAction(user);
+        if (action?.type === "play_pair") {
+          this.resolvePlayPair(user, action.cardType as CardType);
+        } else {
+          this.resolveSkipPlay(user);
+        }
         break;
+      }
       case "select_target": {
         const user = this.pending.effectUserId!;
         const cardType = this.pending.effectCard!;
@@ -927,13 +986,25 @@ export class GameEngine {
       this.endTurn();
       return;
     }
+    this.maybeEnterPlayOrSkip(playerId);
+  }
+
+  /** 出せるペアがなければ残り枠を消費してターン終了、あれば play_or_skip へ */
+  private maybeEnterPlayOrSkip(playerId: PlayerId): void {
     const player = this.players.get(playerId)!;
-    const pairable = getPairableTypes(player.hand);
-    if (
-      this.pairsRemainingThisTurn > 0 &&
-      pairable.length > 0 &&
-      this.nomikaiBlockedPlayerId !== playerId
-    ) {
+    if (player.status !== "active") {
+      this.endTurn();
+      return;
+    }
+    if (this.nomikaiBlockedPlayerId === playerId) {
+      this.endTurn();
+      return;
+    }
+    while (this.pairsRemainingThisTurn > 0) {
+      if (getPairableTypes(player.hand).length === 0) {
+        this.pairsRemainingThisTurn = 0;
+        break;
+      }
       this.phase = "play";
       this.pending = {
         type: "play_or_skip",
@@ -942,9 +1013,9 @@ export class GameEngine {
         effectCard: null,
         effectUserId: null,
       };
-    } else {
-      this.endTurn();
+      return;
     }
+    this.endTurn();
   }
 
   private resolveSkipPlay(playerId: PlayerId): string | null {
@@ -954,23 +1025,7 @@ export class GameEngine {
     this.log(`${this.playerName(playerId)}はペアを出さなかった`);
 
     if (this.pairsRemainingThisTurn > 0) {
-      const player = this.players.get(playerId)!;
-      if (player.status !== "active") {
-        this.endTurn();
-        return null;
-      }
-      if (this.nomikaiBlockedPlayerId === playerId) {
-        this.endTurn();
-        return null;
-      }
-      this.phase = "play";
-      this.pending = {
-        type: "play_or_skip",
-        playerIds: [playerId],
-        deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-        effectCard: null,
-        effectUserId: null,
-      };
+      this.maybeEnterPlayOrSkip(playerId);
       return null;
     }
 
@@ -1484,18 +1539,8 @@ export class GameEngine {
       this.endTurn();
       return;
     }
-    if (
-      this.pairsRemainingThisTurn > 0 &&
-      this.nomikaiBlockedPlayerId !== userId
-    ) {
-      this.phase = "play";
-      this.pending = {
-        type: "play_or_skip",
-        playerIds: [userId],
-        deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-        effectCard: null,
-        effectUserId: null,
-      };
+    if (this.pairsRemainingThisTurn > 0 && this.nomikaiBlockedPlayerId !== userId) {
+      this.maybeEnterPlayOrSkip(userId);
       return;
     }
     this.endTurn();

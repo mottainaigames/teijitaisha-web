@@ -303,14 +303,18 @@ export function useGameSocket() {
     send({ type: "create_room", playerName: normalizePlayerName(playerName) });
   }, [playerName, send]);
 
-  const joinRoom = useCallback(() => {
-    setError(null);
-    send({
-      type: "join_room",
-      code: joinCode.trim().toUpperCase(),
-      playerName: normalizePlayerName(playerName),
-    });
-  }, [joinCode, playerName, send]);
+  const joinRoom = useCallback(
+    (asObserver = false) => {
+      setError(null);
+      send({
+        type: "join_room",
+        code: joinCode.trim().toUpperCase(),
+        playerName: normalizePlayerName(playerName),
+        asObserver,
+      });
+    },
+    [joinCode, playerName, send],
+  );
 
   const leaveRoom = useCallback(() => {
     send({ type: "leave_room" });

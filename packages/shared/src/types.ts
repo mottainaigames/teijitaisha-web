@@ -10,6 +10,8 @@ export interface PlayerPublic {
   handCount: number;
   seatIndex: number;
   isCpu?: boolean;
+  /** ゲームには参加せず観戦のみ */
+  isObserver?: boolean;
 }
 
 import type { CpuSpeed } from "./constants.js";
@@ -31,7 +33,7 @@ import type { GameClientMessage } from "./game.js";
 /** クライアント → サーバー */
 export type ClientMessage =
   | { type: "create_room"; playerName: string }
-  | { type: "join_room"; code: RoomCode; playerName: string }
+  | { type: "join_room"; code: RoomCode; playerName: string; asObserver?: boolean }
   | { type: "rejoin_room"; code: RoomCode; sessionToken: string }
   | { type: "leave_room" }
   | { type: "return_to_lobby" }

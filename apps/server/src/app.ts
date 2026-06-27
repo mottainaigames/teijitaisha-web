@@ -252,7 +252,7 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
             send(ws, { type: "error", message: "操作が多すぎます。しばらく待ってから再試行してください" });
             return;
           }
-          const result = roomManager.joinRoom(message.code, message.playerName, id);
+          const result = roomManager.joinRoom(message.code, message.playerName, id, message.asObserver);
           if ("error" in result) {
             send(ws, { type: "error", message: result.error });
             return;

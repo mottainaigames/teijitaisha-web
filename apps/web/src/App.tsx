@@ -50,13 +50,15 @@ export default function App() {
     room && playerId
       ? {
           phase: "lobby",
-          seats: room.players.map((p) => ({
-            playerId: p.id,
-            name: p.name,
-            status: p.status,
-            handCount: p.handCount,
-            seatIndex: p.seatIndex,
-          })),
+          seats: room.players
+            .filter((p) => !p.isObserver)
+            .map((p) => ({
+              playerId: p.id,
+              name: p.name,
+              status: p.status,
+              handCount: p.handCount,
+              seatIndex: p.seatIndex,
+            })),
           currentPlayerId: null,
           myPlayerId: playerId,
           myHand: [],
@@ -81,6 +83,7 @@ export default function App() {
           remoteSelection: null,
           lastTransfer: null,
           lastRoukiReveal: null,
+          isObserver: room.players.some((p) => p.id === playerId && p.isObserver),
         }
       : null;
 
@@ -154,10 +157,18 @@ export default function App() {
           <button
             type="button"
             className="secondary"
-            onClick={joinRoom}
+            onClick={() => joinRoom(false)}
             disabled={!connected || !playerName.trim() || joinCode.length < 6}
           >
-            ルームに参加
+            ルームに参加（プレイヤー）
+          </button>
+          <button
+            type="button"
+            className="secondary home-join-observe"
+            onClick={() => joinRoom(true)}
+            disabled={!connected || !playerName.trim() || joinCode.length < 6}
+          >
+            オブザーバーとして参加
           </button>
           <HomePromoShareButton />
         </div>

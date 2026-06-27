@@ -2,6 +2,7 @@ import {
   CPU_SPEED_MULTIPLIERS,
   CPU_SPEED_ORDER,
   IDLE_TIMEOUT_MS,
+  MAX_OBSERVERS,
   MAX_PLAYERS,
   MIN_PLAYERS,
   normalizePlayerName,
@@ -29,6 +30,7 @@ interface Player {
   socketId: string;
   sessionToken: string;
   isCpu: boolean;
+  isObserver: boolean;
   disconnectedAt: number | null;
 }
 
@@ -93,6 +95,7 @@ export class RoomManager {
       socketId,
       sessionToken,
       isCpu: false,
+      isObserver: false,
       disconnectedAt: null,
     };
 
@@ -119,15 +122,24 @@ export class RoomManager {
     code: RoomCode,
     playerName: string,
     socketId: string,
+    asObserver = false,
   ): { room: RoomPublic; playerId: PlayerId; sessionToken: string } | { error: string } {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) {
       return { error: "ルームが見つかりません" };
     }
-    if (room.started) {
+    if (!asObserver && room.started) {
       return { error: "ゲームはすでに開始しています" };
     }
-    if (room.players.size >= room.maxPlayers) {
+
+    const playingCount = this.countPlaying(room);
+    const observerCount = this.countObservers(room);
+
+    if (asObserver) {
+      if (observerCount >= MAX_OBSERVERS) {
+        return { error: `オブザーバーは最大${MAX_OBSERVERS}人までです` };
+      }
+    } else if (playingCount >= room.maxPlayers) {
       return { error: "ルームが満員です" };
     }
 
@@ -138,10 +150,11 @@ export class RoomManager {
       name: normalizePlayerName(playerName),
       status: "active",
       handCount: 0,
-      seatIndex: room.players.size,
+      seatIndex: asObserver ? playingCount + observerCount : playingCount,
       socketId,
       sessionToken,
       isCpu: false,
+      isObserver: asObserver,
       disconnectedAt: null,
     };
 
@@ -212,7 +225,7 @@ export class RoomManager {
     const player = room.players.get(ref.playerId);
     if (!player || player.isCpu) return { error: "退出できません" };
 
-    if (room.game && room.started) {
+    if (room.game && room.started && !player.isObserver) {
       const gp = room.game.players.get(ref.playerId);
       if (gp && gp.status === "active") {
         gp.status = "retired";
@@ -226,7 +239,7 @@ export class RoomManager {
 
     if (room.hostId === ref.playerId) {
       const nextHost = [...room.players.values()]
-        .filter((p) => !p.isCpu)
+        .filter((p) => !p.isCpu && !p.isObserver)
         .sort((a, b) => a.seatIndex - b.seatIndex)[0];
       if (nextHost) room.hostId = nextHost.id;
     }
@@ -353,8 +366,9 @@ export class RoomManager {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ操作できます";
+    if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
     if (room.started) return "ゲーム開始後は追加できません";
-    if (room.players.size >= room.maxPlayers) return "ルームが満員です";
+    if (this.countPlaying(room) >= room.maxPlayers) return "ルームが満員です";
 
     const cpuCount = [...room.players.values()].filter((p) => p.isCpu).length;
     const playerId = randomUUID();
@@ -363,10 +377,11 @@ export class RoomManager {
       name: `CPU ${cpuCount + 1}`,
       status: "active",
       handCount: 0,
-      seatIndex: room.players.size,
+      seatIndex: this.countPlaying(room),
       socketId: "",
       sessionToken: "",
       isCpu: true,
+      isObserver: false,
       disconnectedAt: null,
     };
     room.players.set(playerId, player);
@@ -395,15 +410,19 @@ export class RoomManager {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ開始できます";
+    if (room.players.get(hostId)?.isObserver) return "観戦者は開始できません";
     if (room.started) return "すでに開始しています";
-    if (room.players.size < MIN_PLAYERS) {
+    const playingCount = this.countPlaying(room);
+    if (playingCount < MIN_PLAYERS) {
       return `最低${MIN_PLAYERS}人必要です`;
     }
-    if (room.players.size > MAX_PLAYERS) {
+    if (playingCount > MAX_PLAYERS) {
       return `最大${MAX_PLAYERS}人までです`;
     }
 
-    const entries = [...room.players.values()].map((p) => ({ id: p.id, name: p.name }));
+    const entries = [...room.players.values()]
+      .filter((p) => !p.isObserver)
+      .map((p) => ({ id: p.id, name: p.name }));
     const game = new GameEngine(entries);
     const err = game.start();
     if (err) return err;
@@ -442,6 +461,7 @@ export class RoomManager {
   handleGameAction(playerId: PlayerId, code: RoomCode, action: GameClientMessage): string | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game) return "ゲームが開始されていません";
+    if (room.players.get(playerId)?.isObserver) return "観戦者は操作できません";
     this.syncCpuIds(room);
     const err = room.game.handleAction(playerId, action);
     if (!err) {
@@ -462,6 +482,7 @@ export class RoomManager {
     },
   ): void {
     const room = this.rooms.get(code.toUpperCase());
+    if (room?.players.get(playerId)?.isObserver) return;
     room?.game?.setSelectionPreview(playerId, preview);
   }
 
@@ -570,24 +591,31 @@ export class RoomManager {
 
   private getPendingCpuActors(room: Room, cpuIds: Set<PlayerId>): PlayerId[] {
     const pending = room.game!.pending!;
+    const lobbyCpuIds = (ids: PlayerId[]) =>
+      ids.filter((id) => cpuIds.has(id) && room.players.get(id)?.isCpu);
     switch (pending.type) {
       case "info_share":
         return [...cpuIds].filter((id) => {
+          const rp = room.players.get(id);
           const gp = room.game!.players.get(id);
-          return gp?.status !== "retired" && !pending.infoShareSelections?.has(id);
+          return rp?.isCpu && gp?.status !== "retired" && !pending.infoShareSelections?.has(id);
         });
       case "trade":
         return pending.playerIds.filter(
-          (id) => cpuIds.has(id) && !pending.tradeSelections?.has(id),
+          (id) => cpuIds.has(id) && room.players.get(id)?.isCpu && !pending.tradeSelections?.has(id),
         );
       default:
-        return pending.playerIds.filter((id) => cpuIds.has(id));
+        return lobbyCpuIds(pending.playerIds);
     }
   }
 
   getGameView(code: RoomCode, playerId: PlayerId) {
     const room = this.rooms.get(code.toUpperCase());
-    return room?.game?.getView(playerId) ?? null;
+    if (!room?.game) return null;
+    if (room.players.get(playerId)?.isObserver) {
+      return room.game.getObserverView(playerId);
+    }
+    return room.game.getView(playerId);
   }
 
   getRoomBySocket(socketId: string): Room | undefined {
@@ -628,15 +656,19 @@ export class RoomManager {
       const player = room.players.get(ref.playerId);
       if (player && !player.isCpu) {
         player.socketId = "";
-        player.status = "disconnected";
-        player.disconnectedAt = Date.now();
-        if (room.game) {
-          const gp = room.game.players.get(ref.playerId);
-          if (gp) {
-            gp.status = "disconnected";
-            gp.disconnectedAt = player.disconnectedAt;
+        if (player.isObserver) {
+          // 観戦者はゲーム状態に影響しない
+        } else {
+          player.status = "disconnected";
+          player.disconnectedAt = Date.now();
+          if (room.game) {
+            const gp = room.game.players.get(ref.playerId);
+            if (gp) {
+              gp.status = "disconnected";
+              gp.disconnectedAt = player.disconnectedAt;
+            }
+            this.syncCpuIds(room);
           }
-          this.syncCpuIds(room);
         }
       }
     }
@@ -645,10 +677,26 @@ export class RoomManager {
     return ref.code;
   }
 
+  private countPlaying(room: Room): number {
+    return [...room.players.values()].filter((p) => !p.isObserver).length;
+  }
+
+  private countObservers(room: Room): number {
+    return [...room.players.values()].filter((p) => p.isObserver).length;
+  }
+
   private reindexSeats(room: Room): void {
-    const sorted = [...room.players.values()].sort((a, b) => a.seatIndex - b.seatIndex);
-    sorted.forEach((p, index) => {
+    const playing = [...room.players.values()]
+      .filter((p) => !p.isObserver)
+      .sort((a, b) => a.seatIndex - b.seatIndex);
+    playing.forEach((p, index) => {
       p.seatIndex = index;
+    });
+    const observers = [...room.players.values()]
+      .filter((p) => p.isObserver)
+      .sort((a, b) => a.seatIndex - b.seatIndex);
+    observers.forEach((p, index) => {
+      p.seatIndex = playing.length + index;
     });
   }
 
@@ -656,6 +704,10 @@ export class RoomManager {
     if (!room.game) return;
     this.syncCpuIds(room);
     for (const p of room.players.values()) {
+      if (p.isObserver) {
+        p.handCount = 0;
+        continue;
+      }
       const gp = room.game.players.get(p.id);
       p.handCount = gp?.hand.length ?? 0;
       if (gp) p.status = gp.status;
@@ -677,6 +729,7 @@ export class RoomManager {
         handCount: p.handCount,
         seatIndex: p.seatIndex,
         isCpu: p.isCpu || undefined,
+        isObserver: p.isObserver || undefined,
       }));
 
     return {
@@ -715,7 +768,12 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return { type: "create_room", playerName: msg.playerName };
     case "join_room":
       if (typeof msg.code !== "string" || typeof msg.playerName !== "string") return null;
-      return { type: "join_room", code: msg.code.toUpperCase(), playerName: msg.playerName };
+      return {
+        type: "join_room",
+        code: msg.code.toUpperCase(),
+        playerName: msg.playerName,
+        asObserver: msg.asObserver === true,
+      };
     case "rejoin_room":
       if (typeof msg.code !== "string" || typeof msg.sessionToken !== "string") return null;
       return { type: "rejoin_room", code: msg.code.toUpperCase(), sessionToken: msg.sessionToken };

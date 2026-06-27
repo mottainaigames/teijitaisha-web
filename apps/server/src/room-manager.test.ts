@@ -125,6 +125,26 @@ describe("RoomManager rejoin", () => {
     expect(autoIds.has(guest.playerId)).toBe(true);
   });
 
+  it("オブザーバーはプレイヤー人数に含まれず、開始後も参加できる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    rm.joinRoom(host.room.code, "ゲスト", "socket-g2");
+    rm.startGame(host.playerId, host.room.code);
+
+    const observer = rm.joinRoom(host.room.code, "観戦者", "socket-obs", true);
+    if ("error" in observer) throw new Error(observer.error);
+
+    const room = rm.getRoomPublic(host.room.code)!;
+    expect(room.players.filter((p) => !p.isObserver)).toHaveLength(2);
+    expect(room.players.filter((p) => p.isObserver)).toHaveLength(1);
+    expect(room.started).toBe(true);
+
+    const view = rm.getGameView(host.room.code, observer.playerId);
+    expect(view?.isObserver).toBe(true);
+    expect(view?.canAct).toBe(false);
+    expect(Object.keys(view?.otherHands ?? {}).length).toBeGreaterThan(0);
+  });
+
   it("復帰すると自動プレイ対象から外れる", () => {
     const rm = new RoomManager();
     const host = rm.createRoom("ホスト", "socket-host");
