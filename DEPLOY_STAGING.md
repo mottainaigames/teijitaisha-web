@@ -242,6 +242,8 @@ curl https://api.teijitaisha-web-staging.mottainaigames.com/health
 curl -sI https://teijitaisha-web-staging.mottainaigames.com | head -3
 ```
 
+4. 画面・ゲーム進行の手動確認は [STAGING_QA_CHECKLIST.md](./STAGING_QA_CHECKLIST.md) を参照
+
 ### 5. production について
 
 `main` ブランチへの push で production ジョブが走ります。事前に以下が必要です（[F. production へ上げるとき](#f-production-へ上げるとき) 参照）:

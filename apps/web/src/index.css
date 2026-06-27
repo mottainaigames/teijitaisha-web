@@ -2691,6 +2691,84 @@ body.lobby-seat-order-dragging * {
   }
 }
 
+.rouki-reveal--zangyo .rouki-reveal__backdrop {
+  background: rgb(69 10 10 / 65%);
+  animation: rouki-backdrop-pulse 1.2s ease-in-out infinite;
+}
+
+.rouki-reveal--zangyo .rouki-reveal__title {
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.rouki-reveal--expose .rouki-reveal__title {
+  font-size: 1.45rem;
+  color: #fecaca;
+  animation: rouki-title-shake 0.55s ease-in-out;
+}
+
+.rouki-reveal--expose .rouki-reveal__flip-inner {
+  filter: drop-shadow(0 0 18px rgb(239 68 68 / 75%));
+}
+
+.rouki-reveal--zangyo .rouki-reveal__result {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 2px solid #f87171;
+  font-size: 1rem;
+}
+
+.rouki-reveal__zangyo-callout {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fca5a5;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+  animation: rouki-result-in 0.4s ease-out;
+}
+
+.rouki-reveal__ending-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  opacity: 0.85;
+  animation: rouki-result-in 0.5s ease-out;
+}
+
+@keyframes rouki-backdrop-pulse {
+  0%,
+  100% {
+    background: rgb(69 10 10 / 60%);
+  }
+
+  50% {
+    background: rgb(127 29 29 / 72%);
+  }
+}
+
+@keyframes rouki-title-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-4px);
+  }
+
+  40% {
+    transform: translateX(4px);
+  }
+
+  60% {
+    transform: translateX(-3px);
+  }
+
+  80% {
+    transform: translateX(3px);
+  }
+}
+
 /* --- ゲームレイアウト --- */
 
 .app--in-game {

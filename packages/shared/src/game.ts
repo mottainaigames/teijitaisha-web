@@ -24,7 +24,8 @@ export type PendingInputType =
   | "training_peek"
   | "training_take"
   | "meeting_declare"
-  | "romance_view";
+  | "romance_view"
+  | "rouki_finale";
 
 export interface CardInstance {
   id: string;

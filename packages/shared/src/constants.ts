@@ -13,6 +13,8 @@ export const ROOM_CODE_LENGTH = 6;
 export const IDLE_TIMEOUT_MS = 20_000;
 /** 社内恋愛: 互いの手札を見せ合う時間 */
 export const SHANAI_RENAI_VIEW_MS = 10_000;
+/** 労基で残業が暴かれたあと、終了画面へ進むまでの演出時間 */
+export const ROUKI_ZANGYO_FINALE_MS = 5_000;
 
 /** ルームを自動解散するまでの時間（10分）— ロビー未開始・接続なし共通 */
 export const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;

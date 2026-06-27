@@ -1,30 +1,86 @@
 import { useEffect, useState } from "react";
-import { CARD_LABELS, type RoukiReveal } from "@teijitaisha/shared";
+import { CARD_LABELS, ROUKI_ZANGYO_FINALE_MS, type RoukiReveal } from "@teijitaisha/shared";
 import { PlayingCard } from "./cards-ui";
 
-export function RoukiRevealOverlay({ reveal }: { reveal: RoukiReveal | null }) {
+type Stage = "enter" | "flip" | "revealed" | "expose" | "ending";
+
+const FLIP_DELAY_MS = 400;
+const FLIP_DURATION_MS = 700;
+const REVEAL_HOLD_MS = 900;
+const EXPOSE_DELAY_MS = FLIP_DELAY_MS + FLIP_DURATION_MS + REVEAL_HOLD_MS;
+
+export function RoukiRevealOverlay({
+  reveal,
+  isZangyoFinale = false,
+}: {
+  reveal: RoukiReveal | null;
+  isZangyoFinale?: boolean;
+}) {
   const [active, setActive] = useState<RoukiReveal | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [stage, setStage] = useState<Stage>("enter");
+
+  const isZangyo = isZangyoFinale || active?.cardType === "zangyo";
 
   useEffect(() => {
     if (!reveal) return;
+
     setActive(reveal);
-    setFlipped(false);
-    const flipTimer = window.setTimeout(() => setFlipped(true), 400);
-    const hideTimer = window.setTimeout(() => setActive(null), 2800);
+    setStage("enter");
+
+    const flipTimer = window.setTimeout(() => setStage("flip"), FLIP_DELAY_MS);
+    const revealedTimer = window.setTimeout(
+      () => setStage("revealed"),
+      FLIP_DELAY_MS + FLIP_DURATION_MS,
+    );
+    const exposeTimer = isZangyoFinale
+      ? window.setTimeout(() => setStage("expose"), EXPOSE_DELAY_MS)
+      : undefined;
+    const endingTimer = isZangyoFinale
+      ? window.setTimeout(
+          () => setStage("ending"),
+          EXPOSE_DELAY_MS + Math.max(0, ROUKI_ZANGYO_FINALE_MS - EXPOSE_DELAY_MS - 900),
+        )
+      : undefined;
+    const hideTimer = !isZangyoFinale
+      ? window.setTimeout(() => setActive(null), 2800)
+      : undefined;
+
     return () => {
       window.clearTimeout(flipTimer);
-      window.clearTimeout(hideTimer);
+      window.clearTimeout(revealedTimer);
+      if (exposeTimer) window.clearTimeout(exposeTimer);
+      if (endingTimer) window.clearTimeout(endingTimer);
+      if (hideTimer) window.clearTimeout(hideTimer);
     };
-  }, [reveal?.at]);
+  }, [reveal?.at, isZangyoFinale]);
 
   if (!active) return null;
 
+  const flipped = stage !== "enter";
+  const showResult = stage === "revealed" || stage === "expose" || stage === "ending";
+
   return (
-    <div className="rouki-reveal" role="status" aria-live="polite">
+    <div
+      className={[
+        "rouki-reveal",
+        isZangyo ? "rouki-reveal--zangyo" : "",
+        stage === "expose" ? "rouki-reveal--expose" : "",
+        stage === "ending" ? "rouki-reveal--ending" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      role="status"
+      aria-live="polite"
+    >
       <div className="rouki-reveal__backdrop" />
       <div className="rouki-reveal__content">
-        <p className="rouki-reveal__title">労基摘発 — カード公開</p>
+        <p className="rouki-reveal__title">
+          {isZangyo && stage === "expose"
+            ? "残業が暴露！"
+            : isZangyo && stage === "ending"
+              ? "ゲーム終了"
+              : "労基摘発 — カード公開"}
+        </p>
         <p className="rouki-reveal__meta">
           {active.actorName}が{active.ownerName}の手札から選んだカード
         </p>
@@ -38,10 +94,18 @@ export function RoukiRevealOverlay({ reveal }: { reveal: RoukiReveal | null }) {
             </div>
           </div>
         </div>
-        {flipped && (
+        {showResult && (
           <p className="rouki-reveal__result">
             <strong>{CARD_LABELS[active.cardType]}</strong>
           </p>
+        )}
+        {isZangyo && stage === "expose" && (
+          <p className="rouki-reveal__zangyo-callout">
+            {active.ownerName}の負け…
+          </p>
+        )}
+        {isZangyo && stage === "ending" && (
+          <p className="rouki-reveal__ending-hint">結果を表示しています…</p>
         )}
       </div>
     </div>

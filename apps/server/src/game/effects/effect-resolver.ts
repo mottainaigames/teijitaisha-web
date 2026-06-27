@@ -1,6 +1,7 @@
 import {
   CARD_LABELS,
   IDLE_TIMEOUT_MS,
+  ROUKI_ZANGYO_FINALE_MS,
   SHANAI_RENAI_VIEW_MS,
   pickRandom,
   removeCardById,
@@ -291,7 +292,15 @@ export class EffectResolver {
           `${bridge.playerName(targetId)}の残業が摘発！${bridge.playerName(targetId)}の負け`,
           "zangyo",
         );
-        bridge.endGameRouki(userId, targetId);
+        bridge.effectStep = "reveal";
+        bridge.pending = {
+          type: "rouki_finale",
+          playerIds: [],
+          deadlineAt: Date.now() + ROUKI_ZANGYO_FINALE_MS,
+          effectCard: cardType,
+          effectUserId: userId,
+          targetId,
+        };
         return null;
       }
       if (card.type === "pawahara") {

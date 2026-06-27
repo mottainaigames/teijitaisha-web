@@ -757,7 +757,10 @@ export function GameScreen({
           </p>
         )}
 
-        <RoukiRevealOverlay reveal={view.lastRoukiReveal} />
+        <RoukiRevealOverlay
+          reveal={view.lastRoukiReveal}
+          isZangyoFinale={view.pending?.type === "rouki_finale"}
+        />
 
         {Object.keys(view.meetingDeclarations).length > 0 && (
           <p className="notice">

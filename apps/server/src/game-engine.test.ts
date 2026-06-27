@@ -424,6 +424,12 @@ describe("GameEngine", () => {
       playPair(engine, "p1", "rouki");
       expect(engine.handleAction("p1", { type: "select_target", targetId: "p2" })).toBeNull();
       expect(engine.handleAction("p1", { type: "select_card", cardId: "z1" })).toBeNull();
+      expect(engine.phase).toBe("effect");
+      expect(engine.pending?.type).toBe("rouki_finale");
+      expect(engine.result).toBeNull();
+      expect(engine.lastRoukiReveal?.cardType).toBe("zangyo");
+
+      engine.tick(engine.pending!.deadlineAt);
       expect(engine.phase).toBe("game_end");
       expect(engine.result?.reason).toBe("rouki");
       expect(engine.result?.winnerIds).toEqual(["p1"]);
@@ -873,6 +879,9 @@ describe("GameEngine", () => {
     engine.handleAction("p1", { type: "play_pair", cardType: "rouki" });
     engine.handleAction("p1", { type: "select_target", targetId: "p2" });
     engine.handleAction("p1", { type: "select_card", cardId: "z1" });
+
+    expect(engine.pending?.type).toBe("rouki_finale");
+    engine.tick(engine.pending!.deadlineAt);
 
     expect(engine.phase).toBe("game_end");
     expect(engine.result).toMatchObject({

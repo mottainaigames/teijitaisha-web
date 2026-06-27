@@ -783,7 +783,9 @@ export class GameEngine {
   private canPlayerAct(forPlayerId: PlayerId): boolean {
     const player = this.players.get(forPlayerId);
     if (!player || player.status !== "active") return false;
-    if (!this.pending || this.pending.type === "romance_view") return false;
+    if (!this.pending || this.pending.type === "romance_view" || this.pending.type === "rouki_finale") {
+      return false;
+    }
     if (!this.pending.playerIds.includes(forPlayerId)) return false;
 
     const currentId = this.seats[this.currentSeatIndex] ?? null;
@@ -947,6 +949,9 @@ export class GameEngine {
         break;
       case "romance_view":
         this.finishRomanceView("timeout");
+        break;
+      case "rouki_finale":
+        this.endGameRouki(this.pending.effectUserId!, this.pending.targetId!);
         break;
     }
   }

@@ -94,4 +94,30 @@ describe("EffectResolver", () => {
     resolver.runEffect(bridge, "norma", "p1");
     expect(resolved).toBe(true);
   });
+
+  it("労基で残業: 即終了せず rouki_finale 待機になる", () => {
+    let ended = false;
+    const players = new Map<string, PlayerState>([
+      ["p1", player("p1", [{ id: "h1", type: "norma" }])],
+      ["p2", player("p2", [{ id: "z1", type: "zangyo" }])],
+    ]);
+    const bridge = createBridge({
+      players,
+      pending: {
+        type: "select_card",
+        playerIds: ["p1"],
+        deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+        effectCard: "rouki",
+        effectUserId: "p1",
+        targetId: "p2",
+      },
+      endGameRouki: () => {
+        ended = true;
+      },
+    });
+    expect(resolver.resolveSelectCard(bridge, "p1", "z1")).toBeNull();
+    expect(ended).toBe(false);
+    expect(bridge.pending?.type).toBe("rouki_finale");
+    expect(bridge.lastRoukiReveal?.cardType).toBe("zangyo");
+  });
 });
