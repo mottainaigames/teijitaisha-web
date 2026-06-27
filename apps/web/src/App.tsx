@@ -1,6 +1,7 @@
 import type { GameView } from "@teijitaisha/shared";
 import { useGameSocket } from "./useGameSocket";
 import { GameScreen } from "./GameScreen";
+import { ProductAdBanner } from "./product-ad";
 
 export default function App() {
   const {
@@ -101,7 +102,9 @@ export default function App() {
       )}
 
       {screen === "home" && (
-        <div className="card">
+        <>
+          <ProductAdBanner className="product-ad-banner--home" />
+          <div className="card">
           <label htmlFor="name">表示名</label>
           <input
             id="name"
@@ -132,6 +135,7 @@ export default function App() {
             ルームに参加
           </button>
         </div>
+        </>
       )}
 
       {screen === "game" && room && playerId && view && (

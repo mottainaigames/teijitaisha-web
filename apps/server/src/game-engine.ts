@@ -68,6 +68,8 @@ export class GameEngine {
 
   pending: PendingInput | null = null;
   result: GameResult | null = null;
+  /** 退社した順番（早いほど順位が高い） */
+  private retirementOrder: PlayerId[] = [];
 
   revealedCard: { type: CardType; ownerId: PlayerId } | null = null;
   meetingDeclarations: Record<PlayerId, boolean> = {};
@@ -151,6 +153,8 @@ export class GameEngine {
     this.phase = "draw";
     this.pairsRemainingThisTurn = 1;
     this.nomikaiBlockedPlayerId = null;
+    this.retirementOrder = [];
+    this.result = null;
     this.log("ゲーム開始");
     this.log(`${this.playerName(this.seats[this.currentSeatIndex]!)}のターン`);
     this.beginDrawPhase();
@@ -736,8 +740,14 @@ export class GameEngine {
         break;
       case "select_target": {
         const user = this.pending.effectUserId!;
-        const targets = this.getValidTargets(user, this.pending.effectCard!);
-        if (targets.length > 0) this.resolveSelectTarget(user, pickRandom(targets, this.random));
+        const cardType = this.pending.effectCard!;
+        const targets = this.getValidTargets(user, cardType);
+        if (targets.length > 0) {
+          this.resolveSelectTarget(user, pickRandom(targets, this.random));
+        } else {
+          this.log(`${CARD_LABELS[cardType]}: 有効な対象がいないため効果をスキップ`, cardType);
+          this.afterEffectResolved();
+        }
         break;
       }
       case "select_card": {
@@ -747,7 +757,11 @@ export class GameEngine {
           cardType === "pawahara"
             ? this.players.get(user)!.hand
             : this.players.get(this.pending.targetId!)!.hand;
-        if (hand.length === 0) break;
+        if (hand.length === 0) {
+          this.log(`${CARD_LABELS[cardType]}: 選べるカードがないため効果をスキップ`, cardType);
+          this.afterEffectResolved();
+          break;
+        }
         const card = pickRandom(hand, this.random);
         this.resolveSelectCard(user, card.id);
         break;
@@ -868,7 +882,11 @@ export class GameEngine {
     }
     const player = this.players.get(playerId)!;
     const pairable = getPairableTypes(player.hand);
-    if (this.pairsRemainingThisTurn > 0 && pairable.length > 0) {
+    if (
+      this.pairsRemainingThisTurn > 0 &&
+      pairable.length > 0 &&
+      this.nomikaiBlockedPlayerId !== playerId
+    ) {
       this.phase = "play";
       this.pending = {
         type: "play_or_skip",
@@ -885,7 +903,30 @@ export class GameEngine {
   private resolveSkipPlay(playerId: PlayerId): string | null {
     if (!this.pending || this.pending.type !== "play_or_skip") return "不正な操作です";
     if (playerId !== this.pending.playerIds[0]) return "あなたの番ではありません";
+    this.pairsRemainingThisTurn = Math.max(0, this.pairsRemainingThisTurn - 1);
     this.log(`${this.playerName(playerId)}はペアを出さなかった`);
+
+    if (this.pairsRemainingThisTurn > 0) {
+      const player = this.players.get(playerId)!;
+      if (player.status !== "active") {
+        this.endTurn();
+        return null;
+      }
+      if (this.nomikaiBlockedPlayerId === playerId) {
+        this.endTurn();
+        return null;
+      }
+      this.phase = "play";
+      this.pending = {
+        type: "play_or_skip",
+        playerIds: [playerId],
+        deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+        effectCard: null,
+        effectUserId: null,
+      };
+      return null;
+    }
+
     this.endTurn();
     return null;
   }
@@ -933,11 +974,13 @@ export class GameEngine {
         this.afterEffectResolved();
         break;
       }
-      case "enadori":
+      case "enadori": {
+        if (this.tryRetireActorAfterPair(userId, CARD_LABELS.enadori)) break;
         this.pairsRemainingThisTurn++;
         this.log(`${this.playerName(userId)}はもう1組ペアを出せる（エナドリ）`);
         this.afterEffectResolved();
         break;
+      }
       case "tabako_kyuukei":
         this.effectStep = "tabaco_dump";
         {
@@ -981,7 +1024,7 @@ export class GameEngine {
         this.effectStep = "info_share";
         const actor = this.players.get(userId)!;
         if (actor.hand.length === 0) {
-          actor.status = "retired";
+          this.markRetired(userId);
           this.log(`${this.playerName(userId)}が情報共有のペアを出して定時退社`);
         }
 
@@ -1006,12 +1049,22 @@ export class GameEngine {
       }
       case "shanai_renai":
       case "shinjin_kyouiku":
-      case "torihiki":
       case "rouki":
-      case "pawahara":
         this.effectStep = "select_target";
         this.beginTargetSelection(userId, cardType);
         break;
+      case "torihiki": {
+        if (this.tryRetireActorAfterPair(userId, CARD_LABELS.torihiki)) break;
+        this.effectStep = "select_target";
+        this.beginTargetSelection(userId, cardType);
+        break;
+      }
+      case "pawahara": {
+        if (this.tryRetireActorAfterPair(userId, CARD_LABELS.pawahara)) break;
+        this.effectStep = "select_target";
+        this.beginTargetSelection(userId, cardType);
+        break;
+      }
     }
   }
 
@@ -1080,6 +1133,20 @@ export class GameEngine {
         if (target.hand.length === 0) {
           this.afterEffectResolved();
           return null;
+        }
+        if (target.hand.length === 1) {
+          const only = target.hand[0]!;
+          this.effectStep = "training";
+          this.pending = {
+            type: "training_peek",
+            playerIds: [userId],
+            deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+            effectCard: cardType,
+            effectUserId: userId,
+            targetId,
+            trainingPeekSelections: new Set([only.id]),
+          };
+          return this.finishTrainingPeek(userId);
         }
         this.effectStep = "training";
         this.peekedCards = [];
@@ -1316,7 +1383,7 @@ export class GameEngine {
 
     const actor = this.players.get(userId)!;
     if (actor.hand.length === 0) {
-      actor.status = "retired";
+      this.markRetired(userId);
       this.log(`${this.playerName(userId)}が新人教育のペアを出して定時退社`);
       this.afterEffectResolved();
       return null;
@@ -1366,10 +1433,12 @@ export class GameEngine {
 
     const userId = this.effectUserId!;
     const player = this.players.get(userId)!;
-    const pairable = getPairableTypes(player.hand);
+    if (player.status !== "active") {
+      this.endTurn();
+      return;
+    }
     if (
       this.pairsRemainingThisTurn > 0 &&
-      pairable.length > 0 &&
       this.nomikaiBlockedPlayerId !== userId
     ) {
       this.phase = "play";
@@ -1390,7 +1459,7 @@ export class GameEngine {
     for (const id of this.activePlayerIds()) {
       const p = this.players.get(id)!;
       if (p.hand.length === 0) {
-        p.status = "retired";
+        this.markRetired(id);
         retiredNow.push(this.playerName(id));
       }
     }
@@ -1407,30 +1476,51 @@ export class GameEngine {
 
   private endGameNormal(): void {
     const active = this.activePlayerIds();
-    const retired = this.seats.filter((id) => this.players.get(id)?.status === "retired");
     const loser = active[0] ?? null;
     this.phase = "game_end";
     this.pending = null;
     this.result = {
       reason: "normal",
-      winnerIds: retired,
+      winnerIds: [...this.retirementOrder],
       loserIds: loser ? [loser] : [],
+      retirementOrder: [...this.retirementOrder],
     };
     this.log(loser ? `ゲーム終了: ${this.playerName(loser)}の負け` : "ゲーム終了");
   }
 
   private endGameRouki(roukiUserId: PlayerId, zangyoUserId: PlayerId): void {
-    const retired = this.seats.filter((id) => this.players.get(id)?.status === "retired");
+    const drawIds = this.seats.filter((id) => id !== roukiUserId && id !== zangyoUserId);
     this.phase = "game_end";
     this.pending = null;
     this.result = {
       reason: "rouki",
-      winnerIds: [roukiUserId, ...retired],
+      winnerIds: [roukiUserId],
       loserIds: [zangyoUserId],
+      drawIds,
+      retirementOrder: [...this.retirementOrder],
       roukiPlayerId: roukiUserId,
       zangyoPlayerId: zangyoUserId,
     };
     this.log("ゲーム終了: 労基摘発");
+  }
+
+  private markRetired(playerId: PlayerId): void {
+    const p = this.players.get(playerId);
+    if (!p || p.status === "retired") return;
+    p.status = "retired";
+    if (!this.retirementOrder.includes(playerId)) {
+      this.retirementOrder.push(playerId);
+    }
+  }
+
+  /** ペア出し後に手札0枚なら退社して効果を打ち切る */
+  private tryRetireActorAfterPair(userId: PlayerId, cardLabel: string): boolean {
+    const actor = this.players.get(userId)!;
+    if (actor.hand.length > 0) return false;
+    this.markRetired(userId);
+    this.log(`${this.playerName(userId)}が${cardLabel}のペアを出して定時退社`);
+    this.afterEffectResolved();
+    return true;
   }
 
   private endTurn(): void {

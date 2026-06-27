@@ -176,6 +176,137 @@ describe("GameEngine", () => {
     expect(engine.pending?.type).not.toBe("training_take");
   });
 
+  it("パワハラ: 手札2枚で出したプレイヤーは押し付けずに退社する", () => {
+    const engine = createStartedEngine();
+    const actor = engine.players.get("p1")!;
+    actor.hand = [
+      { id: "ph1", type: "pawahara" },
+      { id: "ph2", type: "pawahara" },
+    ];
+    engine.players.get("p2")!.hand = [{ id: "n1", type: "norma" }];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.handleAction("p1", { type: "play_pair", cardType: "pawahara" })).toBeNull();
+
+    expect(actor.status).toBe("retired");
+    expect(actor.hand).toHaveLength(0);
+    expect(engine.pending?.type).not.toBe("select_target");
+    expect(engine.pending?.type).not.toBe("select_card");
+    expect(engine.lastTransfer).toBeNull();
+  });
+
+  it("エナドリ: 手札2枚で出したプレイヤーは追加ペアなしで退社する", () => {
+    const engine = createStartedEngine();
+    const actor = engine.players.get("p1")!;
+    actor.hand = [
+      { id: "e1", type: "enadori" },
+      { id: "e2", type: "enadori" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.handleAction("p1", { type: "play_pair", cardType: "enadori" })).toBeNull();
+
+    expect(actor.status).toBe("retired");
+    expect(actor.hand).toHaveLength(0);
+    expect(engine.pairsRemainingThisTurn).toBe(1);
+    expect(engine.pending?.type).not.toBe("play_or_skip");
+  });
+
+  it("エナドリ: 追加ペアを出さずにスキップできる", () => {
+    const engine = createStartedEngine();
+    engine.players.get("p1")!.hand = [
+      { id: "e1", type: "enadori" },
+      { id: "e2", type: "enadori" },
+      { id: "n1", type: "norma" },
+      { id: "n2", type: "norma" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    engine.handleAction("p1", { type: "play_pair", cardType: "enadori" });
+    expect(engine.pending?.type).toBe("play_or_skip");
+    expect(engine.pairsRemainingThisTurn).toBe(1);
+
+    engine.handleAction("p1", { type: "skip_play" });
+    expect(engine.pairsRemainingThisTurn).toBe(1);
+    expect(engine.pending?.type).toBe("draw");
+    expect(engine.seats[engine.currentSeatIndex]).toBe("p2");
+  });
+
+  it("新人教育: 相手の手札が1枚のときは1枚だけ見て進む", () => {
+    const engine = createStartedEngine();
+    engine.players.get("p1")!.hand = [
+      { id: "s1", type: "shinjin_kyouiku" },
+      { id: "s2", type: "shinjin_kyouiku" },
+      { id: "x1", type: "norma" },
+    ];
+    engine.players.get("p2")!.hand = [{ id: "t1", type: "norma" }];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    engine.handleAction("p1", { type: "play_pair", cardType: "shinjin_kyouiku" });
+    engine.handleAction("p1", { type: "select_target", targetId: "p2" });
+
+    expect(engine.pending?.type).not.toBe("training_peek");
+    expect(engine.peekedCards).toEqual([{ id: "t1", type: "norma" }]);
+    expect(engine.pending?.type).toBe("training_take");
+  });
+
+  it("取引: 手札2枚で出したプレイヤーは交換せずに退社する", () => {
+    const engine = createStartedEngine();
+    const actor = engine.players.get("p1")!;
+    actor.hand = [
+      { id: "t1", type: "torihiki" },
+      { id: "t2", type: "torihiki" },
+    ];
+    engine.players.get("p2")!.hand = [{ id: "n1", type: "norma" }];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.handleAction("p1", { type: "play_pair", cardType: "torihiki" })).toBeNull();
+
+    expect(actor.status).toBe("retired");
+    expect(engine.pending?.type).not.toBe("trade");
+    expect(engine.pending?.type).not.toBe("select_target");
+  });
+
   it("2人戦: 新人教育は唯一の相手を自動選択して training_peek に進む", () => {
     const engine = new GameEngine(
       [
@@ -226,6 +357,7 @@ describe("GameEngine", () => {
     engine.players.get("p1")!.hand = [
       { id: "t1", type: "torihiki" },
       { id: "t2", type: "torihiki" },
+      { id: "x1", type: "norma" },
     ];
     engine.players.get("p2")!.hand = [{ id: "o1", type: "norma" }];
     engine.phase = "play";
@@ -492,5 +624,83 @@ describe("GameEngine", () => {
     const view = engine.getView(currentId);
     expect(view.pending?.type).toBe("draw");
     expect(view.pending?.sourcePlayerId).toBe(maxHandPlayerId);
+  });
+
+  it("通常終了: 退社順が結果に記録される", () => {
+    const engine = createStartedEngine();
+
+    engine.players.get("p1")!.hand = [
+      { id: "j1", type: "jouhou_kyouyu" },
+      { id: "j2", type: "jouhou_kyouyu" },
+    ];
+    engine.players.get("p2")!.hand = [
+      { id: "a", type: "norma" },
+      { id: "b", type: "norma" },
+    ];
+    engine.players.get("p3")!.hand = [
+      { id: "c", type: "norma" },
+      { id: "d", type: "norma" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    engine.handleAction("p1", { type: "play_pair", cardType: "jouhou_kyouyu" });
+    const p2Card = engine.players.get("p2")!.hand[0]!.id;
+    const p3Card = engine.players.get("p3")!.hand[0]!.id;
+    engine.handleAction("p2", { type: "info_share_select", cardId: p2Card });
+    engine.handleAction("p3", { type: "info_share_select", cardId: p3Card });
+
+    engine.players.get("p2")!.hand = [];
+    (engine as unknown as { checkRetirement: () => boolean }).checkRetirement();
+
+    expect(engine.phase).toBe("game_end");
+    expect(engine.result?.retirementOrder).toEqual(["p1", "p2"]);
+    expect(engine.result?.winnerIds).toEqual(["p1", "p2"]);
+    expect(engine.result?.loserIds).toEqual(["p3"]);
+  });
+
+  it("労基摘発: 暴いた人が勝者・暴かれた人が敗者・その他は引き分け", () => {
+    const engine = createStartedEngine();
+
+    engine.players.get("p3")!.hand = [];
+    (engine as unknown as { checkRetirement: () => boolean }).checkRetirement();
+    expect(engine.players.get("p3")?.status).toBe("retired");
+
+    engine.players.get("p1")!.hand = [
+      { id: "r1", type: "rouki" },
+      { id: "r2", type: "rouki" },
+    ];
+    engine.players.get("p2")!.hand = [{ id: "z1", type: "zangyo" }];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    engine.handleAction("p1", { type: "play_pair", cardType: "rouki" });
+    engine.handleAction("p1", { type: "select_target", targetId: "p2" });
+    engine.handleAction("p1", { type: "select_card", cardId: "z1" });
+
+    expect(engine.phase).toBe("game_end");
+    expect(engine.result).toMatchObject({
+      reason: "rouki",
+      winnerIds: ["p1"],
+      loserIds: ["p2"],
+      drawIds: ["p3"],
+      retirementOrder: ["p3"],
+      roukiPlayerId: "p1",
+      zangyoPlayerId: "p2",
+    });
   });
 });

@@ -37,6 +37,10 @@ export interface GameResult {
   reason: GameEndReason;
   winnerIds: PlayerId[];
   loserIds: PlayerId[];
+  /** 労基摘発終了時の引き分け（勝者・敗者以外） */
+  drawIds?: PlayerId[];
+  /** 退社した順番（早いほど上位） */
+  retirementOrder: PlayerId[];
   roukiPlayerId?: PlayerId;
   zangyoPlayerId?: PlayerId;
 }

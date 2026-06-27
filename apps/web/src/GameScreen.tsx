@@ -20,6 +20,7 @@ import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
 import { ReorderableHandFan } from "./reorderable-hand-fan";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
+import { ProductAdBanner, ProductAdPopup } from "./product-ad";
 
 interface Props {
   room: RoomPublic;
@@ -93,6 +94,8 @@ export function GameScreen({
   const hasCpu = room.players.some((p) => p.isCpu);
   const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showProductAdPopup, setShowProductAdPopup] = useState(false);
+  const prevPhaseRef = useRef<GameView["phase"]>(view.phase);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -110,6 +113,13 @@ export function GameScreen({
     setSelectedTargetId(null);
     setFocusedHandCardId(null);
   }, [pendingKey]);
+
+  useEffect(() => {
+    if (prevPhaseRef.current === "game_end" && view.phase === "lobby") {
+      setShowProductAdPopup(true);
+    }
+    prevPhaseRef.current = view.phase;
+  }, [view.phase]);
 
   useEffect(() => {
     if (focusedHandCardId && !view.myHand.some((c) => c.id === focusedHandCardId)) {
@@ -184,6 +194,12 @@ export function GameScreen({
     return (
       <div className="game-shell game-shell--lobby">
         {gameMenu}
+        {showProductAdPopup && (
+          <div className="product-ad-popup-backdrop">
+            <ProductAdPopup onClose={() => setShowProductAdPopup(false)} />
+          </div>
+        )}
+        <ProductAdBanner className="product-ad-banner--lobby" />
         <div className="card lobby-screen">
           <div className="lobby-screen__top">
             <div className="screen-header">
@@ -264,6 +280,9 @@ export function GameScreen({
   }
 
   if (view.phase === "game_end" && view.result) {
+    const { result } = view;
+    const isRouki = result.reason === "rouki";
+
     return (
       <div className="game-shell game-shell--scroll">
         {gameMenu}
@@ -273,11 +292,85 @@ export function GameScreen({
               <h2>ゲーム終了</h2>
               <GameMenuButton onClick={() => setMenuOpen(true)} />
             </div>
-            <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
-            <p>
-              勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
-            </p>
-            <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
+            <div className="game-end">
+              <p className="game-end__reason status">{isRouki ? "労基摘発で終了" : "通常終了"}</p>
+
+              {result.retirementOrder.length > 0 && (
+                <section className="game-end__section">
+                  <h3 className="game-end__heading">退社順</h3>
+                  <ol className="game-end__retire-list">
+                    {result.retirementOrder.map((id, index) => (
+                      <li
+                        key={id}
+                        className={[
+                          "game-end__retire-item",
+                          id === playerId ? "game-end__retire-item--me" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        <span className="game-end__rank">{index + 1}</span>
+                        <span className="game-end__name">{nameOf(view.seats, id)}</span>
+                        {index === 0 && !isRouki && (
+                          <span className="game-end__badge game-end__badge--fast">最速退社</span>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
+              <section className="game-end__section">
+                <h3 className="game-end__heading">結果</h3>
+                {isRouki ? (
+                  <ul className="game-end__outcomes">
+                    <li className="game-end__outcome game-end__outcome--winner">
+                      <span className="game-end__outcome-label">勝者</span>
+                      <span className="game-end__outcome-name">
+                        {nameOf(view.seats, result.roukiPlayerId!)}
+                      </span>
+                      <span className="game-end__outcome-note">労基で残業を摘発</span>
+                    </li>
+                    <li className="game-end__outcome game-end__outcome--loser">
+                      <span className="game-end__outcome-label">敗者</span>
+                      <span className="game-end__outcome-name">
+                        {nameOf(view.seats, result.zangyoPlayerId!)}
+                      </span>
+                      <span className="game-end__outcome-note">残業が暴露</span>
+                    </li>
+                    {(result.drawIds?.length ?? 0) > 0 && (
+                      <li className="game-end__outcome game-end__outcome--draw">
+                        <span className="game-end__outcome-label">引き分け</span>
+                        <span className="game-end__outcome-name">
+                          {result.drawIds!.map((id) => nameOf(view.seats, id)).join("、")}
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <ul className="game-end__outcomes">
+                    {result.winnerIds.length > 0 && (
+                      <li className="game-end__outcome game-end__outcome--winner">
+                        <span className="game-end__outcome-label">勝者</span>
+                        <span className="game-end__outcome-name">
+                          {result.winnerIds.map((id) => nameOf(view.seats, id)).join("、")}
+                        </span>
+                        <span className="game-end__outcome-note">退社順どおり</span>
+                      </li>
+                    )}
+                    {result.loserIds.length > 0 && (
+                      <li className="game-end__outcome game-end__outcome--loser">
+                        <span className="game-end__outcome-label">敗者</span>
+                        <span className="game-end__outcome-name">
+                          {result.loserIds.map((id) => nameOf(view.seats, id)).join("、")}
+                        </span>
+                        <span className="game-end__outcome-note">最後まで手札を残した</span>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </section>
+            </div>
             <div className="game-end-actions">
               <button type="button" onClick={onReturnToLobby}>
                 ルームに戻る
@@ -614,7 +707,15 @@ export function GameScreen({
           <p className="spectator-dock-note">退社済み — 観戦中</p>
         </div>
       ) : (
-      <div className="game-hand-dock">
+      <div
+        className={[
+          "game-hand-dock",
+          isMyHandPicking && view.canAct ? "game-hand-dock--selecting-active" : "",
+          handPickPurpose && view.canAct && isPickingFromHand ? "game-hand-dock--selecting" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <div
           className={[
             "my-hand",
@@ -622,6 +723,7 @@ export function GameScreen({
             handPickPurpose && view.canAct && isPickingFromHand
               ? `my-hand--purpose-${handPickPurpose}`
               : "",
+            isMyHandPicking && view.canAct ? "my-hand--purpose-active" : "",
             hasHandPickSubmitted ? "my-hand--purpose-waiting" : "",
           ]
             .filter(Boolean)
@@ -639,6 +741,11 @@ export function GameScreen({
               playerId={playerId}
               submitted={hasHandPickSubmitted}
             />
+          )}
+          {handPickPurpose === "play_or_skip" && view.canAct && isMyHandPicking && (
+            <button type="button" className="my-hand__skip-pair secondary" onClick={onSkipPlay}>
+              ペアを出さない
+            </button>
           )}
           <div className="my-hand__toolbar">
             <p className="my-hand__label">
@@ -900,31 +1007,38 @@ function PendingActions({
   if (p.type === "draw") return null;
 
   if (p.type === "play_or_skip") {
+    const extraPair = view.pairsRemainingThisTurn > 1;
     return (
       <div className="actions">
-        <p>ペアを出しますか？</p>
+        <p>{extraPair ? "もう1組ペアを出しますか？" : "ペアを出しますか？"}</p>
         <p className="status">手札のカードをタップするか、下のペアから選んでください</p>
-        <div className="pair-row">
-          {pairable.map((t) => (
-            <PairCard
-              key={t}
-              cardType={t}
-              selectable
-              selected={selectedPairType === t}
-              onClick={() => onSelectPairType(t)}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          className="action-confirm"
-          disabled={!selectedPairType}
-          onClick={() => selectedPairType && onPlayPair(selectedPairType)}
-        >
-          このペアを出す
-        </button>
+        {pairable.length > 0 ? (
+          <>
+            <div className="pair-row">
+              {pairable.map((t) => (
+                <PairCard
+                  key={t}
+                  cardType={t}
+                  selectable
+                  selected={selectedPairType === t}
+                  onClick={() => onSelectPairType(t)}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              className="action-confirm"
+              disabled={!selectedPairType}
+              onClick={() => selectedPairType && onPlayPair(selectedPairType)}
+            >
+              このペアを出す
+            </button>
+          </>
+        ) : (
+          <p className="status">出せるペアがありません</p>
+        )}
         <button type="button" className="secondary" onClick={onSkipPlay}>
-          出さない
+          ペアを出さない
         </button>
       </div>
     );
@@ -1007,10 +1121,12 @@ function PendingActions({
     return (
       <div className="actions">
         <p>
-          {targetName}の手札から見るカードを選ぶ（最大{max}枚）
+          {targetName}の手札から見るカードを選ぶ（{max === 1 ? "1枚" : `最大${max}枚`}）
         </p>
         <p className="status">
-          タップで選択・解除 — {selected.size}/{max}枚
+          {max === 1
+            ? "相手の手札が1枚のため自動で見ます"
+            : `タップで選択・解除 — ${selected.size}/${max}枚`}
         </p>
         <CardFan>
           {p.validCardIds.map((id, i) => (
