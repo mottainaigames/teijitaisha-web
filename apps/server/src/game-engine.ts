@@ -3,7 +3,6 @@ import {
   IDLE_TIMEOUT_MS,
   MAX_PLAYERS,
   MIN_PLAYERS,
-  SHANAI_RENAI_VIEW_MS,
   type CardType,
   dealHands,
   firstSeatDrawingFromMaxHand,
@@ -17,7 +16,6 @@ import {
   type GamePhase,
   type GameResult,
   type GameView,
-  type PendingInputType,
   type PendingView,
   type PlayerId,
   type CpuProcessStep,
@@ -28,29 +26,10 @@ import {
   type CardTransfer,
 } from "@teijitaisha/shared";
 import { randomUUID } from "node:crypto";
+import { EffectResolver } from "./game/effects/effect-resolver.js";
+import type { EffectBridge, PendingInput, PlayerState } from "./game/effects/effect-types.js";
 
-interface PlayerState {
-  id: PlayerId;
-  name: string;
-  status: "active" | "retired" | "disconnected";
-  hand: CardInstance[];
-  disconnectedAt: number | null;
-}
-
-interface PendingInput {
-  type: PendingInputType;
-  playerIds: PlayerId[];
-  deadlineAt: number;
-  effectCard: CardType | null;
-  effectUserId: PlayerId | null;
-  targetId?: PlayerId;
-  peekedCards?: CardInstance[];
-  infoShareSelections?: Map<PlayerId, string>;
-  tradeSelections?: Map<PlayerId, string>;
-  trainingPeekSelections?: Set<string>;
-  sourcePlayerId?: PlayerId;
-  romanceSkips?: Set<PlayerId>;
-}
+export type { PlayerState } from "./game/effects/effect-types.js";
 
 export class GameEngine {
   phase: GamePhase = "lobby";
@@ -96,6 +75,8 @@ export class GameEngine {
   private readonly random: () => number;
   private readonly layout?: { seats: PlayerId[]; firstSeatIndex: number };
   private cpuPlayerIds = new Set<PlayerId>();
+  private readonly effects = new EffectResolver();
+  private effectBridgeCache: EffectBridge | null = null;
 
   constructor(
     entries: { id: PlayerId; name: string }[],
@@ -176,6 +157,108 @@ export class GameEngine {
       }
     }
     this.tryFinishRomanceView();
+  }
+
+  private bridge(): EffectBridge {
+    if (this.effectBridgeCache) return this.effectBridgeCache;
+    // GameEngine 状態への getter/setter ブリッジ用
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- クロージャで engine 参照が必要
+    const engine = this;
+    this.effectBridgeCache = {
+      get effectStep() {
+        return engine.effectStep;
+      },
+      set effectStep(value) {
+        engine.effectStep = value;
+      },
+      get effectCard() {
+        return engine.effectCard;
+      },
+      set effectCard(value) {
+        engine.effectCard = value;
+      },
+      get effectUserId() {
+        return engine.effectUserId;
+      },
+      set effectUserId(value) {
+        engine.effectUserId = value;
+      },
+      get seats() {
+        return engine.seats;
+      },
+      get currentSeatIndex() {
+        return engine.currentSeatIndex;
+      },
+      get players() {
+        return engine.players;
+      },
+      get discardTypes() {
+        return engine.discardTypes;
+      },
+      get pairsRemainingThisTurn() {
+        return engine.pairsRemainingThisTurn;
+      },
+      set pairsRemainingThisTurn(value) {
+        engine.pairsRemainingThisTurn = value;
+      },
+      get nomikaiBlockedPlayerId() {
+        return engine.nomikaiBlockedPlayerId;
+      },
+      set nomikaiBlockedPlayerId(value) {
+        engine.nomikaiBlockedPlayerId = value;
+      },
+      get pending() {
+        return engine.pending;
+      },
+      set pending(value) {
+        engine.pending = value;
+      },
+      get meetingDeclarations() {
+        return engine.meetingDeclarations;
+      },
+      set meetingDeclarations(value) {
+        engine.meetingDeclarations = value;
+      },
+      get revealedCard() {
+        return engine.revealedCard;
+      },
+      set revealedCard(value) {
+        engine.revealedCard = value;
+      },
+      get peekedCards() {
+        return engine.peekedCards;
+      },
+      set peekedCards(value) {
+        engine.peekedCards = value;
+      },
+      get lastTransfer() {
+        return engine.lastTransfer;
+      },
+      set lastTransfer(value) {
+        engine.lastTransfer = value;
+      },
+      get lastRoukiReveal() {
+        return engine.lastRoukiReveal;
+      },
+      set lastRoukiReveal(value) {
+        engine.lastRoukiReveal = value;
+      },
+      playerName: (id) => engine.playerName(id),
+      log: (msg, ct) => engine.log(msg, ct),
+      activePlayerIds: () => engine.activePlayerIds(),
+      nextActiveSeat: (seat) => engine.nextActiveSeat(seat),
+      seatIndexOf: (id) => engine.seatIndexOf(id),
+      leftOfSeat: (seat) => engine.leftOfSeat(seat),
+      random: () => engine.random(),
+      afterEffectResolved: () => engine.afterEffectResolved(),
+      tryRetireActorAfterPair: (id, label) => engine.tryRetireActorAfterPair(id, label),
+      markRetired: (id) => engine.markRetired(id),
+      checkRetirement: () => engine.checkRetirement(),
+      endGameRouki: (a, b) => engine.endGameRouki(a, b),
+      transferCard: (from, to, cardId, insertRandom) =>
+        engine.transferCard(from, to, cardId, insertRandom),
+    };
+    return this.effectBridgeCache;
   }
 
   handleAction(
@@ -844,72 +927,21 @@ export class GameEngine {
         }
         break;
       }
-      case "select_target": {
-        const user = this.pending.effectUserId!;
-        const cardType = this.pending.effectCard!;
-        const targets = this.getValidTargets(user, cardType);
-        if (targets.length > 0) {
-          this.resolveSelectTarget(user, pickRandom(targets, this.random));
-        } else {
-          this.log(`${CARD_LABELS[cardType]}: 有効な対象がいないため効果をスキップ`, cardType);
-          this.afterEffectResolved();
-        }
+      case "select_target":
+        this.effects.autoResolveSelectTarget(this.bridge());
         break;
-      }
-      case "select_card": {
-        const user = this.pending.effectUserId!;
-        const cardType = this.pending.effectCard!;
-        const hand =
-          cardType === "pawahara"
-            ? this.players.get(user)!.hand
-            : this.players.get(this.pending.targetId!)!.hand;
-        if (hand.length === 0) {
-          this.log(`${CARD_LABELS[cardType]}: 選べるカードがないため効果をスキップ`, cardType);
-          this.afterEffectResolved();
-          break;
-        }
-        const card = pickRandom(hand, this.random);
-        this.resolveSelectCard(user, card.id);
+      case "select_card":
+        this.effects.autoResolveSelectCard(this.bridge());
         break;
-      }
-      case "info_share": {
-        for (const id of this.activePlayerIds()) {
-          if (!this.pending.infoShareSelections?.has(id)) {
-            const p = this.players.get(id)!;
-            const card = pickRandom(p.hand, this.random);
-            this.pending.infoShareSelections?.set(id, card.id);
-          }
-        }
-        this.finishInfoShare();
+      case "info_share":
+        this.effects.autoResolveInfoShare(this.bridge());
         break;
-      }
-      case "trade": {
-        for (const id of this.pending.playerIds) {
-          if (!this.pending.tradeSelections?.has(id)) {
-            const p = this.players.get(id)!;
-            const card = pickRandom(p.hand, this.random);
-            this.pending.tradeSelections?.set(id, card.id);
-          }
-        }
-        this.finishTrade();
+      case "trade":
+        this.effects.autoResolveTrade(this.bridge());
         break;
-      }
-      case "training_peek": {
-        const user = this.pending.effectUserId!;
-        const target = this.players.get(this.pending.targetId!)!;
-        const max = Math.min(2, target.hand.length);
-        const selected = new Set<string>();
-        const pool = [...target.hand];
-        const count = Math.max(1, Math.min(max, Math.floor(this.random() * max) + 1));
-        for (let i = 0; i < count && pool.length > 0; i++) {
-          const card = pickRandom(pool, this.random);
-          pool.splice(pool.indexOf(card), 1);
-          selected.add(card.id);
-        }
-        this.pending.trainingPeekSelections = selected;
-        this.finishTrainingPeek(user);
+      case "training_peek":
+        this.effects.autoResolveTrainingPeek(this.bridge());
         break;
-      }
       case "training_take":
         this.resolveTrainingTake(this.pending.effectUserId!, false);
         break;
@@ -920,32 +952,15 @@ export class GameEngine {
   }
 
   private skipRomanceView(playerId: PlayerId): string | null {
-    if (this.pending?.type !== "romance_view") return "スキップできません";
-    if (!this.pending.playerIds.includes(playerId)) return "対象外です";
-    if (!this.pending.romanceSkips) this.pending.romanceSkips = new Set();
-    if (this.pending.romanceSkips.has(playerId)) return null;
-    this.pending.romanceSkips.add(playerId);
-    this.log(`${this.playerName(playerId)}が社内恋愛の確認をスキップ`, "shanai_renai");
-    this.tryFinishRomanceView();
-    return null;
+    return this.effects.skipRomanceView(this.bridge(), playerId);
   }
 
   private tryFinishRomanceView(): void {
-    if (this.pending?.type !== "romance_view") return;
-    const skips = this.pending.romanceSkips ?? new Set();
-    if (this.pending.playerIds.every((id) => skips.has(id))) {
-      this.finishRomanceView("skip");
-    }
+    this.effects.tryFinishRomanceView(this.bridge());
   }
 
   private finishRomanceView(reason: "skip" | "timeout"): void {
-    if (this.pending?.type !== "romance_view") return;
-    if (reason === "timeout") {
-      this.log("社内恋愛の手札確認が終了", "shanai_renai");
-    } else {
-      this.log("社内恋愛の手札確認を双方がスキップ", "shanai_renai");
-    }
-    this.afterEffectResolved();
+    this.effects.finishRomanceView(this.bridge(), reason);
   }
 
   private beginDrawPhase(): void {
@@ -1058,471 +1073,39 @@ export class GameEngine {
   }
 
   private runEffect(cardType: CardType, userId: PlayerId): void {
-    this.meetingDeclarations = {};
-    this.revealedCard = null;
-    this.peekedCards = [];
-
-    switch (cardType) {
-      case "norma":
-        this.log("効果なし");
-        this.afterEffectResolved();
-        break;
-      case "nomikai": {
-        const nextSeat = this.nextActiveSeat(this.currentSeatIndex);
-        this.nomikaiBlockedPlayerId = this.seats[nextSeat]!;
-        this.log(
-          `${this.playerName(this.nomikaiBlockedPlayerId)}は次のターン、ペアを出せない（飲み会）`,
-        );
-        this.afterEffectResolved();
-        break;
-      }
-      case "enadori": {
-        if (this.tryRetireActorAfterPair(userId, CARD_LABELS.enadori)) break;
-        this.pairsRemainingThisTurn++;
-        this.log(`${this.playerName(userId)}はもう1組ペアを出せる（エナドリ）`);
-        this.afterEffectResolved();
-        break;
-      }
-      case "tabako_kyuukei":
-        this.effectStep = "tabaco_dump";
-        {
-          let count = 0;
-          for (const id of this.activePlayerIds()) {
-            const p = this.players.get(id)!;
-            const tabaco = p.hand.filter((c) => c.type === "tabako_kyuukei");
-            for (const c of tabaco) {
-              p.hand = removeCardById(p.hand, c.id).hand;
-              this.discardTypes.push(c.type);
-              count++;
-            }
-          }
-          this.log(
-            count > 0
-              ? `全員のタバコ休憩${count}枚が場に出された`
-              : "タバコ休憩は場に出されなかった",
-            "tabako_kyuukei",
-          );
-        }
-        this.afterEffectResolved();
-        break;
-      case "kaigi":
-        this.effectStep = "meeting_declare";
-        for (const id of this.activePlayerIds()) {
-          const p = this.players.get(id)!;
-          const hasZangyo = p.hand.some((c) => c.type === "zangyo");
-          if (hasZangyo) this.meetingDeclarations[id] = true;
-        }
-        if (Object.keys(this.meetingDeclarations).length > 0) {
-          const names = Object.keys(this.meetingDeclarations)
-            .map((id) => this.playerName(id))
-            .join("、");
-          this.log(`会議: ${names}が残業カードを持っていると宣言`, "kaigi");
-        } else {
-          this.log("会議: 残業カードの宣言者なし", "kaigi");
-        }
-        this.afterEffectResolved();
-        break;
-      case "jouhou_kyouyu": {
-        this.effectStep = "info_share";
-        const actor = this.players.get(userId)!;
-        if (actor.hand.length === 0) {
-          this.markRetired(userId);
-          this.log(`${this.playerName(userId)}が情報共有のペアを出して定時退社`);
-        }
-
-        const participants = this.activePlayerIds();
-        if (participants.length <= 1) {
-          if (this.checkRetirement()) return;
-          this.log("情報共有: 交換できる在籍者がいないためスキップ", "jouhou_kyouyu");
-          this.afterEffectResolved();
-          break;
-        }
-
-        this.log("情報共有: 在籍者が左隣に渡すカードを選ぶ", "jouhou_kyouyu");
-        this.pending = {
-          type: "info_share",
-          playerIds: [...participants],
-          deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-          effectCard: cardType,
-          effectUserId: userId,
-          infoShareSelections: new Map(),
-        };
-        break;
-      }
-      case "shanai_renai":
-      case "shinjin_kyouiku":
-      case "rouki":
-        this.effectStep = "select_target";
-        this.beginTargetSelection(userId, cardType);
-        break;
-      case "torihiki": {
-        if (this.tryRetireActorAfterPair(userId, CARD_LABELS.torihiki)) break;
-        this.effectStep = "select_target";
-        this.beginTargetSelection(userId, cardType);
-        break;
-      }
-      case "pawahara": {
-        if (this.tryRetireActorAfterPair(userId, CARD_LABELS.pawahara)) break;
-        this.effectStep = "select_target";
-        this.beginTargetSelection(userId, cardType);
-        break;
-      }
-    }
-  }
-
-  private beginTargetSelection(userId: PlayerId, cardType: CardType): void {
-    const targets = this.getValidTargets(userId, cardType);
-    if (targets.length === 0) {
-      this.log(`${CARD_LABELS[cardType]}: 有効な対象がいないため効果をスキップ`, cardType);
-      this.afterEffectResolved();
-      return;
-    }
-    this.pending = {
-      type: "select_target",
-      playerIds: [userId],
-      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-      effectCard: cardType,
-      effectUserId: userId,
-    };
-    if (targets.length === 1) {
-      this.resolveSelectTarget(userId, targets[0]!);
-    }
+    this.effects.runEffect(this.bridge(), cardType, userId);
   }
 
   private getValidTargets(userId: PlayerId, cardType: CardType): PlayerId[] {
-    const others = this.activePlayerIds().filter((id) => id !== userId);
-    switch (cardType) {
-      case "shinjin_kyouiku":
-      case "rouki":
-      case "pawahara":
-      case "torihiki":
-        return others.filter((id) => (this.players.get(id)?.hand.length ?? 0) > 0);
-      default:
-        return others;
-    }
+    return this.effects.getValidTargets(this.bridge(), userId, cardType);
   }
 
   private resolveSelectTarget(userId: PlayerId, targetId: PlayerId): string | null {
-    if (!this.pending || this.pending.type !== "select_target") return "不正な操作です";
-    if (this.pending.effectUserId !== userId) return "あなたの番ではありません";
-    const cardType = this.pending.effectCard ?? this.effectCard;
-    if (!cardType) return "効果がありません";
-    if (!this.getValidTargets(userId, cardType).includes(targetId)) {
-      return "その対象は選べません";
-    }
-
-    this.pending.targetId = targetId;
-
-    switch (cardType) {
-      case "shanai_renai":
-        this.effectStep = "reveal";
-        this.log(
-          `${this.playerName(userId)}と${this.playerName(targetId)}の手札がお互いに見えた（社内恋愛）`,
-          "shanai_renai",
-        );
-        this.pending = {
-          type: "romance_view",
-          playerIds: [userId, targetId],
-          deadlineAt: Date.now() + SHANAI_RENAI_VIEW_MS,
-          effectCard: cardType,
-          effectUserId: userId,
-          targetId,
-          romanceSkips: new Set(),
-        };
-        return null;
-      case "shinjin_kyouiku": {
-        const target = this.players.get(targetId)!;
-        if (target.hand.length === 0) {
-          this.afterEffectResolved();
-          return null;
-        }
-        if (target.hand.length === 1) {
-          const only = target.hand[0]!;
-          this.effectStep = "training";
-          this.pending = {
-            type: "training_peek",
-            playerIds: [userId],
-            deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-            effectCard: cardType,
-            effectUserId: userId,
-            targetId,
-            trainingPeekSelections: new Set([only.id]),
-          };
-          return this.finishTrainingPeek(userId);
-        }
-        this.effectStep = "training";
-        this.peekedCards = [];
-        this.log(
-          `${this.playerName(userId)}が${this.playerName(targetId)}のカードを見る（新人教育）`,
-          "shinjin_kyouiku",
-        );
-        this.pending = {
-          type: "training_peek",
-          playerIds: [userId],
-          deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-          effectCard: cardType,
-          effectUserId: userId,
-          targetId,
-          trainingPeekSelections: new Set(),
-        };
-        return null;
-      }
-      case "torihiki":
-        this.effectStep = "trade";
-        this.log(
-          `${this.playerName(userId)}と${this.playerName(targetId)}がカード交換（取引）`,
-          "torihiki",
-        );
-        this.pending = {
-          type: "trade",
-          playerIds: [userId, targetId],
-          deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-          effectCard: cardType,
-          effectUserId: userId,
-          targetId,
-          tradeSelections: new Map(),
-        };
-        return null;
-      case "rouki":
-      case "pawahara":
-        this.effectStep = "select_card";
-        this.log(
-          `${this.playerName(userId)}が${this.playerName(targetId)}のカードを選ぶ（${CARD_LABELS[cardType]}）`,
-          cardType,
-        );
-        this.pending = {
-          type: "select_card",
-          playerIds: [userId],
-          deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-          effectCard: cardType,
-          effectUserId: userId,
-          targetId,
-        };
-        return null;
-      default:
-        return "未対応の効果です";
-    }
+    return this.effects.resolveSelectTarget(this.bridge(), userId, targetId);
   }
 
   private resolveSelectCard(userId: PlayerId, cardId: string): string | null {
-    if (!this.pending || this.pending.type !== "select_card") return "不正な操作です";
-    if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
-
-    const cardType = this.pending.effectCard!;
-
-    if (cardType === "pawahara") {
-      const user = this.players.get(userId)!;
-      if (!user.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
-      const targetId = this.pending.targetId!;
-      const { card, hand } = removeCardById(user.hand, cardId);
-      user.hand = hand;
-      this.players.get(targetId)!.hand.push(card);
-      this.lastTransfer = {
-        cardId: card.id,
-        cardType: card.type,
-        fromPlayerId: userId,
-        toPlayerId: targetId,
-        at: Date.now(),
-      };
-      this.log(
-        `${this.playerName(userId)}が${CARD_LABELS[card.type]}を${this.playerName(targetId)}に渡した`,
-        card.type,
-      );
-      this.afterEffectResolved();
-      return null;
-    }
-
-    const targetId = this.pending.targetId!;
-    const target = this.players.get(targetId)!;
-    if (!target.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
-
-    if (cardType === "rouki") {
-      const { card, hand } = removeCardById(target.hand, cardId);
-      target.hand = hand;
-      this.revealedCard = { type: card.type, ownerId: targetId };
-      this.lastRoukiReveal = {
-        cardType: card.type,
-        ownerId: targetId,
-        ownerName: this.playerName(targetId),
-        actorName: this.playerName(userId),
-        at: Date.now(),
-      };
-
-      if (card.type === "zangyo") {
-        this.log(
-          `${this.playerName(targetId)}の残業が摘発！${this.playerName(targetId)}の負け`,
-          "zangyo",
-        );
-        this.endGameRouki(userId, targetId);
-        return null;
-      }
-      if (card.type === "pawahara") {
-        const user = this.players.get(userId)!;
-        user.hand.push(card);
-        this.log(
-          `${CARD_LABELS[card.type]}が公開され、${this.playerName(userId)}の手札へ`,
-          card.type,
-        );
-        this.afterEffectResolved();
-        return null;
-      }
-      target.hand.push(card);
-      this.log(
-        `${CARD_LABELS[card.type]}を公開して戻した（${this.playerName(targetId)}）`,
-        card.type,
-      );
-      this.afterEffectResolved();
-      return null;
-    }
-
-    return "未対応です";
+    return this.effects.resolveSelectCard(this.bridge(), userId, cardId);
   }
 
   private resolveInfoShare(playerId: PlayerId, cardId: string): string | null {
-    if (!this.pending || this.pending.type !== "info_share") return "不正な操作です";
-    const p = this.players.get(playerId)!;
-    if (!p.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
-    this.pending.infoShareSelections!.set(playerId, cardId);
-    const card = p.hand.find((c) => c.id === cardId)!;
-    this.log(`${this.playerName(playerId)}が渡すカードを選択（${CARD_LABELS[card.type]}）`);
-    const active = this.activePlayerIds();
-    if ([...this.pending.infoShareSelections!.keys()].length >= active.length) {
-      this.finishInfoShare();
-    }
-    return null;
-  }
-
-  private finishInfoShare(): void {
-    const selections = this.pending!.infoShareSelections!;
-    const cardsToMove: { from: PlayerId; cardId: string }[] = [];
-    for (const id of this.activePlayerIds()) {
-      const cardId = selections.get(id);
-      if (!cardId) continue;
-      cardsToMove.push({ from: id, cardId });
-    }
-    for (const { from, cardId } of cardsToMove) {
-      const leftSeat = this.leftOfSeat(this.seatIndexOf(from));
-      const to = this.seats[leftSeat]!;
-      if (this.players.get(to)?.status === "active") {
-        this.transferCard(from, to, cardId);
-      }
-    }
-    this.log("情報共有: 選んだカードが左隣へ渡された", "jouhou_kyouyu");
-    this.afterEffectResolved();
+    return this.effects.resolveInfoShare(this.bridge(), playerId, cardId);
   }
 
   private resolveTrade(playerId: PlayerId, cardId: string): string | null {
-    if (!this.pending || this.pending.type !== "trade") return "不正な操作です";
-    if (!this.pending.playerIds.includes(playerId)) return "参加していません";
-    const p = this.players.get(playerId)!;
-    if (!p.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
-    this.pending.tradeSelections!.set(playerId, cardId);
-    if (this.pending.tradeSelections!.size >= 2) {
-      this.finishTrade();
-    }
-    return null;
-  }
-
-  private finishTrade(): void {
-    const [a, b] = this.pending!.playerIds;
-    const cardA = this.pending!.tradeSelections!.get(a!)!;
-    const cardB = this.pending!.tradeSelections!.get(b!)!;
-    const playerA = this.players.get(a!)!;
-    const playerB = this.players.get(b!)!;
-    const removedA = removeCardById(playerA.hand, cardA);
-    const removedB = removeCardById(playerB.hand, cardB);
-    playerA.hand = removedA.hand;
-    playerB.hand = removedB.hand;
-    playerA.hand.push(removedB.card);
-    playerB.hand.push(removedA.card);
-    this.log(
-      `${this.playerName(a!)}と${this.playerName(b!)}が${CARD_LABELS[removedA.card.type]}と${CARD_LABELS[removedB.card.type]}を交換`,
-      "torihiki",
-    );
-    this.afterEffectResolved();
+    return this.effects.resolveTrade(this.bridge(), playerId, cardId);
   }
 
   private resolveTrainingPeekSelect(userId: PlayerId, cardId: string): string | null {
-    if (!this.pending || this.pending.type !== "training_peek") return "不正な操作です";
-    if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
-    const target = this.players.get(this.pending.targetId!);
-    if (!target) return "対象が見つかりません";
-    if (!target.hand.some((c) => c.id === cardId)) return "そのカードは選べません";
-
-    const max = Math.min(2, target.hand.length);
-    if (!this.pending.trainingPeekSelections) {
-      this.pending.trainingPeekSelections = new Set();
-    }
-    const selected = this.pending.trainingPeekSelections;
-    if (selected.has(cardId)) {
-      selected.delete(cardId);
-      return null;
-    }
-    if (selected.size >= max) return `最大${max}枚まで選べます`;
-    selected.add(cardId);
-    return null;
+    return this.effects.resolveTrainingPeekSelect(this.bridge(), userId, cardId);
   }
 
   private resolveTrainingPeekConfirm(userId: PlayerId): string | null {
-    if (!this.pending || this.pending.type !== "training_peek") return "不正な操作です";
-    if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
-    const selected = this.pending.trainingPeekSelections;
-    if (!selected?.size) return "見るカードを1枚以上選んでください";
-    return this.finishTrainingPeek(userId);
-  }
-
-  private finishTrainingPeek(userId: PlayerId): string | null {
-    if (!this.pending || this.pending.type !== "training_peek") return "不正な操作です";
-    const targetId = this.pending.targetId!;
-    const cardType = this.pending.effectCard!;
-    const target = this.players.get(targetId)!;
-    const selected = this.pending.trainingPeekSelections ?? new Set<string>();
-    this.peekedCards = target.hand.filter((c) => selected.has(c.id));
-    this.log(
-      `${this.playerName(userId)}が${this.playerName(targetId)}のカードを${this.peekedCards.length}枚見た（新人教育）`,
-      "shinjin_kyouiku",
-    );
-
-    const actor = this.players.get(userId)!;
-    if (actor.hand.length === 0) {
-      this.markRetired(userId);
-      this.log(`${this.playerName(userId)}が新人教育のペアを出して定時退社`);
-      this.afterEffectResolved();
-      return null;
-    }
-
-    this.pending = {
-      type: "training_take",
-      playerIds: [userId],
-      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
-      effectCard: cardType,
-      effectUserId: userId,
-      targetId,
-      peekedCards: [...this.peekedCards],
-    };
-    return null;
+    return this.effects.resolveTrainingPeekConfirm(this.bridge(), userId);
   }
 
   private resolveTrainingTake(userId: PlayerId, take: boolean, cardId?: string): string | null {
-    if (!this.pending || this.pending.type !== "training_take") return "不正な操作です";
-    if (userId !== this.pending.effectUserId) return "あなたの番ではありません";
-    const targetId = this.pending.targetId!;
-    if (take && cardId) {
-      const peeked = this.pending.peekedCards?.find((c) => c.id === cardId);
-      if (!peeked) return "そのカードは選べません";
-      const target = this.players.get(targetId)!;
-      const { hand } = removeCardById(target.hand, cardId);
-      target.hand = hand;
-      this.players.get(userId)!.hand.push(peeked);
-      this.log(
-        `${this.playerName(userId)}が${CARD_LABELS[peeked.type]}を手札に加えた（新人教育）`,
-        peeked.type,
-      );
-    } else {
-      this.log(`${this.playerName(userId)}はカードを加えなかった（新人教育）`);
-    }
-    this.afterEffectResolved();
-    return null;
+    return this.effects.resolveTrainingTake(this.bridge(), userId, take, cardId);
   }
 
   private afterEffectResolved(): void {
