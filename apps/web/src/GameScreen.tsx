@@ -781,7 +781,7 @@ export function GameScreen({
             view.pending?.type === "rouki_finale" ||
             (view.phase === "game_end" && view.result?.reason === "rouki")
           }
-          role={getRoukiFinaleRole(playerId, view.pending, view.result)}
+          role={getRoukiFinaleRole(playerId, view.lastRoukiReveal, view.pending, view.result)}
         />
 
         {Object.keys(view.meetingDeclarations).length > 0 && (

@@ -64,6 +64,7 @@ export class GameEngine {
     cardType: CardType;
     ownerId: PlayerId;
     ownerName: string;
+    actorId: PlayerId;
     actorName: string;
     at: number;
   } | null = null;
@@ -903,6 +904,10 @@ export class GameEngine {
       for (const id of p.playerIds) {
         view.romanceSkipped[id] = p.romanceSkips?.has(id) ?? false;
       }
+    }
+    if (p.type === "rouki_finale") {
+      view.effectUserId = p.effectUserId ?? undefined;
+      view.targetId = p.targetId;
     }
 
     return view;

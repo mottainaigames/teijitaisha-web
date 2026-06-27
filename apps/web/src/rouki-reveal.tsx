@@ -19,6 +19,17 @@ function titleForStage(
 ): string {
   if (!isZangyoFinale) return "労基摘発 — カード公開";
 
+  if (stage === "revealed" || stage === "flip") {
+    switch (role) {
+      case "winner":
+        return "残業カードを暴く…";
+      case "loser":
+        return "カードが選ばれた…";
+      default:
+        return "労基摘発 — カード公開";
+    }
+  }
+
   if (stage === "expose") {
     switch (role) {
       case "winner":
@@ -171,11 +182,12 @@ export function RoukiRevealOverlay({
 
 export function getRoukiFinaleRole(
   playerId: string,
+  reveal: RoukiReveal | null,
   pending: { type: string; effectUserId?: string | null; targetId?: string } | null,
   result: { reason: string; roukiPlayerId?: string; zangyoPlayerId?: string } | null,
 ): RoukiFinaleRole {
-  const roukiId = pending?.effectUserId ?? result?.roukiPlayerId;
-  const zangyoId = pending?.targetId ?? result?.zangyoPlayerId;
+  const roukiId = reveal?.actorId ?? pending?.effectUserId ?? result?.roukiPlayerId;
+  const zangyoId = reveal?.ownerId ?? pending?.targetId ?? result?.zangyoPlayerId;
   if (!roukiId || !zangyoId) return "spectator";
   if (playerId === roukiId) return "winner";
   if (playerId === zangyoId) return "loser";

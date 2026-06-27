@@ -99,8 +99,11 @@ export interface CardTransfer {
 /** 労基で公開されたカード（全員向け演出用） */
 export interface RoukiReveal {
   cardType: CardType;
+  /** カードを暴かれたプレイヤー（残業摘発時は敗者） */
   ownerId: PlayerId;
   ownerName: string;
+  /** 労基を出して選んだプレイヤー（残業摘発時は勝者） */
+  actorId: PlayerId;
   actorName: string;
   at: number;
 }
@@ -164,6 +167,10 @@ export interface PendingView {
   /** 新人教育: 選択中のカードID */
   trainingPeekSelected?: string[];
   sourcePlayerId?: PlayerId;
+  /** rouki_finale など: 効果を発動したプレイヤー */
+  effectUserId?: PlayerId;
+  /** rouki_finale など: 対象プレイヤー */
+  targetId?: PlayerId;
 }
 
 /** ゲーム中のクライアント → サーバー */

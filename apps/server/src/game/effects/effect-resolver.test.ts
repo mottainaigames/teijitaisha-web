@@ -119,5 +119,7 @@ describe("EffectResolver", () => {
     expect(ended).toBe(false);
     expect(bridge.pending?.type).toBe("rouki_finale");
     expect(bridge.lastRoukiReveal?.cardType).toBe("zangyo");
+    expect(bridge.lastRoukiReveal?.actorId).toBe("p1");
+    expect(bridge.lastRoukiReveal?.ownerId).toBe("p2");
   });
 });

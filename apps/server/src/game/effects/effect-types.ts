@@ -34,6 +34,7 @@ export interface RoukiRevealState {
   cardType: CardType;
   ownerId: PlayerId;
   ownerName: string;
+  actorId: PlayerId;
   actorName: string;
   at: number;
 }

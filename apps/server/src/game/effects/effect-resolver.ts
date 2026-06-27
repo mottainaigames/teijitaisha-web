@@ -283,6 +283,7 @@ export class EffectResolver {
         cardType: card.type,
         ownerId: targetId,
         ownerName: bridge.playerName(targetId),
+        actorId: userId,
         actorName: bridge.playerName(userId),
         at: Date.now(),
       };
