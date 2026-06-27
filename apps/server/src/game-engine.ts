@@ -435,11 +435,11 @@ export class GameEngine {
         if (playerId !== p.playerIds[0]) return null;
         const player = this.players.get(playerId)!;
         const pairable = getPairableTypes(player.hand);
-        const options: { type: string; [key: string]: unknown }[] = [{ type: "skip_play" }];
-        for (const cardType of pairable) {
-          options.push({ type: "play_pair", cardType });
+        if (pairable.length === 0) {
+          return { type: "skip_play" };
         }
-        return pickRandom(options, this.random);
+        const cardType = pickRandom(pairable, this.random);
+        return { type: "play_pair", cardType };
       }
       case "select_target": {
         if (playerId !== p.effectUserId) return null;

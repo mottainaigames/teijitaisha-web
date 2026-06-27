@@ -507,6 +507,50 @@ describe("GameEngine", () => {
     expect(engine.pending?.type).not.toBe("romance_view");
   });
 
+  it("CPU: 出せるペアがある場合は必ず出す", () => {
+    const engine = createStartedEngine();
+    engine.players.get("p1")!.hand = [
+      { id: "n1", type: "norma" },
+      { id: "n2", type: "norma" },
+      { id: "k1", type: "kaigi" },
+      { id: "k2", type: "kaigi" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    for (let i = 0; i < 20; i++) {
+      const action = engine.pickRandomAction("p1");
+      expect(action?.type).toBe("play_pair");
+      expect(["norma", "kaigi"]).toContain(action?.cardType);
+    }
+  });
+
+  it("CPU: 出せるペアがなければスキップ", () => {
+    const engine = createStartedEngine();
+    engine.players.get("p1")!.hand = [
+      { id: "z1", type: "zangyo" },
+      { id: "n1", type: "norma" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.pickRandomAction("p1")).toEqual({ type: "skip_play" });
+  });
+
   it("引いたカードは手札のランダムな位置に挿入される", () => {
     const randomValues = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let ri = 0;

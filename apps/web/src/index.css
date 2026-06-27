@@ -2200,9 +2200,31 @@ button.secondary {
 .game-hand-dock .my-hand {
   margin: 0;
   padding: 0.35rem 0.25rem 0.5rem;
-  box-shadow: none;
   border-radius: 0;
   background: transparent;
+}
+
+.game-hand-dock .my-hand[class*="my-hand--purpose-"] {
+  margin: 0.1rem 0.12rem 0;
+  padding: 0.55rem 0.4rem 0.65rem;
+  border-radius: 12px;
+  overflow: visible;
+}
+
+.game-hand-dock .my-hand.my-hand--purpose-info_share {
+  background: linear-gradient(180deg, rgb(238 242 255 / 95%) 0%, rgb(255 255 255 / 70%) 100%);
+}
+
+.game-hand-dock .my-hand.my-hand--purpose-trade {
+  background: linear-gradient(180deg, rgb(255 247 237 / 95%) 0%, rgb(255 255 255 / 70%) 100%);
+}
+
+.game-hand-dock .my-hand.my-hand--purpose-pawahara_give {
+  background: linear-gradient(180deg, rgb(248 250 252 / 95%) 0%, rgb(255 255 255 / 70%) 100%);
+}
+
+.game-hand-dock .my-hand.my-hand--purpose-play_or_skip {
+  background: linear-gradient(180deg, rgb(239 246 255 / 95%) 0%, rgb(255 255 255 / 70%) 100%);
 }
 
 .my-hand__label {
@@ -2364,12 +2386,31 @@ button.secondary {
   box-shadow:
     0 -4px 24px rgb(15 23 42 / 10%),
     0 -1px 0 rgb(255 255 255 / 80%) inset;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .game-hand-dock--selecting-active {
-  box-shadow:
-    0 -6px 32px rgb(37 99 235 / 18%),
-    0 -2px 0 rgb(255 255 255 / 90%) inset;
+  animation: hand-dock-pick-glow 1.25s ease-in-out infinite;
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+  padding-top: 0.55rem;
+}
+
+@keyframes hand-dock-pick-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 -4px 20px rgb(37 99 235 / 12%),
+      0 -1px 0 rgb(255 255 255 / 80%) inset;
+  }
+
+  50% {
+    box-shadow:
+      0 -8px 36px rgb(37 99 235 / 28%),
+      0 0 0 2px rgb(37 99 235 / 22%),
+      0 -1px 0 rgb(255 255 255 / 90%) inset;
+  }
 }
 
 .my-hand--purpose-info_share,
@@ -2379,9 +2420,9 @@ button.secondary {
   position: relative;
   padding: 0.55rem 0.5rem 0.65rem;
   border-radius: 12px;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
+  overflow: visible;
   transition:
-    box-shadow 0.25s ease,
     background 0.25s ease,
     border-color 0.25s ease;
 }
@@ -2411,18 +2452,30 @@ button.secondary {
 }
 
 .my-hand--purpose-active {
-  animation: hand-pick-glow 2.2s ease-in-out infinite;
+  animation: hand-pick-glow 1.25s ease-in-out infinite;
+  transition: none;
 }
 
 .my-hand--purpose-active::before {
   content: "";
   position: absolute;
-  inset: -3px;
-  border-radius: 14px;
+  inset: -5px;
+  border-radius: 15px;
   pointer-events: none;
   z-index: 0;
-  border: 2px solid rgb(var(--hand-glow) / 55%);
-  animation: hand-pick-ring 2.2s ease-in-out infinite;
+  border: 3px solid rgb(var(--hand-glow) / 70%);
+  animation: hand-pick-ring 1.25s ease-in-out infinite;
+}
+
+.my-hand--purpose-active::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 13px;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: inset 0 0 12px rgb(var(--hand-glow) / 0%);
+  animation: hand-pick-inner 1.25s ease-in-out infinite;
 }
 
 .my-hand--purpose-active > * {
@@ -2433,30 +2486,45 @@ button.secondary {
 @keyframes hand-pick-glow {
   0%,
   100% {
+    border-color: rgb(var(--hand-glow) / 45%);
     box-shadow:
-      0 0 0 1px rgb(var(--hand-glow) / 35%),
-      0 0 10px rgb(var(--hand-glow) / 22%),
-      0 0 22px rgb(var(--hand-glow) / 12%);
+      0 0 0 0 rgb(var(--hand-glow) / 0%),
+      0 0 8px rgb(var(--hand-glow) / 18%),
+      0 0 16px rgb(var(--hand-glow) / 10%);
   }
 
   50% {
+    border-color: rgb(var(--hand-glow) / 100%);
     box-shadow:
-      0 0 0 2px rgb(var(--hand-glow) / 70%),
-      0 0 18px rgb(var(--hand-glow) / 45%),
-      0 0 36px rgb(var(--hand-glow) / 28%);
+      0 0 0 4px rgb(var(--hand-glow) / 40%),
+      0 0 22px rgb(var(--hand-glow) / 55%),
+      0 0 44px rgb(var(--hand-glow) / 32%);
   }
 }
 
 @keyframes hand-pick-ring {
   0%,
   100% {
-    opacity: 0.45;
+    opacity: 0.35;
     transform: scale(1);
+    border-color: rgb(var(--hand-glow) / 40%);
   }
 
   50% {
     opacity: 1;
-    transform: scale(1.01);
+    transform: scale(1.02);
+    border-color: rgb(var(--hand-glow) / 95%);
+  }
+}
+
+@keyframes hand-pick-inner {
+  0%,
+  100% {
+    box-shadow: inset 0 0 8px rgb(var(--hand-glow) / 0%);
+  }
+
+  50% {
+    box-shadow: inset 0 0 16px rgb(var(--hand-glow) / 22%);
   }
 }
 
@@ -2466,7 +2534,8 @@ button.secondary {
   box-shadow: 0 0 0 1px rgb(var(--hand-glow) / 25%);
 }
 
-.my-hand--purpose-waiting::before {
+.my-hand--purpose-waiting::before,
+.my-hand--purpose-waiting::after {
   display: none;
 }
 
@@ -2510,27 +2579,30 @@ button.secondary {
 }
 
 .my-hand--has-zangyo.my-hand--purpose-active {
-  animation: hand-pick-glow-zangyo 2.2s ease-in-out infinite;
+  animation: hand-pick-glow-zangyo 1.25s ease-in-out infinite;
+  transition: none;
 }
 
 .my-hand--has-zangyo.my-hand--purpose-active::before {
-  border-color: rgb(var(--hand-glow) / 70%);
+  border-color: rgb(var(--hand-glow) / 85%);
 }
 
 @keyframes hand-pick-glow-zangyo {
   0%,
   100% {
+    border-color: #000;
     box-shadow:
       0 0 0 1px rgb(0 0 0 / 100%),
-      0 0 0 3px rgb(var(--hand-glow) / 30%),
-      0 0 12px rgb(var(--hand-glow) / 20%);
+      0 0 0 3px rgb(var(--hand-glow) / 22%),
+      0 0 10px rgb(var(--hand-glow) / 15%);
   }
 
   50% {
+    border-color: #000;
     box-shadow:
       0 0 0 1px rgb(0 0 0 / 100%),
-      0 0 0 4px rgb(var(--hand-glow) / 55%),
-      0 0 24px rgb(var(--hand-glow) / 35%);
+      0 0 0 5px rgb(var(--hand-glow) / 55%),
+      0 0 28px rgb(var(--hand-glow) / 42%);
   }
 }
 
@@ -2574,17 +2646,19 @@ button.secondary {
 }
 
 .my-hand--purpose-active .hand-pick-hint {
-  animation: hand-pick-hint-pulse 2.2s ease-in-out infinite;
+  animation: hand-pick-hint-pulse 1.25s ease-in-out infinite;
 }
 
 @keyframes hand-pick-hint-pulse {
   0%,
   100% {
     box-shadow: 0 0 0 0 rgb(var(--hand-glow) / 0%);
+    border-color: rgb(var(--hand-glow) / 30%);
   }
 
   50% {
-    box-shadow: 0 0 10px rgb(var(--hand-glow) / 28%);
+    box-shadow: 0 0 14px rgb(var(--hand-glow) / 40%);
+    border-color: rgb(var(--hand-glow) / 65%);
   }
 }
 
@@ -2620,6 +2694,7 @@ button.secondary {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .game-hand-dock--selecting-active,
   .my-hand--purpose-active,
   .my-hand--has-zangyo.my-hand--purpose-active,
   .my-hand--purpose-active .hand-pick-hint {
@@ -2627,21 +2702,29 @@ button.secondary {
   }
 
   .my-hand--purpose-active {
+    border-color: rgb(var(--hand-glow) / 80%);
     box-shadow:
-      0 0 0 2px rgb(var(--hand-glow) / 55%),
-      0 0 16px rgb(var(--hand-glow) / 28%);
+      0 0 0 3px rgb(var(--hand-glow) / 35%),
+      0 0 20px rgb(var(--hand-glow) / 30%);
+  }
+
+  .game-hand-dock--selecting-active {
+    box-shadow:
+      0 -6px 28px rgb(37 99 235 / 22%),
+      0 0 0 2px rgb(37 99 235 / 18%);
   }
 
   .my-hand--has-zangyo.my-hand--purpose-active {
     box-shadow:
       0 0 0 1px rgb(0 0 0 / 100%),
-      0 0 0 3px rgb(var(--hand-glow) / 45%),
-      0 0 16px rgb(var(--hand-glow) / 25%);
+      0 0 0 4px rgb(var(--hand-glow) / 45%),
+      0 0 18px rgb(var(--hand-glow) / 28%);
   }
 
-  .my-hand--purpose-active::before {
+  .my-hand--purpose-active::before,
+  .my-hand--purpose-active::after {
     animation: none;
-    opacity: 0.75;
+    opacity: 0.8;
   }
 }
 

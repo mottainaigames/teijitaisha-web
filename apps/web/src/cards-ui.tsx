@@ -183,11 +183,13 @@ export function PairCard({
   cardType,
   selected,
   selectable,
+  confirmReady,
   onClick,
 }: {
   cardType: CardType;
   selected?: boolean;
   selectable?: boolean;
+  confirmReady?: boolean;
   onClick?: () => void;
 }) {
   const theme = CARD_THEMES[cardType];
@@ -201,6 +203,7 @@ export function PairCard({
         `playing-card--type-${cardType}`,
         selectable ? "playing-card--selectable" : "",
         selected ? "playing-card--selected" : "",
+        confirmReady ? "playing-card--confirm-ready" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -217,6 +220,11 @@ export function PairCard({
       {selectable && (
         <span className="playing-card__hand" aria-hidden>
           ✋
+        </span>
+      )}
+      {confirmReady && (
+        <span className="playing-card__confirm-hint" aria-hidden>
+          もう一度
         </span>
       )}
     </button>

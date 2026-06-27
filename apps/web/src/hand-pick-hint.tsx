@@ -35,7 +35,9 @@ function purposeLabel(mode: HandPickPurpose, view: GameView, playerId: string): 
     case "pawahara_give":
       return "相手に渡すカードを選ぶ";
     case "play_or_skip":
-      return "もう1組ペアを出すか、出さないを選ぶ";
+      return view.pairsRemainingThisTurn > 1
+        ? "もう1組ペアを出すか、出さないを選ぶ"
+        : "出すペアを選び、同じカードをもう一度タップ";
   }
 }
 

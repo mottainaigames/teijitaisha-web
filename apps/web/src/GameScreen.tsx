@@ -467,7 +467,17 @@ export function GameScreen({
       return;
     }
     if (handPickPurpose === "play_or_skip" && pairable.includes(card.type)) {
-      setSelectedPairType(card.type);
+      if (selectedPairType === card.type) {
+        onPlayPair(card.type);
+        setSelectedPairType(null);
+        setSelectedCardId(null);
+        sendCardPreview(null, "clear");
+      } else {
+        setSelectedPairType(card.type);
+        setSelectedCardId(card.id);
+        sendCardPreview(card.id, "selected");
+      }
+      return;
     }
   };
 
@@ -731,7 +741,7 @@ export function GameScreen({
         >
           {hasZangyoInHand && (
             <p className="my-hand__zangyo-banner" role="status">
-              残業カードを所持中 — ペアにできません
+              残業カードを所持中
             </p>
           )}
           {handPickPurpose && view.canAct && isPickingFromHand && (
@@ -801,7 +811,11 @@ export function GameScreen({
                     }
                     selected={selected}
                     inspected={!selected && !handPickPurpose && focusedHandCardId === c.id}
-                    confirmReady={selectedCardId === c.id && handPickPurpose !== "play_or_skip"}
+                    confirmReady={
+                      handPickPurpose === "play_or_skip"
+                        ? selectedPairType === c.type
+                        : selectedCardId === c.id
+                    }
                     remoteHover={remote.remoteHover}
                     remoteSelected={remote.remoteSelected}
                     onHoverStart={
@@ -1011,7 +1025,7 @@ function PendingActions({
     return (
       <div className="actions">
         <p>{extraPair ? "もう1組ペアを出しますか？" : "ペアを出しますか？"}</p>
-        <p className="status">手札のカードをタップするか、下のペアから選んでください</p>
+        <p className="status">手札のカードを2回タップ、または下のペアから選んでください</p>
         {pairable.length > 0 ? (
           <>
             <div className="pair-row">
@@ -1021,7 +1035,15 @@ function PendingActions({
                   cardType={t}
                   selectable
                   selected={selectedPairType === t}
-                  onClick={() => onSelectPairType(t)}
+                  confirmReady={selectedPairType === t}
+                  onClick={() => {
+                    if (selectedPairType === t) {
+                      onPlayPair(t);
+                      onSelectPairType(null);
+                    } else {
+                      onSelectPairType(t);
+                    }
+                  }}
                 />
               ))}
             </div>
