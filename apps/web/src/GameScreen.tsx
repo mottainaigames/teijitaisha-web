@@ -177,10 +177,10 @@ export function GameScreen({
       playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS;
 
     return (
-      <div className="game-shell game-shell--scroll">
+      <div className="game-shell game-shell--lobby">
         {gameMenu}
-        <div className="game-screen-scroll">
-          <div className="card lobby-screen">
+        <div className="card lobby-screen">
+          <div className="lobby-screen__top">
             <div className="screen-header">
               <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
               <GameMenuButton onClick={() => setMenuOpen(true)} />
@@ -207,16 +207,25 @@ export function GameScreen({
                 </p>
               </div>
             )}
-            {seatOrder}
-            <ul className="player-list">
-              {room.players.map((p) => (
-                <li key={p.id}>
-                  {p.name}
-                  {p.id === room.hostId && "（ホスト）"}
-                  {p.isCpu && "（CPU）"}
-                </li>
-              ))}
-            </ul>
+          </div>
+
+          <div className="lobby-screen__members">
+            <p className="lobby-screen__members-label">参加メンバー</p>
+            <div className="lobby-screen__members-scroll">
+              {seatOrder}
+              <ul className="player-list">
+                {room.players.map((p) => (
+                  <li key={p.id}>
+                    {p.name}
+                    {p.id === room.hostId && "（ホスト）"}
+                    {p.isCpu && "（CPU）"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="lobby-screen__actions">
             {isHost && !room.started && (
               <div className="cpu-controls">
                 <button
@@ -278,6 +287,7 @@ export function GameScreen({
     );
   }
 
+  const isSpectating = me?.status === "retired" && view.phase !== "game_end";
   const pairable = countPairs(view.myHand);
   const cardTargetPlayerId = getCardTargetPlayerId(view);
   const remoteOnMe = view.remoteSelection?.targetPlayerId === playerId;
@@ -410,6 +420,13 @@ export function GameScreen({
       </header>
 
       <div className="game-main">
+        {isSpectating && (
+          <div className="spectator-banner" role="status">
+            <p className="spectator-banner__title">定時退社しました</p>
+            <p className="spectator-banner__body">在籍中のプレイヤーの手札がすべて見えます</p>
+          </div>
+        )}
+
         {view.cpuStatus && (
           <div className={`cpu-banner cpu-banner--${view.cpuStatus.step}`}>
             {view.cpuStatus.message}
@@ -493,7 +510,7 @@ export function GameScreen({
           sendTargetPreview={sendTargetPreview}
         />
 
-        <div className={`opponents ${anyoneDrawing ? "opponents--compact" : ""}`}>
+        <div className={`opponents ${anyoneDrawing && !isSpectating ? "opponents--compact" : ""}`}>
           {view.seats
             .filter((s) => s.playerId !== playerId)
             .map((s) => (
@@ -502,8 +519,9 @@ export function GameScreen({
                 seat={s}
                 isCurrent={s.playerId === view.currentPlayerId}
                 isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
-                compact={anyoneDrawing}
+                compact={anyoneDrawing && !isSpectating}
                 isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
+                visibleHand={isSpectating ? view.otherHands[s.playerId] : undefined}
                 remoteTarget={
                   view.remoteSelection?.targetPlayerId === s.playerId &&
                   view.remoteSelection.actorId !== playerId
@@ -583,6 +601,11 @@ export function GameScreen({
         )}
       </div>
 
+      {isSpectating ? (
+        <div className="game-hand-dock game-hand-dock--spectator">
+          <p className="spectator-dock-note">退社済み — 観戦中</p>
+        </div>
+      ) : (
       <div className={`game-hand-dock${handPickMode && view.canAct ? " game-hand-dock--picking" : ""}`}>
         {handPickMode && view.canAct && (
           <HandPickBanner
@@ -667,6 +690,7 @@ export function GameScreen({
           )}
         </div>
       </div>
+      )}
 
       {transferFx && transferFx.fromPlayerId === playerId && transferFx.cardType && (
         <div className="card-transfer-fx card-transfer-fx--out">
@@ -735,6 +759,7 @@ function Opponent({
   isCpu,
   compact,
   isDrawSource,
+  visibleHand,
   remoteTarget,
   remoteTargetSelected,
 }: {
@@ -743,6 +768,7 @@ function Opponent({
   isCpu: boolean;
   compact?: boolean;
   isDrawSource?: boolean;
+  visibleHand?: GameView["myHand"];
   remoteTarget?: boolean;
   remoteTargetSelected?: boolean;
 }) {
@@ -750,6 +776,7 @@ function Opponent({
   const opponentClass = [
     "opponent",
     compact ? "opponent--compact" : "",
+    visibleHand ? "opponent--spectator" : "",
     isCurrent ? "current" : "",
     isDrawSource ? "opponent--draw-source" : "",
     seat.status,
@@ -768,7 +795,23 @@ function Opponent({
         </strong>
         <span>{seat.handCount}枚</span>
       </div>
-      {compact && previewCount > 0 && (
+      {visibleHand && visibleHand.length > 0 && (
+        <CardFan className="card-fan--spectator">
+          {visibleHand.map((c, i) => (
+            <PlayingCard
+              key={c.id}
+              cardType={c.type}
+              size="sm"
+              index={i}
+              total={visibleHand.length}
+            />
+          ))}
+        </CardFan>
+      )}
+      {visibleHand && visibleHand.length === 0 && (
+        <p className="status opponent__empty-hand">手札なし</p>
+      )}
+      {compact && previewCount > 0 && !visibleHand && (
         <div className="opponent__hand-preview" aria-hidden>
           {Array.from({ length: previewCount }, (_, i) => (
             <span

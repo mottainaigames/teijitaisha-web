@@ -106,6 +106,8 @@ export interface GameView {
   myHand: CardInstance[];
   /** 相手の手札（引くとき用・種類は見えない） */
   drawableHands: Record<PlayerId, { id: string }[]>;
+  /** 退社後に見える在籍プレイヤーの手札（種類付き） */
+  otherHands: Record<PlayerId, CardInstance[]>;
   discardTypes: CardType[];
   pairsRemainingThisTurn: number;
   nomikaiBlocked: boolean;

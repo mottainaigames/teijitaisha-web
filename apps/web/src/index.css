@@ -125,6 +125,79 @@ button.secondary {
   color: #78350f;
 }
 
+.game-shell--lobby {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.lobby-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.lobby-screen__top {
+  flex-shrink: 0;
+}
+
+.lobby-screen__members {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0.65rem 0;
+}
+
+.lobby-screen__members-label {
+  flex-shrink: 0;
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.lobby-screen__members-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.35rem 0.5rem;
+}
+
+.lobby-screen__members-scroll .seat-order {
+  margin-bottom: 0.5rem;
+}
+
+.lobby-screen__members-scroll .player-list {
+  margin: 0;
+}
+
+.lobby-screen__actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lobby-screen__actions .cpu-controls {
+  margin-bottom: 0;
+}
+
+.lobby-screen__actions > button {
+  margin-bottom: 0;
+}
+
 .player-list {
   list-style: none;
   padding: 0;
@@ -439,6 +512,66 @@ button.secondary {
 
 .opponent.retired {
   opacity: 0.5;
+}
+
+.spectator-banner {
+  margin-bottom: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #86efac;
+  background: #ecfdf5;
+}
+
+.spectator-banner__title {
+  margin: 0 0 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #047857;
+}
+
+.spectator-banner__body {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #065f46;
+}
+
+.opponent--spectator {
+  grid-column: 1 / -1;
+}
+
+.card-fan--spectator {
+  justify-content: flex-start;
+  min-height: 76px;
+  padding: 0.35rem 0.25rem 0.75rem;
+  overflow-x: auto;
+}
+
+.card-fan--spectator .playing-card {
+  margin-left: -20px;
+}
+
+.card-fan--spectator .playing-card:first-child {
+  margin-left: 0;
+}
+
+.opponent__empty-hand {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.game-hand-dock--spectator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem;
+}
+
+.spectator-dock-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  text-align: center;
 }
 
 .hand {
@@ -1569,6 +1702,11 @@ button.secondary {
 }
 
 .app--in-game > .game-shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.app--in-game > .game-shell--lobby {
   flex: 1;
   min-height: 0;
 }

@@ -368,6 +368,27 @@ describe("GameEngine", () => {
     expect(engine.players.get("p1")!.hand.map((c) => c.id)).toEqual(["c", "a", "b"]);
   });
 
+  it("退社後は在籍プレイヤーの手札が見える", () => {
+    const engine = createStartedEngine();
+    engine.players.get("p1")!.status = "retired";
+    engine.players.get("p1")!.hand = [];
+    engine.players.get("p2")!.hand = [
+      { id: "n1", type: "norma" },
+      { id: "r1", type: "rouki" },
+    ];
+    engine.players.get("p3")!.hand = [{ id: "z1", type: "zangyo" }];
+
+    const retiredView = engine.getView("p1");
+    expect(retiredView.otherHands["p2"]).toEqual([
+      { id: "n1", type: "norma" },
+      { id: "r1", type: "rouki" },
+    ]);
+    expect(retiredView.otherHands["p3"]).toEqual([{ id: "z1", type: "zangyo" }]);
+
+    const activeView = engine.getView("p2");
+    expect(activeView.otherHands).toEqual({});
+  });
+
   it("2人でも開始できる", () => {
     const engine = new GameEngine(
       [

@@ -40,6 +40,7 @@ export default function App() {
           myPlayerId: playerId,
           myHand: [],
           drawableHands: {},
+          otherHands: {},
           discardTypes: [],
           pairsRemainingThisTurn: 1,
           nomikaiBlocked: false,

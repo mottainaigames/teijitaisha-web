@@ -488,6 +488,17 @@ export class GameEngine {
       }
     }
 
+    const otherHands: Record<PlayerId, CardInstance[]> = {};
+    if (me?.status === "retired" && this.phase !== "lobby") {
+      for (const id of this.seats) {
+        if (id === forPlayerId) continue;
+        const p = this.players.get(id)!;
+        if (p.status === "active" || p.status === "disconnected") {
+          otherHands[id] = [...p.hand];
+        }
+      }
+    }
+
     return {
       phase: this.phase,
       seats: this.seats.map((id, seatIndex) => {
@@ -504,6 +515,7 @@ export class GameEngine {
       myPlayerId: forPlayerId,
       myHand: me ? [...me.hand] : [],
       drawableHands,
+      otherHands,
       discardTypes: [...this.discardTypes],
       pairsRemainingThisTurn: this.pairsRemainingThisTurn,
       nomikaiBlocked: this.nomikaiBlockedPlayerId === forPlayerId,
