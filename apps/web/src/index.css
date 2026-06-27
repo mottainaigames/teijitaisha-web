@@ -160,6 +160,17 @@ button.secondary {
   margin: 0.25rem 0 0.5rem;
 }
 
+.room-invite--compact {
+  margin: 0.35rem 0 0.45rem;
+  text-align: center;
+}
+
+.room-invite--compact .room-code {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.18em;
+}
+
 .room-invite .room-code {
   margin: 0 0 0.35rem;
 }
@@ -178,8 +189,8 @@ button.secondary {
 }
 
 .room-invite__feedback {
-  margin: 0 0 0.5rem;
-  font-size: 0.8rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-align: center;
   color: #059669;
@@ -190,8 +201,28 @@ button.secondary {
   gap: 0.45rem;
 }
 
+.room-invite__actions--row {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.room-invite__actions--row button {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  padding: 0.42rem 0.3rem;
+  font-size: 0.78rem;
+}
+
 .room-invite__actions button {
   margin-top: 0;
+}
+
+.share-x-btn--compact {
+  flex: 0.85;
+  padding: 0.42rem 0.3rem;
+  font-size: 0.78rem;
+  border-radius: 8px;
 }
 
 .share-x-btn {
@@ -304,8 +335,8 @@ button.secondary {
 }
 
 .lobby-warning {
-  margin: 0.75rem 0 1rem;
-  padding: 0.75rem 0.85rem;
+  margin: 0.45rem 0 0;
+  padding: 0.55rem 0.65rem;
   border-radius: 10px;
   border: 1px solid #fcd34d;
   background: #fffbeb;
@@ -347,12 +378,18 @@ button.secondary {
   flex-shrink: 0;
 }
 
+.lobby-screen__count {
+  margin: 0.15rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
 .lobby-screen__members {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 0.65rem 0;
+  margin: 0.45rem 0;
 }
 
 .lobby-screen__members-label {
@@ -365,7 +402,7 @@ button.secondary {
 
 .lobby-screen__members-scroll {
   flex: 1;
-  min-height: 0;
+  min-height: 5.5rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -936,6 +973,13 @@ button.secondary {
   font-size: 0.65rem;
   font-weight: 700;
   color: #2563eb;
+  text-align: center;
+}
+
+.opponent__auto-play {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #b45309;
   text-align: center;
 }
 

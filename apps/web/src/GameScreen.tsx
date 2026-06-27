@@ -208,10 +208,7 @@ export function GameScreen({
               <GameMenuButton onClick={() => setMenuOpen(true)} />
             </div>
             <RoomInviteShare roomCode={room.code} />
-            <p className="status" style={{ textAlign: "center" }}>
-              コードまたは招待リンクを共有してください
-            </p>
-            <p className="status">
+            <p className="status lobby-screen__count">
               参加者 {playerCount} / {MAX_PLAYERS}
               <span className="lobby-screen__recommended">
                 （推奨 {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人）
@@ -978,7 +975,8 @@ function Opponent({
         </div>
       )}
       {seat.status === "retired" && <span>退社</span>}
-      {seat.status === "disconnected" && <span>切断</span>}
+      {seat.autoPlay && <span className="opponent__auto-play">自動プレイ</span>}
+      {seat.status === "disconnected" && !seat.autoPlay && <span>切断</span>}
       {isDrawSource && compact && <span className="opponent__draw-badge">引く相手</span>}
     </div>
   );

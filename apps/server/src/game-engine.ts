@@ -34,6 +34,7 @@ interface PlayerState {
   name: string;
   status: "active" | "retired" | "disconnected";
   hand: CardInstance[];
+  disconnectedAt: number | null;
 }
 
 interface PendingInput {
@@ -109,6 +110,7 @@ export class GameEngine {
         name: e.name,
         status: "active",
         hand: [],
+        disconnectedAt: null,
       });
     }
   }
@@ -181,6 +183,7 @@ export class GameEngine {
     action: { type: string; [key: string]: unknown },
   ): string | null {
     if (this.phase === "game_end") return "ゲームは終了しています";
+    if (!this.canReceiveAction(playerId)) return "操作できません";
 
     if (action.type === "shuffle_hand") {
       return this.shuffleHand(playerId);
@@ -319,10 +322,51 @@ export class GameEngine {
     };
   }
 
-  tick(now: number): void {
-    if (!this.pending || now < this.pending.deadlineAt) return;
+  tick(now: number): boolean {
+    if (!this.pending || now < this.pending.deadlineAt) return false;
+    if (this.shouldDeferAutoResolve(now)) return false;
     this.remoteSelection = null;
     this.autoResolve();
+    return true;
+  }
+
+  private canReceiveAction(playerId: PlayerId): boolean {
+    const player = this.players.get(playerId);
+    if (!player || player.status === "retired") return false;
+    if (player.status === "active") return true;
+    return player.status === "disconnected" && this.cpuPlayerIds.has(playerId);
+  }
+
+  private pendingActorIds(): PlayerId[] {
+    if (!this.pending) return [];
+    switch (this.pending.type) {
+      case "select_target":
+      case "select_card":
+      case "training_peek":
+      case "training_take":
+        return this.pending.effectUserId ? [this.pending.effectUserId] : [];
+      case "draw":
+      case "play_or_skip":
+        return [this.pending.playerIds[0]!];
+      default:
+        return [...this.pending.playerIds];
+    }
+  }
+
+  private shouldDeferAutoResolve(now: number): boolean {
+    for (const id of this.pendingActorIds()) {
+      const player = this.players.get(id);
+      if (!player) continue;
+      if (this.cpuPlayerIds.has(id)) return true;
+      if (
+        player.status === "disconnected" &&
+        player.disconnectedAt != null &&
+        now < player.disconnectedAt + IDLE_TIMEOUT_MS
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** CPU 用: 次の行動を決めて保持 */
@@ -557,6 +601,7 @@ export class GameEngine {
           status: p.status,
           handCount: p.hand.length,
           seatIndex,
+          autoPlay: p.status === "disconnected" && this.cpuPlayerIds.has(id),
         };
       }),
       currentPlayerId: currentId,
@@ -601,6 +646,8 @@ export class GameEngine {
   }
 
   private canPlayerAct(forPlayerId: PlayerId): boolean {
+    const player = this.players.get(forPlayerId);
+    if (!player || player.status !== "active") return false;
     if (!this.pending || this.pending.type === "romance_view") return false;
     if (!this.pending.playerIds.includes(forPlayerId)) return false;
 

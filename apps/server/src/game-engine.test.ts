@@ -747,4 +747,55 @@ describe("GameEngine", () => {
       zangyoPlayerId: "p2",
     });
   });
+
+  it("切断直後はタイムアウト自動処理を保留する", () => {
+    const engine = createStartedEngine();
+    const drawerId = engine.seats[engine.currentSeatIndex]!;
+    const player = engine.players.get(drawerId)!;
+    const base = Date.now();
+    player.status = "disconnected";
+    player.disconnectedAt = base;
+    engine.pending!.deadlineAt = base + IDLE_TIMEOUT_MS;
+
+    expect(engine.tick(base + IDLE_TIMEOUT_MS - 1)).toBe(false);
+    expect(engine.pending?.type).toBe("draw");
+  });
+
+  it("切断20秒後はCPU自動プレイに委譲しタイムアウト処理を保留する", () => {
+    const engine = createStartedEngine();
+    const drawerId = engine.seats[engine.currentSeatIndex]!;
+    const player = engine.players.get(drawerId)!;
+    player.status = "disconnected";
+    player.disconnectedAt = Date.now() - IDLE_TIMEOUT_MS - 1;
+    engine.setCpuPlayerIds(new Set([drawerId]));
+
+    const deadline = engine.pending!.deadlineAt;
+    expect(engine.tick(deadline)).toBe(false);
+    expect(engine.pending?.type).toBe("draw");
+  });
+
+  it("切断中のプレイヤーは操作できない", () => {
+    const engine = createStartedEngine();
+    const drawerId = engine.seats[engine.currentSeatIndex]!;
+    const player = engine.players.get(drawerId)!;
+    player.status = "disconnected";
+    player.disconnectedAt = Date.now();
+    const source = engine.pending!.sourcePlayerId!;
+    const cardId = engine.players.get(source)!.hand[0]!.id;
+
+    expect(engine.handleAction(drawerId, { type: "draw_card", cardId })).toBe("操作できません");
+  });
+
+  it("切断自動プレイ中はCPUとして操作できる", () => {
+    const engine = createStartedEngine();
+    const drawerId = engine.seats[engine.currentSeatIndex]!;
+    const player = engine.players.get(drawerId)!;
+    player.status = "disconnected";
+    player.disconnectedAt = Date.now() - IDLE_TIMEOUT_MS - 1;
+    engine.setCpuPlayerIds(new Set([drawerId]));
+    const source = engine.pending!.sourcePlayerId!;
+    const cardId = engine.players.get(source)!.hand[0]!.id;
+
+    expect(engine.handleAction(drawerId, { type: "draw_card", cardId })).toBeNull();
+  });
 });

@@ -51,6 +51,8 @@ export interface SeatPublic {
   status: "active" | "retired" | "disconnected";
   handCount: number;
   seatIndex: number;
+  /** 切断後20秒経過で自動プレイ中 */
+  autoPlay?: boolean;
 }
 
 export type CpuProcessStep = "thinking" | "acting" | "effect";

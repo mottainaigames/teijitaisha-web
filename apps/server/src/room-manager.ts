@@ -1,6 +1,7 @@
 import {
   CPU_SPEED_MULTIPLIERS,
   CPU_SPEED_ORDER,
+  IDLE_TIMEOUT_MS,
   MAX_PLAYERS,
   MIN_PLAYERS,
   normalizePlayerName,
@@ -28,6 +29,7 @@ interface Player {
   socketId: string;
   sessionToken: string;
   isCpu: boolean;
+  disconnectedAt: number | null;
 }
 
 interface Room {
@@ -91,6 +93,7 @@ export class RoomManager {
       socketId,
       sessionToken,
       isCpu: false,
+      disconnectedAt: null,
     };
 
     const room: Room = {
@@ -139,6 +142,7 @@ export class RoomManager {
       socketId,
       sessionToken,
       isCpu: false,
+      disconnectedAt: null,
     };
 
     room.players.set(playerId, player);
@@ -176,11 +180,14 @@ export class RoomManager {
     player.socketId = socketId;
     if (player.status === "disconnected") {
       player.status = "active";
+      player.disconnectedAt = null;
       if (room.game) {
         const gp = room.game.players.get(player.id);
         if (gp && gp.status === "disconnected") {
           gp.status = "active";
+          gp.disconnectedAt = null;
         }
+        this.syncCpuIds(room);
       }
     }
 
@@ -360,6 +367,7 @@ export class RoomManager {
       socketId: "",
       sessionToken: "",
       isCpu: true,
+      disconnectedAt: null,
     };
     room.players.set(playerId, player);
     this.touchRoom(room);
@@ -424,6 +432,7 @@ export class RoomManager {
     for (const p of room.players.values()) {
       p.status = "active";
       p.handCount = 0;
+      p.disconnectedAt = null;
     }
 
     this.touchRoom(room);
@@ -465,20 +474,41 @@ export class RoomManager {
     const updated: RoomCode[] = [];
     for (const room of this.rooms.values()) {
       if (!room.game || room.game.phase === "game_end") continue;
+      this.syncCpuIds(room, now);
       if (room.game.pending && now >= room.game.pending.deadlineAt) {
-        room.game.tick(now);
-        this.syncHandCounts(room);
-        updated.push(room.code);
+        const resolved = room.game.tick(now);
+        if (resolved) {
+          this.syncHandCounts(room);
+          updated.push(room.code);
+        }
       }
     }
     return updated;
   }
 
-  getNextCpuActor(code: RoomCode): { id: PlayerId; name: string } | null {
+  getAutoPlayPlayerIds(room: Room, now = Date.now()): Set<PlayerId> {
+    const ids = new Set<PlayerId>();
+    for (const p of room.players.values()) {
+      if (p.isCpu) {
+        ids.add(p.id);
+        continue;
+      }
+      if (
+        p.status === "disconnected" &&
+        p.disconnectedAt != null &&
+        now - p.disconnectedAt >= IDLE_TIMEOUT_MS
+      ) {
+        ids.add(p.id);
+      }
+    }
+    return ids;
+  }
+
+  getNextCpuActor(code: RoomCode, now = Date.now()): { id: PlayerId; name: string } | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game || room.game.result) return null;
 
-    const cpuIds = new Set([...room.players.values()].filter((p) => p.isCpu).map((p) => p.id));
+    const cpuIds = this.getAutoPlayPlayerIds(room, now);
     if (cpuIds.size === 0) return null;
 
     const actors = this.getPendingCpuActors(room, cpuIds);
@@ -544,7 +574,7 @@ export class RoomManager {
       case "info_share":
         return [...cpuIds].filter((id) => {
           const gp = room.game!.players.get(id);
-          return gp?.status === "active" && !pending.infoShareSelections?.has(id);
+          return gp?.status !== "retired" && !pending.infoShareSelections?.has(id);
         });
       case "trade":
         return pending.playerIds.filter(
@@ -599,9 +629,14 @@ export class RoomManager {
       if (player && !player.isCpu) {
         player.socketId = "";
         player.status = "disconnected";
+        player.disconnectedAt = Date.now();
         if (room.game) {
           const gp = room.game.players.get(ref.playerId);
-          if (gp) gp.status = "disconnected";
+          if (gp) {
+            gp.status = "disconnected";
+            gp.disconnectedAt = player.disconnectedAt;
+          }
+          this.syncCpuIds(room);
         }
       }
     }
@@ -627,12 +662,9 @@ export class RoomManager {
     }
   }
 
-  private syncCpuIds(room: Room): void {
+  private syncCpuIds(room: Room, now = Date.now()): void {
     if (!room.game) return;
-    const cpuIds = new Set(
-      [...room.players.values()].filter((p) => p.isCpu).map((p) => p.id),
-    );
-    room.game.setCpuPlayerIds(cpuIds);
+    room.game.setCpuPlayerIds(this.getAutoPlayPlayerIds(room, now));
   }
 
   toPublic(room: Room): RoomPublic {

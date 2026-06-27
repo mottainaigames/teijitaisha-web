@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROOM_IDLE_TTL_MS } from "@teijitaisha/shared";
+import { IDLE_TIMEOUT_MS, ROOM_IDLE_TTL_MS } from "@teijitaisha/shared";
 import { RoomManager } from "./room-manager.js";
 
 describe("RoomManager rejoin", () => {
@@ -104,5 +104,44 @@ describe("RoomManager rejoin", () => {
     const rm = new RoomManager();
     const host = rm.createRoom("あ".repeat(30), "socket-host");
     expect(host.room.players[0]?.name).toHaveLength(20);
+  });
+
+  it("切断20秒後は自動プレイ対象になる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+    rm.joinRoom(host.room.code, "ゲスト2", "socket-g2");
+    rm.startGame(host.playerId, host.room.code);
+
+    rm.removeSocket("socket-guest");
+    const room = rm.getRoom(host.room.code)!;
+    const guestPlayer = room.players.get(guest.playerId)!;
+    guestPlayer.disconnectedAt = Date.now() - IDLE_TIMEOUT_MS - 1;
+    const gp = room.game!.players.get(guest.playerId)!;
+    gp.disconnectedAt = guestPlayer.disconnectedAt;
+
+    const autoIds = rm.getAutoPlayPlayerIds(room);
+    expect(autoIds.has(guest.playerId)).toBe(true);
+  });
+
+  it("復帰すると自動プレイ対象から外れる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+    rm.joinRoom(host.room.code, "ゲスト2", "socket-g2");
+    rm.startGame(host.playerId, host.room.code);
+
+    rm.removeSocket("socket-guest");
+    const room = rm.getRoom(host.room.code)!;
+    const guestPlayer = room.players.get(guest.playerId)!;
+    guestPlayer.disconnectedAt = Date.now() - IDLE_TIMEOUT_MS - 1;
+
+    const rejoined = rm.rejoinRoom(host.room.code, guest.sessionToken, "socket-guest-new");
+    if ("error" in rejoined) throw new Error(rejoined.error);
+
+    expect(rm.getAutoPlayPlayerIds(room).has(guest.playerId)).toBe(false);
+    expect(room.players.get(guest.playerId)?.status).toBe("active");
   });
 });

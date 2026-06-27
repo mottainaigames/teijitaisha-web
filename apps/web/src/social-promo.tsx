@@ -189,25 +189,37 @@ export function RoomInviteShare({ roomCode }: RoomInviteShareProps) {
   };
 
   return (
-    <div className="room-invite">
+    <div className="room-invite room-invite--compact">
       <p className="room-code">{code}</p>
-      <p className="room-invite__url" title={inviteUrl}>
-        {inviteUrl}
-      </p>
       {feedback && (
         <p className="room-invite__feedback" role="status">
           {feedback}
         </p>
       )}
-      <div className="room-invite__actions">
-        <button type="button" className="secondary" onClick={handleCopyCode}>
-          コードをコピー
+      <div className="room-invite__actions room-invite__actions--row">
+        <button
+          type="button"
+          className="secondary"
+          onClick={handleCopyCode}
+          title="ルームコードをコピー"
+        >
+          コード
         </button>
-        <button type="button" className="secondary" onClick={handleCopyLink}>
-          招待リンクをコピー
+        <button
+          type="button"
+          className="secondary"
+          onClick={handleCopyLink}
+          title="招待リンクをコピー"
+        >
+          リンク
         </button>
-        <button type="button" className="share-x-btn" onClick={handleTweetInvite}>
-          Xで招待
+        <button
+          type="button"
+          className="share-x-btn share-x-btn--compact"
+          onClick={handleTweetInvite}
+          title="Xで招待"
+        >
+          X
         </button>
       </div>
     </div>
