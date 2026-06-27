@@ -230,3 +230,58 @@ describe("RoomManager lobby seat order", () => {
     expect(room.game?.seats).toEqual([guest.playerId, host.playerId]);
   });
 });
+
+describe("RoomManager host member management", () => {
+  it("ホストがプレイヤーを追い出せる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+
+    const result = rm.kickPlayer(host.playerId, host.room.code, guest.playerId);
+    if ("error" in result) throw new Error(result.error);
+
+    expect(result.kickedSocketId).toBe("socket-guest");
+    expect(result.roomDeleted).toBe(false);
+    const room = rm.getRoomPublic(host.room.code)!;
+    expect(room.players.some((p) => p.id === guest.playerId)).toBe(false);
+  });
+
+  it("ホストがプレイヤーの名前を変更できる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+
+    expect(rm.renamePlayer(host.playerId, host.room.code, guest.playerId, "新しい名前")).toBeNull();
+    const room = rm.getRoomPublic(host.room.code)!;
+    expect(room.players.find((p) => p.id === guest.playerId)?.name).toBe("新しい名前");
+  });
+
+  it("ホストがCPU名を変更できる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    rm.addCpu(host.playerId, host.room.code);
+
+    const cpu = rm.getRoomPublic(host.room.code)!.players.find((p) => p.isCpu);
+    if (!cpu) throw new Error("CPU missing");
+
+    expect(rm.renamePlayer(host.playerId, host.room.code, cpu.id, "あああ")).toBeNull();
+    const updated = rm.getRoomPublic(host.room.code)!.players.find((p) => p.id === cpu.id);
+    expect(updated?.name).toBe("あああ（CPU）");
+  });
+
+  it("非ホストは追い出し・改名できない", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+
+    expect(rm.kickPlayer(guest.playerId, host.room.code, host.playerId)).toEqual({
+      error: "ホストのみ操作できます",
+    });
+    expect(rm.renamePlayer(guest.playerId, host.room.code, host.playerId, "改変")).toBe(
+      "ホストのみ操作できます",
+    );
+  });
+});

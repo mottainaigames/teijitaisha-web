@@ -56,7 +56,7 @@ body {
 
 h1 {
   font-size: 1.75rem;
-  margin: 0 0 0.25rem;
+  margin: 0 0 2rem;
 }
 
 .subtitle {
@@ -534,6 +534,53 @@ button.secondary {
   color: #475569;
 }
 
+.lobby-player-card__manage {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.lobby-player-card__action {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.28rem 0.35rem;
+  font-size: 0.68rem;
+  border-radius: 6px;
+}
+
+.lobby-player-card__action--kick {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  background: #fff;
+}
+
+.lobby-player-card__rename {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.lobby-player-card__rename-input {
+  width: 100%;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.82rem;
+}
+
+.lobby-player-card__rename-hint {
+  margin: 0;
+  font-size: 0.62rem;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.lobby-player-card__rename-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
 .lobby-player-card--me .lobby-player-card__tag {
   background: #dbeafe;
   color: #1d4ed8;
@@ -670,6 +717,25 @@ button.secondary {
   align-items: center;
   gap: 0.25rem 0.35rem;
   margin-top: 0.45rem;
+}
+
+.lobby-seat-order--editable,
+.lobby-seat-order--editable .lobby-seat-order__track,
+.lobby-seat-order--editable .lobby-seat-order__seat,
+.lobby-seat-order--editable .lobby-seat-order__hint {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body.lobby-seat-order-dragging {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: grabbing;
+}
+
+body.lobby-seat-order-dragging * {
+  cursor: grabbing !important;
 }
 
 .lobby-seat-order__arrow {

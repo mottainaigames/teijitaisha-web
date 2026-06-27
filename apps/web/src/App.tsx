@@ -93,8 +93,7 @@ export default function App() {
   return (
     <div className={`app${screen === "game" && room ? " app--in-game" : ""}`}>
       <div className="app-brand">
-        <h1>定時退社</h1>
-        <p className="subtitle">定時退社web版</p>
+        <h1>定時退社Web版</h1>
       </div>
 
       {!showRejoinFallback && !connected && reconnecting && (
@@ -202,6 +201,8 @@ export default function App() {
           onReorderHand={(cardIds) => send({ type: "reorder_hand", cardIds })}
           onReorderSeats={(playerIds) => send({ type: "reorder_seats", playerIds })}
           onShuffleSeats={() => send({ type: "shuffle_seats" })}
+          onKickPlayer={(targetPlayerId) => send({ type: "kick_player", targetPlayerId })}
+          onRenamePlayer={(targetPlayerId, name) => send({ type: "rename_player", targetPlayerId, name })}
         />
       )}
 

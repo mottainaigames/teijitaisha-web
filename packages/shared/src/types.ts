@@ -43,6 +43,8 @@ export type ClientMessage =
   | { type: "remove_cpu" }
   | { type: "reorder_seats"; playerIds: PlayerId[] }
   | { type: "shuffle_seats" }
+  | { type: "kick_player"; targetPlayerId: PlayerId }
+  | { type: "rename_player"; targetPlayerId: PlayerId; name: string }
   | { type: "ping" }
   | {
       type: "selection_preview";
@@ -58,6 +60,7 @@ export type ServerMessage =
   | { type: "room_joined"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
   | { type: "room_rejoined"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
   | { type: "room_left" }
+  | { type: "room_kicked"; message: string }
   | { type: "session_replaced"; message: string }
   | { type: "room_updated"; room: RoomPublic }
   | { type: "game_started"; room: RoomPublic }

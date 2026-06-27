@@ -6,6 +6,8 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   normalizePlayerName,
+  resolveLobbyPlayerName,
+  formatCpuPlayerName,
   ROOM_CODE_CHARS,
   ROOM_CODE_LENGTH,
   ROOM_IDLE_TTL_MS,
@@ -374,7 +376,7 @@ export class RoomManager {
     const playerId = randomUUID();
     const player: Player = {
       id: playerId,
-      name: `CPU ${cpuCount + 1}`,
+      name: formatCpuPlayerName(`CPU ${cpuCount + 1}`),
       status: "active",
       handCount: 0,
       seatIndex: this.countPlaying(room),
@@ -442,6 +444,62 @@ export class RoomManager {
       [ids[i], ids[j]] = [ids[j]!, ids[i]!];
     }
     return this.reorderSeats(hostId, code, ids);
+  }
+
+  kickPlayer(
+    hostId: PlayerId,
+    code: RoomCode,
+    targetPlayerId: PlayerId,
+  ): { kickedSocketId?: string; roomDeleted: boolean } | { error: string } {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return { error: "ルームが見つかりません" };
+    if (room.hostId !== hostId) return { error: "ホストのみ操作できます" };
+    if (room.players.get(hostId)?.isObserver) return { error: "観戦者は操作できません" };
+    if (room.started) return { error: "ゲーム開始後は追い出せません" };
+    if (targetPlayerId === hostId) return { error: "自分自身は追い出せません" };
+
+    const target = room.players.get(targetPlayerId);
+    if (!target) return { error: "プレイヤーが見つかりません" };
+
+    const kickedSocketId = target.socketId || undefined;
+    if (target.socketId) this.socketToRoom.delete(target.socketId);
+    room.players.delete(targetPlayerId);
+    target.socketId = "";
+
+    this.reindexSeats(room);
+
+    const humansLeft = [...room.players.values()].some((p) => !p.isCpu);
+    if (!humansLeft || room.players.size === 0) {
+      for (const p of room.players.values()) {
+        if (p.socketId) this.socketToRoom.delete(p.socketId);
+      }
+      this.resolveCpuAdvance(room.code);
+      this.rooms.delete(room.code);
+      return { kickedSocketId, roomDeleted: true };
+    }
+
+    this.touchRoom(room);
+    return { kickedSocketId, roomDeleted: false };
+  }
+
+  renamePlayer(
+    hostId: PlayerId,
+    code: RoomCode,
+    targetPlayerId: PlayerId,
+    rawName: string,
+  ): string | null {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return "ルームが見つかりません";
+    if (room.hostId !== hostId) return "ホストのみ操作できます";
+    if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
+    if (room.started) return "ゲーム開始後は名前を変更できません";
+
+    const target = room.players.get(targetPlayerId);
+    if (!target) return "プレイヤーが見つかりません";
+
+    target.name = resolveLobbyPlayerName(rawName, target.isCpu);
+    this.touchRoom(room);
+    return null;
   }
 
   startGame(hostId: PlayerId, code: RoomCode): string | null {
@@ -844,6 +902,12 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return { type: "reorder_seats", playerIds: msg.playerIds as string[] };
     case "shuffle_seats":
       return { type: "shuffle_seats" };
+    case "kick_player":
+      if (typeof msg.targetPlayerId !== "string") return null;
+      return { type: "kick_player", targetPlayerId: msg.targetPlayerId };
+    case "rename_player":
+      if (typeof msg.targetPlayerId !== "string" || typeof msg.name !== "string") return null;
+      return { type: "rename_player", targetPlayerId: msg.targetPlayerId, name: msg.name };
     case "selection_preview":
       if (!("mode" in msg)) return null;
       return {

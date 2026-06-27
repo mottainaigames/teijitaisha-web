@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { MAX_PLAYER_NAME_LENGTH, normalizePlayerName } from "@teijitaisha/shared";
+import {
+  CPU_NAME_SUFFIX,
+  formatCpuPlayerName,
+  MAX_PLAYER_NAME_LENGTH,
+  normalizePlayerName,
+  resolveLobbyPlayerName,
+  stripCpuNameSuffix,
+} from "@teijitaisha/shared";
 
 describe("normalizePlayerName", () => {
   it("空文字はデフォルト名になる", () => {
@@ -15,5 +22,24 @@ describe("normalizePlayerName", () => {
   it("最大文字数で切り詰める", () => {
     const long = "あ".repeat(MAX_PLAYER_NAME_LENGTH + 5);
     expect(normalizePlayerName(long)).toHaveLength(MAX_PLAYER_NAME_LENGTH);
+  });
+});
+
+describe("CPU player names", () => {
+  it("CPU名には（CPU）が付く", () => {
+    expect(formatCpuPlayerName("あああ")).toBe(`あああ${CPU_NAME_SUFFIX}`);
+  });
+
+  it("入力に（CPU）が含まれていても正規化する", () => {
+    expect(formatCpuPlayerName("田中（CPU）")).toBe(`田中${CPU_NAME_SUFFIX}`);
+  });
+
+  it("resolveLobbyPlayerName は CPU と人間で処理を分ける", () => {
+    expect(resolveLobbyPlayerName("山田", false)).toBe("山田");
+    expect(resolveLobbyPlayerName("山田", true)).toBe(`山田${CPU_NAME_SUFFIX}`);
+  });
+
+  it("stripCpuNameSuffix で編集用のベース名を得られる", () => {
+    expect(stripCpuNameSuffix(`CPU 1${CPU_NAME_SUFFIX}`)).toBe("CPU 1");
   });
 });

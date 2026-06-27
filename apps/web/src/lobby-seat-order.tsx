@@ -74,6 +74,18 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
 
   useEffect(() => {
     if (!drag) return;
+    document.body.classList.add("lobby-seat-order-dragging");
+    window.getSelection()?.removeAllRanges();
+    const blockSelect = (e: Event) => e.preventDefault();
+    document.addEventListener("selectstart", blockSelect);
+    return () => {
+      document.body.classList.remove("lobby-seat-order-dragging");
+      document.removeEventListener("selectstart", blockSelect);
+    };
+  }, [drag]);
+
+  useEffect(() => {
+    if (!drag) return;
     const onMove = (e: globalThis.PointerEvent) => {
       if (dragRef.current) {
         dragRef.current = { ...dragRef.current, x: e.clientX, y: e.clientY };
@@ -99,6 +111,8 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
 
   const onPointerDown = (playerId: string) => (e: PointerEvent<HTMLDivElement>) => {
     if (!editable || e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
     pendingRef.current = {
       id: playerId,
       pointerId: e.pointerId,
@@ -113,7 +127,8 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
     const dx = e.clientX - pending.startX;
     const dy = e.clientY - pending.startY;
     if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    window.getSelection()?.removeAllRanges();
     dragRef.current = { id: playerId, x: e.clientX, y: e.clientY };
     setDrag({ ...dragRef.current });
   };
@@ -144,7 +159,7 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
     .filter((p): p is PlayerPublic => Boolean(p));
 
   return (
-    <div className="lobby-seat-order">
+    <div className={`lobby-seat-order${editable ? " lobby-seat-order--editable" : ""}`}>
       <div className="lobby-seat-order__head">
         <p className="lobby-seat-order__title">プレイ順（左隣から引く）</p>
         {editable && (
@@ -179,6 +194,7 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
                 onPointerDown={onPointerDown(player.id)}
                 onPointerMove={onPointerMove(player.id)}
                 onPointerUp={onPointerUp(player.id)}
+                onDragStart={(e) => e.preventDefault()}
                 style={
                   isDragging
                     ? {

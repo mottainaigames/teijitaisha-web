@@ -411,6 +411,49 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           break;
         }
 
+        case "kick_player": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          const result = roomManager.kickPlayer(ref.playerId, ref.code, message.targetPlayerId);
+          if ("error" in result) {
+            send(ws, { type: "error", message: result.error });
+            return;
+          }
+          if (result.kickedSocketId) {
+            sendToSocketId(result.kickedSocketId, {
+              type: "room_kicked",
+              message: "ホストによりルームから退出させられました",
+            });
+          }
+          if (!result.roomDeleted) {
+            flushRoom(ref.code);
+          }
+          break;
+        }
+
+        case "rename_player": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          const err = roomManager.renamePlayer(
+            ref.playerId,
+            ref.code,
+            message.targetPlayerId,
+            message.name,
+          );
+          if (err) {
+            send(ws, { type: "error", message: err });
+            return;
+          }
+          flushRoom(ref.code);
+          break;
+        }
+
         case "start_game": {
           const ref = roomManager.getSocketRef(id);
           if (!ref) {

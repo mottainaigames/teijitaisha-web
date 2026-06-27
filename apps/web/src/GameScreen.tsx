@@ -17,6 +17,7 @@ import { CardEffectText } from "./card-effects-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
 import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
+import { LobbyMemberCard } from "./lobby-member-card";
 import { LobbyAnnouncementStack, useLobbyAnnouncements } from "./lobby-announcement";
 import { LobbySeatOrder } from "./lobby-seat-order";
 import { ReorderableHandFan } from "./reorderable-hand-fan";
@@ -56,6 +57,8 @@ interface Props {
   onReorderHand: (cardIds: string[]) => void;
   onReorderSeats: (playerIds: string[]) => void;
   onShuffleSeats: () => void;
+  onKickPlayer: (targetPlayerId: string) => void;
+  onRenamePlayer: (targetPlayerId: string, name: string) => void;
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
@@ -94,6 +97,8 @@ export function GameScreen({
   onReorderHand,
   onReorderSeats,
   onShuffleSeats,
+  onKickPlayer,
+  onRenamePlayer,
 }: Props) {
   const isHost = room.hostId === playerId;
   const me = view.seats.find((s) => s.playerId === playerId);
@@ -211,6 +216,7 @@ export function GameScreen({
       !isObserverMode &&
       playerCount >= MIN_PLAYERS &&
       playerCount <= MAX_PLAYERS;
+    const canManageMembers = isHost && !isObserverMode && !room.started;
 
     return (
       <div className="game-shell game-shell--lobby">
@@ -265,24 +271,16 @@ export function GameScreen({
             </div>
             <ul className="lobby-player-grid">
               {playingMembers.map((p) => (
-                <li
+                <LobbyMemberCard
                   key={p.id}
-                  className={[
-                    "lobby-player-card",
-                    p.id === playerId ? "lobby-player-card--me" : "",
-                    p.id === room.hostId ? "lobby-player-card--host" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  <span className="lobby-player-card__seat">{p.seatIndex + 1}</span>
-                  <span className="lobby-player-card__name">{p.name}</span>
-                  <span className="lobby-player-card__tags">
-                    {p.id === room.hostId && <span className="lobby-player-card__tag">ホスト</span>}
-                    {p.isCpu && <span className="lobby-player-card__tag">CPU</span>}
-                    {p.id === playerId && <span className="lobby-player-card__tag">あなた</span>}
-                  </span>
-                </li>
+                  player={p}
+                  variant="player"
+                  isMe={p.id === playerId}
+                  isRoomHost={p.id === room.hostId}
+                  canManage={canManageMembers}
+                  onRename={onRenamePlayer}
+                  onKick={onKickPlayer}
+                />
               ))}
             </ul>
             {observerMembers.length > 0 && (
@@ -293,21 +291,16 @@ export function GameScreen({
                 </div>
                 <ul className="lobby-player-grid lobby-player-grid--observers">
                   {observerMembers.map((p) => (
-                    <li
+                    <LobbyMemberCard
                       key={p.id}
-                      className={[
-                        "lobby-player-card lobby-player-card--observer",
-                        p.id === playerId ? "lobby-player-card--me" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      <span className="lobby-player-card__name">{p.name}</span>
-                      <span className="lobby-player-card__tags">
-                        <span className="lobby-player-card__tag">観戦</span>
-                        {p.id === playerId && <span className="lobby-player-card__tag">あなた</span>}
-                      </span>
-                    </li>
+                      player={p}
+                      variant="observer"
+                      isMe={p.id === playerId}
+                      isRoomHost={false}
+                      canManage={canManageMembers}
+                      onRename={onRenamePlayer}
+                      onKick={onKickPlayer}
+                    />
                   ))}
                 </ul>
               </>
