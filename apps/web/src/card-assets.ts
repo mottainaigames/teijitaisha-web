@@ -11,18 +11,18 @@ export interface CardTheme {
 }
 
 export const CARD_THEMES: Record<CardType, CardTheme> = {
-  norma: { bg: "#fff5f5", label: "#b91c1c", border: "#fecaca" },
-  rouki: { bg: "#fff7ed", label: "#c2410c", border: "#fed7aa" },
-  nomikai: { bg: "#fffbeb", label: "#a16207", border: "#fde68a" },
-  shanai_renai: { bg: "#fdf2f8", label: "#be185d", border: "#fbcfe8" },
-  shinjin_kyouiku: { bg: "#ecfeff", label: "#0e7490", border: "#a5f3fc" },
-  jouhou_kyouyu: { bg: "#ecfdf5", label: "#047857", border: "#6ee7b7" },
-  torihiki: { bg: "#f7fee7", label: "#3f6212", border: "#bef264" },
-  enadori: { bg: "#f0fdf4", label: "#15803d", border: "#86efac" },
-  kaigi: { bg: "#eff6ff", label: "#1d4ed8", border: "#93c5fd" },
-  pawahara: { bg: "#faf5ff", label: "#7e22ce", border: "#d8b4fe" },
-  tabako_kyuukei: { bg: "#f8fafc", label: "#475569", border: "#cbd5e1" },
-  zangyo: { bg: "#27272a", label: "#f4f4f5", border: "#52525b" },
+  norma: { bg: "#ffe4e4", label: "#991b1b", border: "#f87171" },
+  rouki: { bg: "#ffedd5", label: "#9a3412", border: "#fb923c" },
+  nomikai: { bg: "#fef3c7", label: "#92400e", border: "#fbbf24" },
+  shanai_renai: { bg: "#fce7f3", label: "#9d174d", border: "#f472b6" },
+  shinjin_kyouiku: { bg: "#cffafe", label: "#0e7490", border: "#22d3ee" },
+  jouhou_kyouyu: { bg: "#d1fae5", label: "#047857", border: "#34d399" },
+  torihiki: { bg: "#ecfccb", label: "#365314", border: "#a3e635" },
+  enadori: { bg: "#dcfce7", label: "#166534", border: "#4ade80" },
+  kaigi: { bg: "#dbeafe", label: "#1e40af", border: "#60a5fa" },
+  pawahara: { bg: "#ede9fe", label: "#6b21a8", border: "#a78bfa" },
+  tabako_kyuukei: { bg: "#e2e8f0", label: "#334155", border: "#94a3b8" },
+  zangyo: { bg: "#ffffff", label: "#171717", border: "#000000" },
 };
 
 export const CARD_ICON_URLS: Record<CardType, string> = {

@@ -127,6 +127,7 @@ export function ReorderableHandFan({ cards, onReorder, onCardTap, focusedCardId 
   const handlePointerDown = useCallback(
     (card: HandCardItem, e: PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return;
+      e.preventDefault();
       const rect = e.currentTarget.getBoundingClientRect();
       pendingRef.current = {
         cardId: card.id,

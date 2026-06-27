@@ -400,6 +400,7 @@ export function GameScreen({
   };
 
   const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickPurpose;
+  const hasZangyoInHand = view.myHand.some((c) => c.type === "zangyo");
 
   return (
     <div className="game-shell">
@@ -617,6 +618,7 @@ export function GameScreen({
         <div
           className={[
             "my-hand",
+            hasZangyoInHand ? "my-hand--has-zangyo" : "",
             handPickPurpose && view.canAct && isPickingFromHand
               ? `my-hand--purpose-${handPickPurpose}`
               : "",
@@ -625,6 +627,11 @@ export function GameScreen({
             .filter(Boolean)
             .join(" ")}
         >
+          {hasZangyoInHand && (
+            <p className="my-hand__zangyo-banner" role="status">
+              残業カードを所持中 — ペアにできません
+            </p>
+          )}
           {handPickPurpose && view.canAct && isPickingFromHand && (
             <HandPickHint
               mode={handPickPurpose}

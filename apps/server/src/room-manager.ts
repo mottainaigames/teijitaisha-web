@@ -37,8 +37,18 @@ interface Room {
   started: boolean;
   game: GameEngine | null;
   lastActivityAt: number;
+  /** ロビー状態になった時刻（作成時・ゲーム終了後のロビー復帰時に更新） */
+  lobbySinceAt: number;
   cpuSpeed: CpuSpeed;
   cpuWaitingAdvance: boolean;
+}
+
+export type DissolvedRoomReason = "idle" | "lobby_timeout";
+
+export interface DissolvedRoom {
+  code: RoomCode;
+  socketIds: string[];
+  reason: DissolvedRoomReason;
 }
 
 const GAME_MESSAGE_TYPES = new Set([
@@ -90,6 +100,7 @@ export class RoomManager {
       started: false,
       game: null,
       lastActivityAt: Date.now(),
+      lobbySinceAt: Date.now(),
       cpuSpeed: "2x",
       cpuWaitingAdvance: false,
     };
@@ -268,21 +279,24 @@ export class RoomManager {
     return true;
   }
 
-  purgeExpiredRooms(now: number): number {
-    let removed = 0;
+  purgeExpiredRooms(now: number): DissolvedRoom[] {
+    const toDissolve: { code: RoomCode; reason: DissolvedRoomReason }[] = [];
+
     for (const [code, room] of this.rooms) {
+      if (!room.started && now - room.lobbySinceAt >= ROOM_IDLE_TTL_MS) {
+        toDissolve.push({ code, reason: "lobby_timeout" });
+        continue;
+      }
       if (now - room.lastActivityAt < ROOM_IDLE_TTL_MS) continue;
       if (this.hasConnectedHuman(room)) continue;
-
-      for (const player of room.players.values()) {
-        if (player.socketId) {
-          this.socketToRoom.delete(player.socketId);
-        }
-      }
-      this.rooms.delete(code);
-      removed++;
+      toDissolve.push({ code, reason: "idle" });
     }
-    return removed;
+
+    return toDissolve.map(({ code, reason }) => ({
+      code,
+      socketIds: this.dissolveRoom(code),
+      reason,
+    }));
   }
 
   getRoomCount(): number {
@@ -293,6 +307,30 @@ export class RoomManager {
   setLastActivityAt(code: RoomCode, at: number): void {
     const room = this.rooms.get(code.toUpperCase());
     if (room) room.lastActivityAt = at;
+  }
+
+  /** @internal テスト用 */
+  setLobbySinceAt(code: RoomCode, at: number): void {
+    const room = this.rooms.get(code.toUpperCase());
+    if (room) room.lobbySinceAt = at;
+  }
+
+  private dissolveRoom(code: RoomCode): string[] {
+    const room = this.rooms.get(code);
+    if (!room) return [];
+
+    const socketIds = [...room.players.values()]
+      .map((p) => p.socketId)
+      .filter((id): id is string => Boolean(id));
+
+    for (const player of room.players.values()) {
+      if (player.socketId) {
+        this.socketToRoom.delete(player.socketId);
+      }
+    }
+    this.resolveCpuAdvance(code);
+    this.rooms.delete(code);
+    return socketIds;
   }
 
   private hasConnectedHuman(room: Room): boolean {
@@ -378,6 +416,7 @@ export class RoomManager {
 
     room.game = null;
     room.started = false;
+    room.lobbySinceAt = Date.now();
     room.cpuWaitingAdvance = false;
     this.resolveCpuAdvance(room.code);
 

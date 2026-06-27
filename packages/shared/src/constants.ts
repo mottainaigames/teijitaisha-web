@@ -12,8 +12,8 @@ export const IDLE_TIMEOUT_MS = 20_000;
 /** 社内恋愛: 互いの手札を見せ合う時間 */
 export const SHANAI_RENAI_VIEW_MS = 10_000;
 
-/** 人が接続していないルームを掃除するまでの時間（24時間） */
-export const ROOM_IDLE_TTL_MS = 24 * 60 * 60 * 1000;
+/** ルームを自動解散するまでの時間（10分）— ロビー未開始・接続なし共通 */
+export const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;
 
 /** CPU 行動表示の待ち時間（ミリ秒） */
 export const CPU_THINK_MS = 1_000;

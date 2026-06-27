@@ -52,7 +52,51 @@ describe("RoomManager rejoin", () => {
     rm.removeSocket("socket-host");
     rm.setLastActivityAt(host.room.code, Date.now() - ROOM_IDLE_TTL_MS - 1);
 
-    expect(rm.purgeExpiredRooms(Date.now())).toBe(1);
+    expect(rm.purgeExpiredRooms(Date.now())).toEqual([
+      { code: host.room.code, socketIds: [], reason: "idle" },
+    ]);
     expect(rm.getRoomPublic(host.room.code)).toBeUndefined();
+  });
+
+  it("ホスト退出時は他の参加者にホストが継承される", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+
+    const left = rm.leaveRoom("socket-host");
+    if ("error" in left) throw new Error(left.error);
+
+    expect(left.roomDeleted).toBe(false);
+    const room = rm.getRoomPublic(host.room.code)!;
+    expect(room.hostId).toBe(guest.playerId);
+  });
+
+  it("ロビーで10分ゲームが開始されないルームは掃除される", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    rm.setLobbySinceAt(host.room.code, Date.now() - ROOM_IDLE_TTL_MS - 1);
+
+    const dissolved = rm.purgeExpiredRooms(Date.now());
+    expect(dissolved).toEqual([
+      {
+        code: host.room.code,
+        socketIds: ["socket-host", "socket-guest"],
+        reason: "lobby_timeout",
+      },
+    ]);
+    expect(rm.getRoomPublic(host.room.code)).toBeUndefined();
+  });
+
+  it("ゲーム開始後はロビータイムアウトで掃除されない", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    rm.startGame(host.playerId, host.room.code);
+    rm.setLobbySinceAt(host.room.code, Date.now() - ROOM_IDLE_TTL_MS - 1);
+
+    expect(rm.purgeExpiredRooms(Date.now())).toEqual([]);
+    expect(rm.getRoomPublic(host.room.code)).toBeDefined();
   });
 });

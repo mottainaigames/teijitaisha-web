@@ -783,6 +783,8 @@ button.secondary {
   padding: 1rem 0.5rem 1.5rem;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
   overflow: visible;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .my-hand > p {
@@ -839,6 +841,8 @@ button.secondary {
   font-family: inherit;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
   --fan-rotate: 0deg;
   --fan-lift: 0px;
   transform: rotate(var(--fan-rotate)) translateY(var(--fan-lift));
@@ -922,6 +926,8 @@ button.secondary {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   min-height: calc(2 * 1.15 * 0.52rem);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .playing-card__icon-wrap {
@@ -992,7 +998,58 @@ button.secondary {
 }
 
 .playing-card--type-zangyo.playing-card--face {
-  border-color: var(--card-border);
+  background: #fff;
+  border: 3px solid #000;
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 18%),
+    0 8px 20px rgb(0 0 0 / 12%),
+    inset 0 0 0 1px rgb(0 0 0 / 8%);
+}
+
+.playing-card--type-zangyo .playing-card__inner {
+  position: relative;
+}
+
+.playing-card--type-zangyo .playing-card__zangyo-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 1px 4px;
+  border-radius: 0 6px 0 6px;
+  background: #000;
+  color: #fff;
+  font-size: 0.42rem;
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+}
+
+.playing-card--sm.playing-card--type-zangyo .playing-card__zangyo-badge {
+  font-size: 0.32rem;
+  padding: 1px 3px;
+  border-radius: 0 4px 0 4px;
+}
+
+.playing-card--lg.playing-card--type-zangyo .playing-card__zangyo-badge {
+  font-size: 0.5rem;
+  padding: 2px 5px;
+}
+
+.playing-card--type-zangyo .playing-card__name {
+  color: #171717;
+  font-weight: 900;
+}
+
+.playing-card--type-zangyo .playing-card__icon-wrap {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgb(0 0 0 / 4%) 0,
+    rgb(0 0 0 / 4%) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  border-radius: 4px;
 }
 
 .playing-card__hand {
@@ -1919,6 +1976,8 @@ button.secondary {
   transform-origin: center bottom;
   touch-action: none;
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .reorder-slot__card:active {
@@ -1977,6 +2036,8 @@ button.secondary {
   z-index: 4000;
   pointer-events: none;
   margin: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .reorder-float .playing-card {
@@ -2031,6 +2092,77 @@ button.secondary {
 
 .my-hand--purpose-waiting {
   opacity: 0.92;
+}
+
+.my-hand--has-zangyo {
+  margin: 0.1rem 0.15rem 0;
+  padding: 0.45rem 0.35rem 0.55rem;
+  border: 3px solid #000;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgb(0 0 0 / 3%) 0,
+      rgb(0 0 0 / 3%) 2px,
+      transparent 2px,
+      transparent 8px
+    ),
+    linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 90%);
+}
+
+.game-hand-dock .my-hand--has-zangyo {
+  margin: 0.15rem 0.2rem 0;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgb(0 0 0 / 3%) 0,
+      rgb(0 0 0 / 3%) 2px,
+      transparent 2px,
+      transparent 8px
+    ),
+    linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+}
+
+.my-hand--has-zangyo.my-hand--purpose-info_share,
+.my-hand--has-zangyo.my-hand--purpose-trade,
+.my-hand--has-zangyo.my-hand--purpose-pawahara_give,
+.my-hand--has-zangyo.my-hand--purpose-play_or_skip {
+  border-color: #000;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 10%),
+    inset 0 0 0 2px var(--hand-purpose-accent, transparent);
+}
+
+.my-hand--has-zangyo.my-hand--purpose-info_share {
+  --hand-purpose-accent: #818cf8;
+}
+
+.my-hand--has-zangyo.my-hand--purpose-trade {
+  --hand-purpose-accent: #fb923c;
+}
+
+.my-hand--has-zangyo.my-hand--purpose-pawahara_give {
+  --hand-purpose-accent: #94a3b8;
+}
+
+.my-hand--has-zangyo.my-hand--purpose-play_or_skip {
+  --hand-purpose-accent: #2563eb;
+}
+
+.my-hand__zangyo-banner {
+  margin: 0 0 0.4rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 8px;
+  background: #000;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .hand-pick-hint {

@@ -41,6 +41,11 @@ function CardFaceContent({
 }) {
   return (
     <div className={`playing-card__inner playing-card__inner--${size}`}>
+      {cardType === "zangyo" && (
+        <span className="playing-card__zangyo-badge" aria-hidden>
+          特殊
+        </span>
+      )}
       <p className="playing-card__name">{label}</p>
       <div className="playing-card__icon-wrap">
         <img

@@ -103,6 +103,14 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
     }
   }
 
+  function sendToSocketId(socketId: string, message: ServerMessage): void {
+    wss.clients.forEach((client) => {
+      if (client.readyState !== 1) return;
+      if (getSocketId(client) !== socketId) return;
+      send(client, message);
+    });
+  }
+
   function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -426,9 +434,12 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
 
   const tickTimer = setInterval(() => {
     const now = Date.now();
-    const purged = roomManager.purgeExpiredRooms(now);
-    if (purged > 0) {
-      logEvent("rooms_purged", { count: purged });
+    const dissolved = roomManager.purgeExpiredRooms(now);
+    for (const { code, socketIds, reason } of dissolved) {
+      logEvent("room_dissolved", { code, reason });
+      for (const socketId of socketIds) {
+        sendToSocketId(socketId, { type: "room_left" });
+      }
     }
 
     const codes = new Set(roomManager.tickGames(now));
