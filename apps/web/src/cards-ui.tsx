@@ -24,10 +24,9 @@ export function fanTransform(index: number, total: number): CSSProperties {
 
 function cardThemeVars(theme: CardTheme): CSSProperties {
   return {
-    ["--card-band" as string]: theme.band,
-    ["--card-accent" as string]: theme.accent,
-    ["--card-body" as string]: theme.body,
-    ["--card-title" as string]: theme.title,
+    ["--card-bg" as string]: theme.bg,
+    ["--card-label" as string]: theme.label,
+    ["--card-border" as string]: theme.border,
   };
 }
 
@@ -40,18 +39,16 @@ function CardFaceContent({
   label: string;
   size: "sm" | "md" | "lg";
 }) {
-  const iconUrl = CARD_ICON_URLS[cardType];
-
   return (
     <div className={`playing-card__inner playing-card__inner--${size}`}>
-      <div className="playing-card__band">
-        <span className="playing-card__band-accent" aria-hidden />
-        <span className="playing-card__name">{label}</span>
-      </div>
-      <div className="playing-card__body">
-        <div className="playing-card__icon-ring">
-          <img className="playing-card__icon" src={iconUrl} alt="" draggable={false} />
-        </div>
+      <p className="playing-card__name">{label}</p>
+      <div className="playing-card__icon-wrap">
+        <img
+          className="playing-card__icon"
+          src={CARD_ICON_URLS[cardType]}
+          alt=""
+          draggable={false}
+        />
       </div>
     </div>
   );
