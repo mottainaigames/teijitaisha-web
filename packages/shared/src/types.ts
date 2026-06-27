@@ -53,6 +53,7 @@ export type ServerMessage =
   | { type: "room_joined"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
   | { type: "room_rejoined"; room: RoomPublic; playerId: PlayerId; sessionToken: string }
   | { type: "room_left" }
+  | { type: "session_replaced"; message: string }
   | { type: "room_updated"; room: RoomPublic }
   | { type: "game_started"; room: RoomPublic }
   | { type: "game_state"; view: import("./game.js").GameView }

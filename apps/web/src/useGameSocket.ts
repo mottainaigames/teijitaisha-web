@@ -77,6 +77,16 @@ export function useGameSocket() {
           setError(null);
           setReconnecting(false);
           break;
+        case "session_replaced":
+          clearSession();
+          sessionRef.current = null;
+          setRoom(null);
+          setGameView(null);
+          setPlayerId(null);
+          setScreen("home");
+          setReconnecting(false);
+          setError(data.message);
+          break;
         case "game_started":
           setRoom(data.room);
           setScreen("game");

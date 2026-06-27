@@ -9,7 +9,13 @@ export interface StoredSession {
 
 export function loadSession(): StoredSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    // 旧版の localStorage はタブ間共有のため使わない
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredSession;
     if (!parsed.code || !parsed.playerId || !parsed.sessionToken) return null;
@@ -20,9 +26,14 @@ export function loadSession(): StoredSession | null {
 }
 
 export function saveSession(session: StoredSession): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
 export function clearSession(): void {
-  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
 }

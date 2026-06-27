@@ -135,7 +135,9 @@ export class RoomManager {
     code: RoomCode,
     sessionToken: string,
     socketId: string,
-  ): { room: RoomPublic; playerId: PlayerId; sessionToken: string } | { error: string } {
+  ):
+    | { room: RoomPublic; playerId: PlayerId; sessionToken: string; replacedSocketId?: string }
+    | { error: string } {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) {
       return { error: "ルームが見つかりません" };
@@ -148,7 +150,9 @@ export class RoomManager {
       return { error: "セッションが無効です" };
     }
 
+    let replacedSocketId: string | undefined;
     if (player.socketId && player.socketId !== socketId) {
+      replacedSocketId = player.socketId;
       this.socketToRoom.delete(player.socketId);
     }
 
@@ -166,7 +170,12 @@ export class RoomManager {
     this.socketToRoom.set(socketId, { code: room.code, playerId: player.id });
     this.touchRoom(room);
 
-    return { room: this.toPublic(room), playerId: player.id, sessionToken: player.sessionToken };
+    return {
+      room: this.toPublic(room),
+      playerId: player.id,
+      sessionToken: player.sessionToken,
+      replacedSocketId,
+    };
   }
 
   leaveRoom(socketId: string): { code: RoomCode; roomDeleted: boolean } | { error: string } {

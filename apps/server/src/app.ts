@@ -184,6 +184,24 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
     void runCpuTurns(code);
   }
 
+  function getWsBySocketId(targetId: string): WebSocket | undefined {
+    for (const client of wss.clients) {
+      if (client.readyState !== 1) continue;
+      if (getSocketId(client) === targetId) return client;
+    }
+    return undefined;
+  }
+
+  function disconnectReplacedSession(replacedSocketId: string): void {
+    const oldWs = getWsBySocketId(replacedSocketId);
+    if (!oldWs) return;
+    send(oldWs, {
+      type: "session_replaced",
+      message: "別のタブで同じプレイヤーが接続されました",
+    });
+    oldWs.close(4000, "session_replaced");
+  }
+
   wss.on("connection", (ws) => {
     const id = getSocketId(ws);
 
@@ -236,6 +254,9 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           if ("error" in result) {
             send(ws, { type: "error", message: result.error });
             return;
+          }
+          if (result.replacedSocketId) {
+            disconnectReplacedSession(result.replacedSocketId);
           }
           logEvent("room_rejoined", { code: result.room.code, playerId: result.playerId });
           send(ws, {
