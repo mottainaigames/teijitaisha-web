@@ -37,7 +37,12 @@ function RulesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
 
   return (
-    <div className="card-effects-modal" role="dialog" aria-modal="true" aria-labelledby="rules-modal-title">
+    <div
+      className="card-effects-modal rules-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rules-modal-title"
+    >
       <button
         type="button"
         className="card-effects-modal__backdrop"

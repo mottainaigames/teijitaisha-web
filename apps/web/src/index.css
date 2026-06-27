@@ -258,10 +258,13 @@ button.secondary {
 }
 
 .home-rules__comic--modal {
-  padding: 0.75rem 1rem 1rem;
+  padding: 0.65rem 0.85rem 1rem;
+  overflow-x: hidden;
   overflow-y: auto;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .home-rules__panel {
@@ -273,11 +276,19 @@ button.secondary {
   box-shadow: 0 2px 8px rgb(15 23 42 / 6%);
 }
 
+.rules-modal .home-rules__panel {
+  overflow: visible;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
 .home-rules__img {
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
-  vertical-align: middle;
+  object-fit: contain;
 }
 
 .card-effects-btn--block {
@@ -2123,6 +2134,25 @@ button.secondary {
   .card-effects-modal__panel {
     border-radius: 16px;
   }
+}
+
+.rules-modal {
+  align-items: center;
+  padding: max(0.75rem, env(safe-area-inset-top, 0px)) 0.75rem
+    max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.rules-modal .card-effects-modal__panel {
+  width: min(100%, 520px);
+  height: min(92vh, 720px);
+  max-height: none;
+  border-radius: 14px;
+}
+
+.rules-modal .home-rules__img {
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 6%);
 }
 
 /* 労基公開演出 */
