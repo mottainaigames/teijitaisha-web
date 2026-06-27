@@ -34,6 +34,7 @@ export type ClientMessage =
   | { type: "join_room"; code: RoomCode; playerName: string }
   | { type: "rejoin_room"; code: RoomCode; sessionToken: string }
   | { type: "leave_room" }
+  | { type: "return_to_lobby" }
   | { type: "cycle_cpu_speed" }
   | { type: "advance_cpu" }
   | { type: "add_cpu" }

@@ -19,6 +19,7 @@ export default function App() {
     createRoom,
     joinRoom,
     leaveRoom,
+    returnToLobby,
     cycleCpuSpeed,
     advanceCpu,
     goHome,
@@ -64,9 +65,11 @@ export default function App() {
   const showRejoinFallback = screen === "game" && !room;
 
   return (
-    <div className="app">
-      <h1>定時退社</h1>
-      <p className="subtitle">Mottainai Games — Web版</p>
+    <div className={`app${screen === "game" && room ? " app--in-game" : ""}`}>
+      <div className="app-brand">
+        <h1>定時退社</h1>
+        <p className="subtitle">Mottainai Games — Web版</p>
+      </div>
 
       {!showRejoinFallback && !connected && reconnecting && (
         <p className="status">再接続中…</p>
@@ -147,6 +150,7 @@ export default function App() {
           onTrainingTake={(take, cardId) => send({ type: "training_take", take, cardId })}
           onSelectionPreview={(payload) => send({ type: "selection_preview", ...payload })}
           onLeave={leaveRoom}
+          onReturnToLobby={returnToLobby}
           onCycleCpuSpeed={cycleCpuSpeed}
           onAdvanceCpu={advanceCpu}
         />

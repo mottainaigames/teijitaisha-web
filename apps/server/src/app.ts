@@ -287,6 +287,22 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           break;
         }
 
+        case "return_to_lobby": {
+          const ref = roomManager.getSocketRef(id);
+          if (!ref) {
+            send(ws, { type: "error", message: "ルームに参加していません" });
+            return;
+          }
+          const err = roomManager.returnToLobby(ref.playerId, ref.code);
+          if (err) {
+            send(ws, { type: "error", message: err });
+            return;
+          }
+          logEvent("return_to_lobby", { code: ref.code, playerId: ref.playerId });
+          flushRoom(ref.code);
+          break;
+        }
+
         case "cycle_cpu_speed": {
           const ref = roomManager.getSocketRef(id);
           if (!ref) {

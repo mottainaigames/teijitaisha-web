@@ -360,6 +360,28 @@ export class RoomManager {
     return null;
   }
 
+  returnToLobby(playerId: PlayerId, code: RoomCode): string | null {
+    const room = this.rooms.get(code.toUpperCase());
+    if (!room) return "ルームが見つかりません";
+    if (!room.players.has(playerId)) return "ルームに参加していません";
+    if (!room.started || !room.game || room.game.phase !== "game_end") {
+      return "ゲーム終了後にルームへ戻れます";
+    }
+
+    room.game = null;
+    room.started = false;
+    room.cpuWaitingAdvance = false;
+    this.resolveCpuAdvance(room.code);
+
+    for (const p of room.players.values()) {
+      p.status = "active";
+      p.handCount = 0;
+    }
+
+    this.touchRoom(room);
+    return null;
+  }
+
   handleGameAction(playerId: PlayerId, code: RoomCode, action: GameClientMessage): string | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game) return "ゲームが開始されていません";
@@ -604,6 +626,8 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
       return { type: "rejoin_room", code: msg.code.toUpperCase(), sessionToken: msg.sessionToken };
     case "leave_room":
       return { type: "leave_room" };
+    case "return_to_lobby":
+      return { type: "return_to_lobby" };
     case "cycle_cpu_speed":
       return { type: "cycle_cpu_speed" };
     case "advance_cpu":

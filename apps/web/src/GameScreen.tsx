@@ -10,7 +10,9 @@ import {
   type RoomPublic,
 } from "@teijitaisha/shared";
 import { CardFan, PairCard, PlayingCard } from "./cards-ui";
-import { CardEffectText, CardEffectsButton } from "./card-effects-ui";
+import { CardEffectText } from "./card-effects-ui";
+import { CollapsibleSection } from "./collapsible-section";
+import { GameMenu, GameMenuButton } from "./game-menu";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 
@@ -35,6 +37,7 @@ interface Props {
     mode: "hover" | "selected" | "clear";
   }) => void;
   onLeave: () => void;
+  onReturnToLobby: () => void;
   onCycleCpuSpeed: () => void;
   onAdvanceCpu: () => void;
 }
@@ -65,6 +68,7 @@ export function GameScreen({
   onTrainingTake,
   onSelectionPreview,
   onLeave,
+  onReturnToLobby,
   onCycleCpuSpeed,
   onAdvanceCpu,
 }: Props) {
@@ -73,108 +77,7 @@ export function GameScreen({
   const current = view.seats.find((s) => s.playerId === view.currentPlayerId);
   const hasCpu = room.players.some((p) => p.isCpu);
   const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
-
-  const roomChrome = (
-    <div className="room-chrome">
-      <button type="button" className="secondary room-chrome__leave" onClick={onLeave}>
-        ルームを退出
-      </button>
-      {hasCpu && isHost && (
-        <button type="button" className="secondary room-chrome__speed" onClick={onCycleCpuSpeed}>
-          CPU速度: {CPU_SPEED_LABELS[room.cpuSpeed]}
-        </button>
-      )}
-      {room.cpuWaitingAdvance && (
-        <button type="button" className="room-chrome__advance" onClick={onAdvanceCpu}>
-          CPUを進める ▶
-        </button>
-      )}
-    </div>
-  );
-
-  const seatOrder = (
-    <SeatOrderBar
-      seats={view.seats}
-      currentPlayerId={view.currentPlayerId}
-      drawSourcePlayerId={drawSourceId}
-      myPlayerId={playerId}
-    />
-  );
-
-  if (view.phase === "lobby" || !room.started) {
-    return (
-      <>
-        {roomChrome}
-        <div className="card">
-        <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
-        <p className="room-code">{room.code}</p>
-        <p className="status" style={{ textAlign: "center" }}>
-          このコードを共有してください
-        </p>
-        <p className="status">
-          参加者 {room.players.length} / {MAX_PLAYERS}
-        </p>
-        {seatOrder}
-        <ul className="player-list">
-          {room.players.map((p) => (
-            <li key={p.id}>
-              {p.name}
-              {p.id === room.hostId && "（ホスト）"}
-              {p.isCpu && "（CPU）"}
-            </li>
-          ))}
-        </ul>
-        {isHost && !room.started && (
-          <div className="cpu-controls">
-            <button
-              type="button"
-              className="secondary"
-              onClick={onAddCpu}
-              disabled={room.players.length >= MAX_PLAYERS}
-            >
-              CPUを追加
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={onRemoveCpu}
-              disabled={!room.players.some((p) => p.isCpu)}
-            >
-              CPUを削除
-            </button>
-          </div>
-        )}
-        {isHost && (
-          <button type="button" onClick={onStart} disabled={room.players.length < MIN_PLAYERS}>
-            ゲームを開始（{MIN_PLAYERS}人〜）
-          </button>
-        )}
-        {!isHost && <p className="status">ホストの開始を待っています…</p>}
-        <CardEffectsButton className="lobby-effects-btn" />
-        </div>
-      </>
-    );
-  }
-
-  if (view.phase === "game_end" && view.result) {
-    return (
-      <>
-        {roomChrome}
-        <div className="card">
-        <h2>ゲーム終了</h2>
-        <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
-        <p>
-          勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
-        </p>
-        <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
-        <CardEffectsButton />
-        </div>
-      </>
-    );
-  }
-
-  const pairable = countPairs(view.myHand);
-  const activityLogRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedPairType, setSelectedPairType] = useState<CardType | null>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -200,11 +103,6 @@ export function GameScreen({
   }, [view.myHand, focusedHandCardId]);
 
   useEffect(() => {
-    const el = activityLogRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [view.activityLog.length, view.activityLog[view.activityLog.length - 1]?.id]);
-
-  useEffect(() => {
     const t = view.lastTransfer;
     if (!t || t.at === lastTransferAtRef.current) return;
     lastTransferAtRef.current = t.at;
@@ -213,6 +111,140 @@ export function GameScreen({
     return () => clearTimeout(timer);
   }, [view.lastTransfer]);
 
+  const seatOrder = (
+    <SeatOrderBar
+      seats={view.seats}
+      currentPlayerId={view.currentPlayerId}
+      drawSourcePlayerId={drawSourceId}
+      myPlayerId={playerId}
+    />
+  );
+
+  const menuExtra = (
+    <>
+      <CollapsibleSection title="プレイ順" defaultOpen={false}>
+        {seatOrder}
+      </CollapsibleSection>
+      {view.activityLog.length > 0 && (
+        <CollapsibleSection title="ログ" badge={view.activityLog.length}>
+          <ActivityLogList entries={view.activityLog} />
+        </CollapsibleSection>
+      )}
+      {view.discardTypes.length > 0 && (
+        <CollapsibleSection title="場の履歴">
+          <p className="status">
+            {view.discardTypes
+              .slice(-12)
+              .map((t) => CARD_LABELS[t])
+              .join("、")}
+          </p>
+        </CollapsibleSection>
+      )}
+    </>
+  );
+
+  const gameMenu = (
+    <GameMenu
+      open={menuOpen}
+      onClose={() => setMenuOpen(false)}
+      onLeave={onLeave}
+      roomCode={room.code}
+      showLeave={view.phase !== "game_end"}
+      showCpuSpeed={hasCpu && isHost}
+      cpuSpeedLabel={CPU_SPEED_LABELS[room.cpuSpeed]}
+      onCycleCpuSpeed={onCycleCpuSpeed}
+      showAdvanceCpu={room.cpuWaitingAdvance}
+      onAdvanceCpu={onAdvanceCpu}
+    >
+      {menuExtra}
+    </GameMenu>
+  );
+
+  if (view.phase === "lobby" || !room.started) {
+    return (
+      <>
+        {gameMenu}
+        <div className="card lobby-screen">
+          <div className="screen-header">
+            <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
+            <GameMenuButton onClick={() => setMenuOpen(true)} />
+          </div>
+          <p className="room-code">{room.code}</p>
+          <p className="status" style={{ textAlign: "center" }}>
+            このコードを共有してください
+          </p>
+          <p className="status">
+            参加者 {room.players.length} / {MAX_PLAYERS}
+          </p>
+          {seatOrder}
+          <ul className="player-list">
+            {room.players.map((p) => (
+              <li key={p.id}>
+                {p.name}
+                {p.id === room.hostId && "（ホスト）"}
+                {p.isCpu && "（CPU）"}
+              </li>
+            ))}
+          </ul>
+          {isHost && !room.started && (
+            <div className="cpu-controls">
+              <button
+                type="button"
+                className="secondary"
+                onClick={onAddCpu}
+                disabled={room.players.length >= MAX_PLAYERS}
+              >
+                CPUを追加
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={onRemoveCpu}
+                disabled={!room.players.some((p) => p.isCpu)}
+              >
+                CPUを削除
+              </button>
+            </div>
+          )}
+          {isHost && (
+            <button type="button" onClick={onStart} disabled={room.players.length < MIN_PLAYERS}>
+              ゲームを開始（{MIN_PLAYERS}人〜）
+            </button>
+          )}
+          {!isHost && <p className="status">ホストの開始を待っています…</p>}
+        </div>
+      </>
+    );
+  }
+
+  if (view.phase === "game_end" && view.result) {
+    return (
+      <>
+        {gameMenu}
+        <div className="card">
+          <div className="screen-header">
+            <h2>ゲーム終了</h2>
+            <GameMenuButton onClick={() => setMenuOpen(true)} />
+          </div>
+          <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
+          <p>
+            勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
+          </p>
+          <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
+          <div className="game-end-actions">
+            <button type="button" onClick={onReturnToLobby}>
+              ルームに戻る
+            </button>
+            <button type="button" className="secondary" onClick={onLeave}>
+              ルームを退出
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const pairable = countPairs(view.myHand);
   const cardTargetPlayerId = getCardTargetPlayerId(view);
   const remoteOnMe = view.remoteSelection?.targetPlayerId === playerId;
 
@@ -309,249 +341,246 @@ export function GameScreen({
   };
 
   return (
-    <div className="game">
-      {roomChrome}
-      <div className="game-status">
-        <span className="room-code">{room.code}</span>
-        <span>{PHASE_LABELS[view.phase]}</span>
-        {current && <span>手番: {current.name}</span>}
-        {view.nomikaiBlocked && <span className="badge">飲み会デバフ</span>}
-        {view.phase === "play" && view.pairsRemainingThisTurn > 0 && (
-          <span>残りペア: {view.pairsRemainingThisTurn}</span>
-        )}
-        <DeadlineCountdown deadlineAt={view.deadlineAt} />
-        <CardEffectsButton className="game-status__effects-btn" />
-      </div>
+    <div className="game-shell">
+      {gameMenu}
 
-      {seatOrder}
-
-      {view.cpuStatus && (
-        <div className={`cpu-banner cpu-banner--${view.cpuStatus.step}`}>
-          {view.cpuStatus.message}
-        </div>
-      )}
-
-      {view.lastPlay && (
-        <div className="field-cards">
-          <p className="field-cards__label">場に出た（{view.lastPlay.actorName}）</p>
-          <div className="field-cards__pair">
-            <PlayingCard cardType={view.lastPlay.cardType} />
-            <PlayingCard cardType={view.lastPlay.cardType} />
-          </div>
-          <p className="field-cards__effect">
-            <strong>{CARD_LABELS[view.lastPlay.cardType]}</strong>
-            {" — "}
-            {CARD_EFFECTS[view.lastPlay.cardType]}
-          </p>
-        </div>
-      )}
-
-      {remoteOnMe && view.remoteSelection && (
-        <p className="being-targeted">
-          {view.remoteSelection.actorName}が
-          {view.remoteSelection.mode === "selected"
-            ? "あなたのカードを選択中"
-            : "あなたのカードにカーソルを合わせています"}
-        </p>
-      )}
-
-      {anyoneDrawing && (
-        <div className={`draw-zone ${isDrawPhase ? "draw-zone--active" : "draw-zone--waiting"}`}>
-          {isDrawPhase && myDrawableCards.length > 0 ? (
-            <>
-              <p className="draw-zone__title">{drawSourceName}の手札から1枚引く</p>
-              <p className="draw-zone__hint">タップで選択 → もう一度タップで引く</p>
-              <CardFan className="card-fan--draw">
-                {myDrawableCards.map((c, i) => (
-                  <PlayingCard
-                    key={c.id}
-                    faceDown
-                    size="lg"
-                    index={i}
-                    total={myDrawableCards.length}
-                    selectable
-                    selected={selectedCardId === c.id}
-                    confirmReady={selectedCardId === c.id}
-                    onHoverStart={() => sendCardPreview(c.id, "hover")}
-                    onHoverEnd={() => sendCardPreview(null, "clear")}
-                    onClick={() => handleDrawPick(c.id)}
-                  />
-                ))}
-              </CardFan>
-            </>
-          ) : (
-            <p className="draw-zone__waiting">
-              {current?.name}が{drawSourceName}からカードを引いています…
-            </p>
+      <header className="game-topbar">
+        <div className="game-topbar__info">
+          <span className="game-topbar__code">{room.code}</span>
+          <span className="game-topbar__phase">{PHASE_LABELS[view.phase]}</span>
+          {current && <span className="game-topbar__turn">手番: {current.name}</span>}
+          {view.nomikaiBlocked && <span className="badge">飲み会</span>}
+          {view.phase === "play" && view.pairsRemainingThisTurn > 0 && (
+            <span className="game-topbar__pairs">ペア×{view.pairsRemainingThisTurn}</span>
           )}
+          <DeadlineCountdown deadlineAt={view.deadlineAt} />
         </div>
-      )}
+        {room.cpuWaitingAdvance && (
+          <button type="button" className="game-topbar__advance" onClick={onAdvanceCpu}>
+            ▶
+          </button>
+        )}
+        <GameMenuButton onClick={() => setMenuOpen(true)} />
+      </header>
 
-      <div className={`opponents ${anyoneDrawing ? "opponents--compact" : ""}`}>
-        {view.seats
-          .filter((s) => s.playerId !== playerId)
-          .map((s) => (
-            <Opponent
-              key={s.playerId}
-              seat={s}
-              isCurrent={s.playerId === view.currentPlayerId}
-              isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
-              compact={anyoneDrawing}
-              isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
-              remoteTarget={
-                view.remoteSelection?.targetPlayerId === s.playerId &&
-                view.remoteSelection.actorId !== playerId
-              }
-              remoteTargetSelected={
-                view.remoteSelection?.targetPlayerId === s.playerId &&
-                view.remoteSelection.mode === "selected"
-              }
-            />
-          ))}
-      </div>
-
-      {view.revealedCard && !view.lastRoukiReveal && (
-        <p className="notice">
-          公開: {CARD_LABELS[view.revealedCard.type]}（
-          {nameOf(view.seats, view.revealedCard.ownerId)}）
-        </p>
-      )}
-
-      <RoukiRevealOverlay reveal={view.lastRoukiReveal} />
-
-      {Object.keys(view.meetingDeclarations).length > 0 && (
-        <p className="notice">
-          会議宣言:{" "}
-          {Object.entries(view.meetingDeclarations)
-            .map(([id]) => `${nameOf(view.seats, id)}「持っています」`)
-            .join("、")}
-        </p>
-      )}
-
-      {view.peekedCards.length > 0 && view.pending?.type === "romance_view" && (
-        <div className="peek romance-peek">
-          <div className="romance-peek__header">
-            <p className="romance-peek__title">
-              社内恋愛 — {nameOf(view.seats, view.pending.sourcePlayerId ?? "")}の手札
-            </p>
-            <DeadlineCountdown deadlineAt={view.deadlineAt} />
-          </div>
-          <CardFan>
-            {view.peekedCards.map((c, i) => (
-              <PlayingCard key={c.id} cardType={c.type} index={i} total={view.peekedCards.length} />
-            ))}
-          </CardFan>
-        </div>
-      )}
-
-      {view.peekedCards.length > 0 && view.pending?.type !== "romance_view" && (
-        <div className="peek">
-          <p>見えたカード:</p>
-          <CardFan>
-            {view.peekedCards.map((c, i) => (
-              <PlayingCard key={c.id} cardType={c.type} index={i} total={view.peekedCards.length} />
-            ))}
-          </CardFan>
-        </div>
-      )}
-
-      <PendingActions
-        view={view}
-        pairable={pairable}
-        selectedCardId={selectedCardId}
-        selectedPairType={selectedPairType}
-        selectedTargetId={selectedTargetId}
-        onSelectCardId={setSelectedCardId}
-        onSelectPairType={setSelectedPairType}
-        onSelectTargetId={setSelectedTargetId}
-        onPlayPair={onPlayPair}
-        onSkipPlay={onSkipPlay}
-        onSelectTarget={onSelectTarget}
-        onSelectCard={onSelectCard}
-        onTrainingTake={onTrainingTake}
-        sendCardPreview={sendCardPreview}
-        sendTargetPreview={sendTargetPreview}
-      />
-
-      <div className="my-hand">
-        <p>
-          あなたの手札（{me?.handCount ?? 0}枚）
-          {me?.status === "retired" && " — 退社済み"}
-          {handPickMode === "play_or_skip" && " — ペアをタップして選択"}
-          {handPickMode === "info_share" && " — タップで選択 → もう一度で渡す"}
-          {handPickMode === "trade" && " — タップで選択 → もう一度で交換"}
-          {handPickMode === "pawahara_give" && " — タップで選択 → もう一度で渡す"}
-          {!handPickMode && view.myHand.length > 0 && " — タップで効果を表示"}
-        </p>
-        {inspectedHandCardType && (
-          <div className="hand-card-effect">
-            <CardEffectText cardType={inspectedHandCardType} />
-            <p className="hand-card-effect__note">ペアを場に出したときの効果</p>
+      <div className="game-main">
+        {view.cpuStatus && (
+          <div className={`cpu-banner cpu-banner--${view.cpuStatus.step}`}>
+            {view.cpuStatus.message}
           </div>
         )}
-        {view.myHand.length > 0 ? (
-          <CardFan>
-            {view.myHand.map((c, i) => {
-              const remote = cardRemoteState(c.id);
-              const selected = isMyCardSelected(c);
-              return (
+
+        {view.lastPlay && (
+          <CollapsibleSection
+            title={`場: ${CARD_LABELS[view.lastPlay.cardType]}（${view.lastPlay.actorName}）`}
+          >
+            <div className="field-cards field-cards--compact">
+              <div className="field-cards__pair">
+                <PlayingCard cardType={view.lastPlay.cardType} />
+                <PlayingCard cardType={view.lastPlay.cardType} />
+              </div>
+              <p className="field-cards__effect">
+                <strong>{CARD_LABELS[view.lastPlay.cardType]}</strong>
+                {" — "}
+                {CARD_EFFECTS[view.lastPlay.cardType]}
+              </p>
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {remoteOnMe && view.remoteSelection && (
+          <p className="being-targeted">
+            {view.remoteSelection.actorName}が
+            {view.remoteSelection.mode === "selected"
+              ? "あなたのカードを選択中"
+              : "あなたのカードにカーソルを合わせています"}
+          </p>
+        )}
+
+        {anyoneDrawing && (
+          <div className={`draw-zone ${isDrawPhase ? "draw-zone--active" : "draw-zone--waiting"}`}>
+            {isDrawPhase && myDrawableCards.length > 0 ? (
+              <>
+                <p className="draw-zone__title">{drawSourceName}の手札から1枚引く</p>
+                <p className="draw-zone__hint">タップで選択 → もう一度タップで引く</p>
+                <CardFan className="card-fan--draw">
+                  {myDrawableCards.map((c, i) => (
+                    <PlayingCard
+                      key={c.id}
+                      faceDown
+                      size="lg"
+                      index={i}
+                      total={myDrawableCards.length}
+                      selectable
+                      selected={selectedCardId === c.id}
+                      confirmReady={selectedCardId === c.id}
+                      onHoverStart={() => sendCardPreview(c.id, "hover")}
+                      onHoverEnd={() => sendCardPreview(null, "clear")}
+                      onClick={() => handleDrawPick(c.id)}
+                    />
+                  ))}
+                </CardFan>
+              </>
+            ) : (
+              <p className="draw-zone__waiting">
+                {current?.name}が{drawSourceName}からカードを引いています…
+              </p>
+            )}
+          </div>
+        )}
+
+        <PendingActions
+          view={view}
+          pairable={pairable}
+          selectedCardId={selectedCardId}
+          selectedPairType={selectedPairType}
+          selectedTargetId={selectedTargetId}
+          onSelectCardId={setSelectedCardId}
+          onSelectPairType={setSelectedPairType}
+          onSelectTargetId={setSelectedTargetId}
+          onPlayPair={onPlayPair}
+          onSkipPlay={onSkipPlay}
+          onSelectTarget={onSelectTarget}
+          onSelectCard={onSelectCard}
+          onTrainingTake={onTrainingTake}
+          sendCardPreview={sendCardPreview}
+          sendTargetPreview={sendTargetPreview}
+        />
+
+        <div className={`opponents ${anyoneDrawing ? "opponents--compact" : ""}`}>
+          {view.seats
+            .filter((s) => s.playerId !== playerId)
+            .map((s) => (
+              <Opponent
+                key={s.playerId}
+                seat={s}
+                isCurrent={s.playerId === view.currentPlayerId}
+                isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
+                compact={anyoneDrawing}
+                isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
+                remoteTarget={
+                  view.remoteSelection?.targetPlayerId === s.playerId &&
+                  view.remoteSelection.actorId !== playerId
+                }
+                remoteTargetSelected={
+                  view.remoteSelection?.targetPlayerId === s.playerId &&
+                  view.remoteSelection.mode === "selected"
+                }
+              />
+            ))}
+        </div>
+
+        {view.revealedCard && !view.lastRoukiReveal && (
+          <p className="notice">
+            公開: {CARD_LABELS[view.revealedCard.type]}（
+            {nameOf(view.seats, view.revealedCard.ownerId)}）
+          </p>
+        )}
+
+        <RoukiRevealOverlay reveal={view.lastRoukiReveal} />
+
+        {Object.keys(view.meetingDeclarations).length > 0 && (
+          <p className="notice">
+            会議宣言:{" "}
+            {Object.entries(view.meetingDeclarations)
+              .map(([id]) => `${nameOf(view.seats, id)}「持っています」`)
+              .join("、")}
+          </p>
+        )}
+
+        {view.peekedCards.length > 0 && view.pending?.type === "romance_view" && (
+          <div className="peek romance-peek">
+            <div className="romance-peek__header">
+              <p className="romance-peek__title">
+                社内恋愛 — {nameOf(view.seats, view.pending.sourcePlayerId ?? "")}の手札
+              </p>
+              <DeadlineCountdown deadlineAt={view.deadlineAt} />
+            </div>
+            <CardFan>
+              {view.peekedCards.map((c, i) => (
                 <PlayingCard
                   key={c.id}
                   cardType={c.type}
                   index={i}
-                  total={view.myHand.length}
-                  selectable={
-                    handPickMode === "info_share" ||
-                    handPickMode === "trade" ||
-                    handPickMode === "pawahara_give" ||
-                    (handPickMode === "play_or_skip" && pairable.includes(c.type))
-                  }
-                  selected={selected}
-                  inspected={!selected && focusedHandCardId === c.id}
-                  confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
-                  remoteHover={remote.remoteHover}
-                  remoteSelected={remote.remoteSelected}
-                  onHoverStart={
-                    handPickMode && view.canAct ? () => sendCardPreview(c.id, "hover") : undefined
-                  }
-                  onHoverEnd={
-                    handPickMode && view.canAct ? () => sendCardPreview(null, "clear") : undefined
-                  }
-                  onClick={() => handleHandCardTap(c)}
+                  total={view.peekedCards.length}
                 />
-              );
-            })}
-          </CardFan>
-        ) : (
-          <p className="status">手札なし</p>
+              ))}
+            </CardFan>
+          </div>
+        )}
+
+        {view.peekedCards.length > 0 && view.pending?.type !== "romance_view" && (
+          <div className="peek">
+            <p>見えたカード:</p>
+            <CardFan>
+              {view.peekedCards.map((c, i) => (
+                <PlayingCard
+                  key={c.id}
+                  cardType={c.type}
+                  index={i}
+                  total={view.peekedCards.length}
+                />
+              ))}
+            </CardFan>
+          </div>
         )}
       </div>
 
-      {view.discardTypes.length > 0 && (
-        <p className="status">
-          場の履歴:{" "}
-          {view.discardTypes
-            .slice(-8)
-            .map((t) => CARD_LABELS[t])
-            .join("、")}
-        </p>
-      )}
-
-      {view.activityLog.length > 0 && (
-        <div className="activity-log" ref={activityLogRef}>
-          <p className="activity-log-title">ログ</p>
-          <ul>
-            {view.activityLog.map((entry) => (
-              <li key={entry.id}>
-                {entry.cardType && (
-                  <span className="card-chip small">{CARD_LABELS[entry.cardType]}</span>
-                )}
-                {entry.message}
-              </li>
-            ))}
-          </ul>
+      <div className="game-hand-dock">
+        <div className="my-hand">
+          <p className="my-hand__label">
+            あなたの手札（{me?.handCount ?? 0}枚）
+            {me?.status === "retired" && " — 退社済み"}
+            {handPickMode === "play_or_skip" && " — ペアをタップして選択"}
+            {handPickMode === "info_share" && " — タップで選択 → もう一度で渡す"}
+            {handPickMode === "trade" && " — タップで選択 → もう一度で交換"}
+            {handPickMode === "pawahara_give" && " — タップで選択 → もう一度で渡す"}
+            {!handPickMode && view.myHand.length > 0 && " — タップで効果を表示"}
+          </p>
+          {inspectedHandCardType && (
+            <CollapsibleSection title={`効果: ${CARD_LABELS[inspectedHandCardType]}`} defaultOpen>
+              <CardEffectText cardType={inspectedHandCardType} />
+              <p className="hand-card-effect__note">ペアを場に出したときの効果</p>
+            </CollapsibleSection>
+          )}
+          {view.myHand.length > 0 ? (
+            <CardFan>
+              {view.myHand.map((c, i) => {
+                const remote = cardRemoteState(c.id);
+                const selected = isMyCardSelected(c);
+                return (
+                  <PlayingCard
+                    key={c.id}
+                    cardType={c.type}
+                    index={i}
+                    total={view.myHand.length}
+                    selectable={
+                      handPickMode === "info_share" ||
+                      handPickMode === "trade" ||
+                      handPickMode === "pawahara_give" ||
+                      (handPickMode === "play_or_skip" && pairable.includes(c.type))
+                    }
+                    selected={selected}
+                    inspected={!selected && focusedHandCardId === c.id}
+                    confirmReady={selectedCardId === c.id && handPickMode !== "play_or_skip"}
+                    remoteHover={remote.remoteHover}
+                    remoteSelected={remote.remoteSelected}
+                    onHoverStart={
+                      handPickMode && view.canAct ? () => sendCardPreview(c.id, "hover") : undefined
+                    }
+                    onHoverEnd={
+                      handPickMode && view.canAct ? () => sendCardPreview(null, "clear") : undefined
+                    }
+                    onClick={() => handleHandCardTap(c)}
+                  />
+                );
+              })}
+            </CardFan>
+          ) : (
+            <p className="status">手札なし</p>
+          )}
         </div>
-      )}
+      </div>
 
       {transferFx && transferFx.fromPlayerId === playerId && transferFx.cardType && (
         <div className="card-transfer-fx card-transfer-fx--out">
@@ -565,6 +594,30 @@ export function GameScreen({
           <span className="card-transfer-fx__label">カードをもらった</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function ActivityLogList({ entries }: { entries: GameView["activityLog"] }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [entries.length, entries[entries.length - 1]?.id]);
+
+  return (
+    <div className="activity-log activity-log--menu" ref={ref}>
+      <ul>
+        {entries.map((entry) => (
+          <li key={entry.id}>
+            {entry.cardType && (
+              <span className="card-chip small">{CARD_LABELS[entry.cardType]}</span>
+            )}
+            {entry.message}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

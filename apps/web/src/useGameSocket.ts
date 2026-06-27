@@ -66,6 +66,9 @@ export function useGameSocket() {
           break;
         case "room_updated":
           setRoom(data.room);
+          if (!data.room.started) {
+            setGameView(null);
+          }
           break;
         case "room_left":
           clearSession();
@@ -197,6 +200,10 @@ export function useGameSocket() {
     send({ type: "leave_room" });
   }, [send]);
 
+  const returnToLobby = useCallback(() => {
+    send({ type: "return_to_lobby" });
+  }, [send]);
+
   const cycleCpuSpeed = useCallback(() => {
     send({ type: "cycle_cpu_speed" });
   }, [send]);
@@ -221,6 +228,7 @@ export function useGameSocket() {
     createRoom,
     joinRoom,
     leaveRoom,
+    returnToLobby,
     cycleCpuSpeed,
     advanceCpu,
     goHome,
