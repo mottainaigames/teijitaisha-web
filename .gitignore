@@ -9,3 +9,8 @@ dist
 .DS_Store
 .fly
 apps/server/.env
+
+# ローカル専用（公開リポジトリに含めない）
+notes/
+drafts/
+.cursor/

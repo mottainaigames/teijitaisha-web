@@ -1,7 +1,7 @@
-# 定時退社 Web版 — 技術・構成まとめ
+# 定時退社 Web版 — 技術ドキュメント
 
-> note などで「どう作ったか」を書くときのたたき台。  
-> ゲームルール本体は [RULES_RECOGNITION.md](./RULES_RECOGNITION.md)、状態設計は [STATE_DIAGRAM.md](./STATE_DIAGRAM.md) を参照。
+本リポジトリのアーキテクチャ・通信プロトコル・デプロイ構成の概要です。  
+ゲームルールの整理は [RULES_RECOGNITION.md](./RULES_RECOGNITION.md)、状態設計は [STATE_DIAGRAM.md](./STATE_DIAGRAM.md) を参照してください。
 
 ---
 
@@ -280,15 +280,13 @@ pnpm build         # shared → server → web
 
 ---
 
-## 13. note に書くときのストーリー例
+## 13. 設計上のポイント
 
-1. **きっかけ** — ボードゲーム「定時退社」を離れていても遊びたい
-2. **アーキテクチャ選定** — リアルタイム同期が必要なので WebSocket + サーバー権威
-3. **モノレポ** — 型とルールの一部を `shared` に寄せてフロント/サーバーのズレを防ぐ
-4. **ゲームエンジン** — 状態機械でフェーズ管理（STATE_DIAGRAM 参照）
-5. **UX** — 再接続・オブザーバー・ロビー座席編集・スマホ向け UI
-6. **インフラ** — 静的フロントは Pages、常時接続 API は Fly.io
-7. **学び / 今後** — テストの重要性、48 人対応のバランスなど
+- **サーバー権威** — ルール判定と状態遷移は `GameEngine` に集約し、クライアントは `GameView` の描画に専念
+- **モノレポ + shared** — WebSocket の型・配布ロジック・定数を共有し、フロントとサーバーの不整合を防ぐ
+- **フェーズ駆動** — ターン・効果・終了条件を状態機械で管理（[STATE_DIAGRAM.md](./STATE_DIAGRAM.md)）
+- **リアルタイム同期** — WebSocket でルーム単位にブロードキャスト。切断時は `sessionToken` で復帰
+- **インフラ分離** — 静的フロント（Cloudflare Pages）と常時接続 API（Fly.io）を環境変数で接続
 
 ---
 
@@ -297,7 +295,7 @@ pnpm build         # shared → server → web
 | ファイル | 内容 |
 |----------|------|
 | [README.md](./README.md) | クイックスタート |
-| [RULES_RECOGNITION.md](./RULES_RECOGNITION.md) | ゲームルール（実装の正） |
+| [RULES_RECOGNITION.md](./RULES_RECOGNITION.md) | ゲームルール（実装ベースの整理） |
 | [STATE_DIAGRAM.md](./STATE_DIAGRAM.md) | 状態遷移・EffectResolver 設計 |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | デプロイ方針概要 |
 | [DEPLOY_STAGING.md](./DEPLOY_STAGING.md) | Staging 初回・CI 設定 |
@@ -305,4 +303,4 @@ pnpm build         # shared → server → web
 
 ---
 
-*最終更新: リポジトリの現行実装に基づく。機能追加時はこのファイルも随時更新してください。*
+*機能追加時は本ドキュメントも合わせて更新してください。*

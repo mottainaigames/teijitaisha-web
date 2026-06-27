@@ -42,8 +42,8 @@ pnpm dev:web
 
 ## ドキュメント
 
-- [TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md) — 技術スタック・構成・仕組み（note 用たたき台）
-- [RULES_RECOGNITION.md](./RULES_RECOGNITION.md) — ゲームルール
+- [TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md) — 技術スタック・アーキテクチャ
+- [RULES_RECOGNITION.md](./RULES_RECOGNITION.md) — ゲームルール（実装ベース）
 - [STATE_DIAGRAM.md](./STATE_DIAGRAM.md) — 状態遷移
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — デプロイ方針
 
@@ -59,3 +59,7 @@ pnpm dev:web
 chmod +x scripts/deploy-staging.sh
 ./scripts/deploy-staging.sh
 ```
+
+## ローカルメモ
+
+`notes/` と `drafts/` は `.gitignore` 済みです。公開しない下書きや個人メモはリポジトリ外ではなく、これらのフォルダに置いてください。
