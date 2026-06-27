@@ -598,7 +598,21 @@ export class GameEngine {
 
   private canPlayerAct(forPlayerId: PlayerId): boolean {
     if (!this.pending || this.pending.type === "romance_view") return false;
-    return this.pending.playerIds.includes(forPlayerId);
+    if (!this.pending.playerIds.includes(forPlayerId)) return false;
+
+    const currentId = this.seats[this.currentSeatIndex] ?? null;
+    switch (this.pending.type) {
+      case "draw":
+      case "play_or_skip":
+        return forPlayerId === currentId;
+      case "select_target":
+      case "select_card":
+      case "training_peek":
+      case "training_take":
+        return forPlayerId === this.pending.effectUserId;
+      default:
+        return true;
+    }
   }
 
   canReorderHand(playerId: PlayerId): boolean {
@@ -879,6 +893,7 @@ export class GameEngine {
   private resolvePlayPair(playerId: PlayerId, cardType: CardType): string | null {
     if (!this.pending || this.pending.type !== "play_or_skip") return "不正な操作です";
     if (playerId !== this.pending.playerIds[0]) return "あなたの番ではありません";
+    if (this.pairsRemainingThisTurn <= 0) return "このターンはこれ以上ペアを出せません";
     const player = this.players.get(playerId)!;
     if (!getPairableTypes(player.hand).includes(cardType)) {
       return "そのペアは出せません";
@@ -1003,11 +1018,8 @@ export class GameEngine {
   private beginTargetSelection(userId: PlayerId, cardType: CardType): void {
     const targets = this.getValidTargets(userId, cardType);
     if (targets.length === 0) {
+      this.log(`${CARD_LABELS[cardType]}: 有効な対象がいないため効果をスキップ`, cardType);
       this.afterEffectResolved();
-      return;
-    }
-    if (targets.length === 1) {
-      this.resolveSelectTarget(userId, targets[0]!);
       return;
     }
     this.pending = {
@@ -1017,14 +1029,27 @@ export class GameEngine {
       effectCard: cardType,
       effectUserId: userId,
     };
+    if (targets.length === 1) {
+      this.resolveSelectTarget(userId, targets[0]!);
+    }
   }
 
-  private getValidTargets(userId: PlayerId, _cardType: CardType): PlayerId[] {
-    return this.activePlayerIds().filter((id) => id !== userId);
+  private getValidTargets(userId: PlayerId, cardType: CardType): PlayerId[] {
+    const others = this.activePlayerIds().filter((id) => id !== userId);
+    switch (cardType) {
+      case "shinjin_kyouiku":
+      case "rouki":
+      case "pawahara":
+      case "torihiki":
+        return others.filter((id) => (this.players.get(id)?.hand.length ?? 0) > 0);
+      default:
+        return others;
+    }
   }
 
   private resolveSelectTarget(userId: PlayerId, targetId: PlayerId): string | null {
-    if (!this.pending || this.pending.effectUserId !== userId) return "不正な操作です";
+    if (!this.pending || this.pending.type !== "select_target") return "不正な操作です";
+    if (this.pending.effectUserId !== userId) return "あなたの番ではありません";
     const cardType = this.pending.effectCard ?? this.effectCard;
     if (!cardType) return "効果がありません";
     if (!this.getValidTargets(userId, cardType).includes(targetId)) {

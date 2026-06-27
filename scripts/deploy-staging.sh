@@ -6,6 +6,9 @@ cd "$(dirname "$0")/.."
 export VITE_WS_URL="${VITE_WS_URL:-wss://api.teijitaisha-web-staging.mottainaigames.com}"
 export VITE_ENV="${VITE_ENV:-staging}"
 
+echo "==> Sync card icons"
+pnpm icons:sync
+
 echo "==> Build"
 corepack enable 2>/dev/null || true
 pnpm install

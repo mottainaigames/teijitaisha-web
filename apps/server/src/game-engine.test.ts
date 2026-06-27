@@ -176,6 +176,73 @@ describe("GameEngine", () => {
     expect(engine.pending?.type).not.toBe("training_take");
   });
 
+  it("2人戦: 新人教育は唯一の相手を自動選択して training_peek に進む", () => {
+    const engine = new GameEngine(
+      [
+        { id: "p1", name: "1番" },
+        { id: "p2", name: "2番" },
+      ],
+      () => 0,
+      { seats: ["p1", "p2"], firstSeatIndex: 0 },
+    );
+    expect(engine.start()).toBeNull();
+
+    engine.players.get("p1")!.hand = [
+      { id: "s1", type: "shinjin_kyouiku" },
+      { id: "s2", type: "shinjin_kyouiku" },
+      { id: "x1", type: "norma" },
+    ];
+    engine.players.get("p2")!.hand = [
+      { id: "t1", type: "norma" },
+      { id: "t2", type: "rouki" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.handleAction("p1", { type: "play_pair", cardType: "shinjin_kyouiku" })).toBeNull();
+    expect(engine.pending?.type).toBe("training_peek");
+    expect(engine.pending?.targetId).toBe("p2");
+    expect(engine.pending?.type).not.toBe("play_or_skip");
+  });
+
+  it("対象選択が1人のとき play_or_skip のまま残らない（取引）", () => {
+    const engine = new GameEngine(
+      [
+        { id: "p1", name: "1番" },
+        { id: "p2", name: "2番" },
+      ],
+      () => 0,
+      { seats: ["p1", "p2"], firstSeatIndex: 0 },
+    );
+    expect(engine.start()).toBeNull();
+
+    engine.players.get("p1")!.hand = [
+      { id: "t1", type: "torihiki" },
+      { id: "t2", type: "torihiki" },
+    ];
+    engine.players.get("p2")!.hand = [{ id: "o1", type: "norma" }];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.handleAction("p1", { type: "play_pair", cardType: "torihiki" })).toBeNull();
+    expect(engine.pending?.type).toBe("trade");
+    expect(engine.pending?.playerIds.sort()).toEqual(["p1", "p2"]);
+  });
+
   it("労基: 公開カードが lastRoukiReveal に記録される", () => {
     const engine = createStartedEngine();
     const actor = engine.players.get("p1")!;

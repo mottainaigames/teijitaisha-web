@@ -1,4 +1,7 @@
 import type { CardType } from "@teijitaisha/shared";
+import { ICON_VERSION } from "./icon-version.js";
+
+const iconUrl = (file: string) => `/cards/icons/${file}?v=${ICON_VERSION}`;
 
 /** カード種別ごとの背景・文字色（帯なし・視認性重視） */
 export interface CardTheme {
@@ -23,18 +26,18 @@ export const CARD_THEMES: Record<CardType, CardTheme> = {
 };
 
 export const CARD_ICON_URLS: Record<CardType, string> = {
-  norma: "/cards/icons/norma.png",
-  rouki: "/cards/icons/rouki.png",
-  nomikai: "/cards/icons/nomikai.png",
-  shanai_renai: "/cards/icons/shanai_renai.png",
-  shinjin_kyouiku: "/cards/icons/shinjin_kyouiku.png",
-  jouhou_kyouyu: "/cards/icons/jouhou_kyouyu.png",
-  torihiki: "/cards/icons/torihiki.png",
-  enadori: "/cards/icons/enadori.png",
-  kaigi: "/cards/icons/kaigi.png",
-  pawahara: "/cards/icons/pawahara.png",
-  tabako_kyuukei: "/cards/icons/tabako_kyuukei.png",
-  zangyo: "/cards/icons/zangyo.png",
+  norma: iconUrl("norma.png"),
+  rouki: iconUrl("rouki.png"),
+  nomikai: iconUrl("nomikai.png"),
+  shanai_renai: iconUrl("shanai_renai.png"),
+  shinjin_kyouiku: iconUrl("shinjin_kyouiku.png"),
+  jouhou_kyouyu: iconUrl("jouhou_kyouyu.png"),
+  torihiki: iconUrl("torihiki.png"),
+  enadori: iconUrl("enadori.png"),
+  kaigi: iconUrl("kaigi.png"),
+  pawahara: iconUrl("pawahara.png"),
+  tabako_kyuukei: iconUrl("tabako_kyuukei.png"),
+  zangyo: iconUrl("zangyo.png"),
 };
 
-export const CARD_BACK_URL = "/cards/back.png";
+export const CARD_BACK_URL = `/cards/back.png?v=${ICON_VERSION}`;
