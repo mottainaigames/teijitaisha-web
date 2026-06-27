@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { IDLE_TIMEOUT_MS } from "@teijitaisha/shared";
+import { IDLE_TIMEOUT_MS, type CardInstance, type CardType } from "@teijitaisha/shared";
 import { GameEngine } from "./game-engine.js";
 import { THREE_PLAYERS } from "./test-utils.js";
 
@@ -25,6 +25,23 @@ function drawAndSkip(engine: GameEngine, drawerId: string, sourceId: string) {
   if (engine.pending?.type === "play_or_skip") {
     expect(engine.handleAction(drawerId, { type: "skip_play" })).toBeNull();
   }
+}
+
+function setupPlayPhase(engine: GameEngine, playerId: string, hand: CardInstance[]) {
+  engine.players.get(playerId)!.hand = hand;
+  engine.phase = "play";
+  engine.pairsRemainingThisTurn = 1;
+  engine.pending = {
+    type: "play_or_skip",
+    playerIds: [playerId],
+    deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+    effectCard: null,
+    effectUserId: null,
+  };
+}
+
+function playPair(engine: GameEngine, playerId: string, cardType: CardType) {
+  expect(engine.handleAction(playerId, { type: "play_pair", cardType })).toBeNull();
 }
 
 describe("GameEngine", () => {
@@ -305,6 +322,127 @@ describe("GameEngine", () => {
     expect(actor.status).toBe("retired");
     expect(engine.pending?.type).not.toBe("trade");
     expect(engine.pending?.type).not.toBe("select_target");
+  });
+
+  describe("手札2枚でのペア出し（全カード効果）", () => {
+    it("ノルマ: 退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      setupPlayPhase(engine, "p1", [
+        { id: "n1", type: "norma" },
+        { id: "n2", type: "norma" },
+      ]);
+      playPair(engine, "p1", "norma");
+      expect(actor.status).toBe("retired");
+      expect(actor.hand).toHaveLength(0);
+    });
+
+    it("飲み会: 退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      setupPlayPhase(engine, "p1", [
+        { id: "nm1", type: "nomikai" },
+        { id: "nm2", type: "nomikai" },
+      ]);
+      playPair(engine, "p1", "nomikai");
+      expect(actor.status).toBe("retired");
+      expect(engine.nomikaiBlockedPlayerId).toBe("p2");
+    });
+
+    it("タバコ休憩: 退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      engine.players.get("p2")!.hand.push({ id: "tb2", type: "tabako_kyuukei" });
+      setupPlayPhase(engine, "p1", [
+        { id: "tb1", type: "tabako_kyuukei" },
+        { id: "tb1b", type: "tabako_kyuukei" },
+      ]);
+      playPair(engine, "p1", "tabako_kyuukei");
+      expect(actor.status).toBe("retired");
+      expect(engine.discardTypes.filter((t) => t === "tabako_kyuukei").length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("会議: 退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      engine.players.get("p3")!.hand.push({ id: "z1", type: "zangyo" });
+      setupPlayPhase(engine, "p1", [
+        { id: "k1", type: "kaigi" },
+        { id: "k2", type: "kaigi" },
+      ]);
+      playPair(engine, "p1", "kaigi");
+      expect(actor.status).toBe("retired");
+      expect(engine.meetingDeclarations["p3"]).toBe(true);
+    });
+
+    it("社内恋愛: 確認後に退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      engine.players.get("p2")!.hand = [
+        { id: "p2a", type: "norma" },
+        { id: "p2b", type: "rouki" },
+      ];
+      setupPlayPhase(engine, "p1", [
+        { id: "sr1", type: "shanai_renai" },
+        { id: "sr2", type: "shanai_renai" },
+      ]);
+      playPair(engine, "p1", "shanai_renai");
+      expect(engine.pending?.type).toBe("select_target");
+      expect(engine.handleAction("p1", { type: "select_target", targetId: "p2" })).toBeNull();
+      expect(engine.pending?.type).toBe("romance_view");
+      expect(engine.handleAction("p1", { type: "romance_skip" })).toBeNull();
+      expect(engine.handleAction("p2", { type: "romance_skip" })).toBeNull();
+      expect(actor.status).toBe("retired");
+      expect(actor.hand).toHaveLength(0);
+    });
+
+    it("労基: 公開後に退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      engine.players.get("p2")!.hand = [{ id: "n1", type: "norma" }];
+      setupPlayPhase(engine, "p1", [
+        { id: "rk1", type: "rouki" },
+        { id: "rk2", type: "rouki" },
+      ]);
+      playPair(engine, "p1", "rouki");
+      expect(engine.pending?.type).toBe("select_target");
+      expect(engine.handleAction("p1", { type: "select_target", targetId: "p2" })).toBeNull();
+      expect(engine.pending?.type).toBe("select_card");
+      expect(engine.handleAction("p1", { type: "select_card", cardId: "n1" })).toBeNull();
+      expect(actor.status).toBe("retired");
+      expect(engine.players.get("p2")!.hand).toHaveLength(1);
+    });
+
+    it("労基: 残業摘発で終了する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      engine.players.get("p2")!.hand = [{ id: "z1", type: "zangyo" }];
+      setupPlayPhase(engine, "p1", [
+        { id: "rk1", type: "rouki" },
+        { id: "rk2", type: "rouki" },
+      ]);
+      playPair(engine, "p1", "rouki");
+      expect(engine.handleAction("p1", { type: "select_target", targetId: "p2" })).toBeNull();
+      expect(engine.handleAction("p1", { type: "select_card", cardId: "z1" })).toBeNull();
+      expect(engine.phase).toBe("game_end");
+      expect(engine.result?.reason).toBe("rouki");
+      expect(engine.result?.winnerIds).toEqual(["p1"]);
+      expect(actor.status).toBe("active");
+    });
+
+    it("労基: 対象がいなければ退社する", () => {
+      const engine = createStartedEngine();
+      const actor = engine.players.get("p1")!;
+      engine.players.get("p2")!.hand = [];
+      engine.players.get("p3")!.hand = [];
+      setupPlayPhase(engine, "p1", [
+        { id: "rk1", type: "rouki" },
+        { id: "rk2", type: "rouki" },
+      ]);
+      playPair(engine, "p1", "rouki");
+      expect(actor.status).toBe("retired");
+      expect(engine.pending?.type).not.toBe("select_target");
+    });
   });
 
   it("2人戦: 新人教育は唯一の相手を自動選択して training_peek に進む", () => {
