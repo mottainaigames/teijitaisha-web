@@ -31,13 +31,16 @@ export function GameMenu({
   const [effectsOpen, setEffectsOpen] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setEffectsOpen(false);
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !effectsOpen) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, effectsOpen]);
 
   return (
     <>
