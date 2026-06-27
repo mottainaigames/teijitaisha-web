@@ -29,10 +29,12 @@ export function GameMenu({
   children,
 }: Props) {
   const [effectsOpen, setEffectsOpen] = useState(false);
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setEffectsOpen(false);
+      setLeaveConfirm(false);
       return;
     }
     const onKey = (e: KeyboardEvent) => {
@@ -72,10 +74,30 @@ export function GameMenu({
               <button type="button" className="secondary" onClick={() => setEffectsOpen(true)}>
                 カード効果一覧
               </button>
-              {showLeave && (
-                <button type="button" className="secondary game-menu__leave" onClick={onLeave}>
+              {showLeave && !leaveConfirm && (
+                <button type="button" className="game-menu__leave" onClick={() => setLeaveConfirm(true)}>
                   ルームを退出
                 </button>
+              )}
+              {showLeave && leaveConfirm && (
+                <div className="game-menu__leave-confirm" role="group" aria-label="退出の確認">
+                  <p className="game-menu__leave-confirm-text">ルームを退出しますか？</p>
+                  <div className="game-menu__leave-confirm-actions">
+                    <button
+                      type="button"
+                      className="game-menu__leave"
+                      onClick={() => {
+                        onLeave();
+                        onClose();
+                      }}
+                    >
+                      退出する
+                    </button>
+                    <button type="button" className="secondary" onClick={() => setLeaveConfirm(false)}>
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 

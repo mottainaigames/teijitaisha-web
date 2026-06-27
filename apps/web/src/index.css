@@ -804,30 +804,6 @@ body.lobby-seat-order-dragging * {
   color: #94a3b8;
 }
 
-.menu-section {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  overflow: hidden;
-}
-
-.menu-section__title {
-  margin: 0;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #1e293b;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
-}
-
-.menu-section .seat-order {
-  margin: 0;
-  border: none;
-  padding: 0.65rem 0.75rem 0.75rem;
-  background: transparent;
-}
-
 .lobby-screen__members .seat-order {
   margin-bottom: 0;
 }
@@ -3441,6 +3417,7 @@ body.lobby-seat-order-dragging * {
   position: relative;
   width: min(100%, 480px);
   max-height: min(85vh, 640px);
+  min-height: 0;
   background: #fff;
   border-radius: 16px 16px 12px 12px;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
@@ -3497,7 +3474,35 @@ body.lobby-seat-order-dragging * {
 }
 
 .game-menu__leave {
-  color: #b91c1c;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+
+.game-menu__leave:hover {
+  background: #b91c1c;
+}
+
+.game-menu__leave-confirm {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+}
+
+.game-menu__leave-confirm-text {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #991b1b;
+  text-align: center;
+}
+
+.game-menu__leave-confirm-actions {
+  display: grid;
+  gap: 0.4rem;
 }
 
 .game-menu__extra {
@@ -3560,10 +3565,15 @@ body.lobby-seat-order-dragging * {
 }
 
 .game-menu__extra .collapsible__body {
-  max-height: min(45vh, 280px);
+  max-height: min(40vh, 260px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.game-menu__extra .collapsible {
+  min-height: 0;
 }
 
 .collapsible__body .seat-order {
@@ -3571,6 +3581,10 @@ body.lobby-seat-order-dragging * {
   border: none;
   padding: 0;
   background: transparent;
+}
+
+.collapsible__body .seat-order__track {
+  max-height: none;
 }
 
 .field-cards--compact {

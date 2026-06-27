@@ -170,10 +170,9 @@ export function GameScreen({
 
   const menuExtra = (
     <>
-      <section className="menu-section" aria-label="プレイ順">
-        <h3 className="menu-section__title">プレイ順</h3>
+      <CollapsibleSection title="プレイ順" defaultOpen={view.seats.length <= 8}>
         {seatOrder}
-      </section>
+      </CollapsibleSection>
       {view.activityLog.length > 0 && (
         <CollapsibleSection title="ログ" badge={view.activityLog.length}>
           <ActivityLogList entries={view.activityLog} />
