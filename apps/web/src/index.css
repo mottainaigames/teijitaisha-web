@@ -1551,6 +1551,27 @@ button.secondary {
   min-height: 0;
 }
 
+.game-shell--scroll {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.game-screen-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.game-screen-scroll > .card {
+  margin-bottom: 0.5rem;
+}
+
 .screen-header {
   display: flex;
   align-items: flex-start;

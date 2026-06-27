@@ -177,100 +177,104 @@ export function GameScreen({
       playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS;
 
     return (
-      <>
+      <div className="game-shell game-shell--scroll">
         {gameMenu}
-        <div className="card lobby-screen">
-          <div className="screen-header">
-            <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
-            <GameMenuButton onClick={() => setMenuOpen(true)} />
+        <div className="game-screen-scroll">
+          <div className="card lobby-screen">
+            <div className="screen-header">
+              <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
+              <GameMenuButton onClick={() => setMenuOpen(true)} />
+            </div>
+            <p className="room-code">{room.code}</p>
+            <p className="status" style={{ textAlign: "center" }}>
+              このコードを共有してください
+            </p>
+            <p className="status">
+              参加者 {playerCount} / {MAX_PLAYERS}
+              <span className="lobby-screen__recommended">
+                （推奨 {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人）
+              </span>
+            </p>
+            {!recommended && playerCount >= MIN_PLAYERS && (
+              <div className="lobby-warning" role="status">
+                <p className="lobby-warning__title">推奨人数外でプレイします</p>
+                <p className="lobby-warning__body">
+                  ルール上の推奨は {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人です。
+                  {playerCount < RECOMMENDED_MIN_PLAYERS
+                    ? "人数が少ないとゲームが短く終わりやすく、バランスが崩れる可能性があります。"
+                    : "人数が多いと手札が極端に少なくなり、待ち時間やバランスが崩れる可能性があります。"}
+                  問題なければこのまま開始できます。
+                </p>
+              </div>
+            )}
+            {seatOrder}
+            <ul className="player-list">
+              {room.players.map((p) => (
+                <li key={p.id}>
+                  {p.name}
+                  {p.id === room.hostId && "（ホスト）"}
+                  {p.isCpu && "（CPU）"}
+                </li>
+              ))}
+            </ul>
+            {isHost && !room.started && (
+              <div className="cpu-controls">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={onAddCpu}
+                  disabled={room.players.length >= MAX_PLAYERS}
+                >
+                  CPUを追加
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={onRemoveCpu}
+                  disabled={!room.players.some((p) => p.isCpu)}
+                >
+                  CPUを削除
+                </button>
+              </div>
+            )}
+            {isHost && (
+              <button type="button" onClick={onStart} disabled={!canStart}>
+                ゲームを開始（{MIN_PLAYERS}〜{MAX_PLAYERS}人）
+              </button>
+            )}
+            {!isHost && <p className="status">ホストの開始を待っています…</p>}
           </div>
-          <p className="room-code">{room.code}</p>
-          <p className="status" style={{ textAlign: "center" }}>
-            このコードを共有してください
-          </p>
-          <p className="status">
-            参加者 {playerCount} / {MAX_PLAYERS}
-            <span className="lobby-screen__recommended">
-              （推奨 {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人）
-            </span>
-          </p>
-          {!recommended && playerCount >= MIN_PLAYERS && (
-            <div className="lobby-warning" role="status">
-              <p className="lobby-warning__title">推奨人数外でプレイします</p>
-              <p className="lobby-warning__body">
-                ルール上の推奨は {RECOMMENDED_MIN_PLAYERS}〜{RECOMMENDED_MAX_PLAYERS}人です。
-                {playerCount < RECOMMENDED_MIN_PLAYERS
-                  ? "人数が少ないとゲームが短く終わりやすく、バランスが崩れる可能性があります。"
-                  : "人数が多いと手札が極端に少なくなり、待ち時間やバランスが崩れる可能性があります。"}
-                問題なければこのまま開始できます。
-              </p>
-            </div>
-          )}
-          {seatOrder}
-          <ul className="player-list">
-            {room.players.map((p) => (
-              <li key={p.id}>
-                {p.name}
-                {p.id === room.hostId && "（ホスト）"}
-                {p.isCpu && "（CPU）"}
-              </li>
-            ))}
-          </ul>
-          {isHost && !room.started && (
-            <div className="cpu-controls">
-              <button
-                type="button"
-                className="secondary"
-                onClick={onAddCpu}
-                disabled={room.players.length >= MAX_PLAYERS}
-              >
-                CPUを追加
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={onRemoveCpu}
-                disabled={!room.players.some((p) => p.isCpu)}
-              >
-                CPUを削除
-              </button>
-            </div>
-          )}
-          {isHost && (
-            <button type="button" onClick={onStart} disabled={!canStart}>
-              ゲームを開始（{MIN_PLAYERS}〜{MAX_PLAYERS}人）
-            </button>
-          )}
-          {!isHost && <p className="status">ホストの開始を待っています…</p>}
         </div>
-      </>
+      </div>
     );
   }
 
   if (view.phase === "game_end" && view.result) {
     return (
-      <>
+      <div className="game-shell game-shell--scroll">
         {gameMenu}
-        <div className="card">
-          <div className="screen-header">
-            <h2>ゲーム終了</h2>
-            <GameMenuButton onClick={() => setMenuOpen(true)} />
-          </div>
-          <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
-          <p>
-            勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
-          </p>
-          <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
-          <div className="game-end-actions">
-            <button type="button" onClick={onReturnToLobby}>
-              ルームに戻る
-            </button>
-            <button type="button" className="secondary" onClick={onLeave}>
-              ルームを退出
-            </button>
+        <div className="game-screen-scroll">
+          <div className="card">
+            <div className="screen-header">
+              <h2>ゲーム終了</h2>
+              <GameMenuButton onClick={() => setMenuOpen(true)} />
+            </div>
+            <p className="status">{view.result.reason === "rouki" ? "労基摘発！" : "通常終了"}</p>
+            <p>
+              勝者: {view.result.winnerIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}
+            </p>
+            <p>敗者: {view.result.loserIds.map((id) => nameOf(view.seats, id)).join("、") || "なし"}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={onReturnToLobby}>
+                ルームに戻る
+              </button>
+              <button type="button" className="secondary" onClick={onLeave}>
+                ルームを退出
+              </button>
+            </div>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
