@@ -334,12 +334,13 @@ button.secondary {
 
 .draw-zone {
   margin-bottom: 1rem;
-  padding: 1.25rem 1rem 1.5rem;
+  padding: 1.25rem 1rem 1.75rem;
   background: linear-gradient(180deg, #eff6ff 0%, #fff 100%);
   border: 2px solid #93c5fd;
   border-radius: 16px;
   box-shadow: 0 4px 16px rgb(37 99 235 / 12%);
   text-align: center;
+  overflow: visible;
 }
 
 .draw-zone--waiting {
@@ -366,12 +367,6 @@ button.secondary {
   font-size: 0.85rem;
   font-weight: 600;
   color: #475569;
-}
-
-.card-fan--draw {
-  justify-content: center;
-  min-height: 160px;
-  padding: 0.5rem 1rem 1rem;
 }
 
 .card-fan--draw .playing-card {
@@ -423,9 +418,10 @@ button.secondary {
 .actions {
   background: #fff;
   border-radius: 12px;
-  padding: 1rem;
+  padding: 1rem 1rem 1.25rem;
   margin-bottom: 1rem;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  overflow: visible;
 }
 
 .actions button {
@@ -612,8 +608,9 @@ button.secondary {
 .my-hand {
   background: #fff;
   border-radius: 12px;
-  padding: 1rem 0.5rem 1.25rem;
+  padding: 1rem 0.5rem 1.5rem;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  overflow: visible;
 }
 
 .my-hand > p {
@@ -629,10 +626,22 @@ button.secondary {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 108px;
-  padding: 0.5rem 0.75rem 1.75rem;
+  min-height: 148px;
+  padding: 0.85rem 0.75rem 2.75rem;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
+}
+
+.my-hand .card-fan,
+.actions .card-fan {
+  min-height: 160px;
+  padding: 1rem 0.75rem 3rem;
+}
+
+.card-fan.card-fan--draw {
+  justify-content: center;
+  min-height: 220px;
+  padding: 1.25rem 1rem 3.25rem;
 }
 
 .card-fan--opponent {
@@ -1118,7 +1127,34 @@ button.secondary {
 }
 
 .peek .card-fan {
-  min-height: 88px;
+  min-height: 120px;
+  padding-bottom: 2rem;
+}
+
+.romance-peek {
+  border: 2px solid #f472b6;
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: linear-gradient(180deg, #fdf2f8 0%, #fff 100%);
+}
+
+.romance-peek__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.romance-peek__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #9d174d;
+}
+
+.romance-peek .deadline-timer {
+  margin-left: 0;
 }
 
 /* カード効果 */

@@ -2,6 +2,7 @@ import {
   CARD_LABELS,
   IDLE_TIMEOUT_MS,
   MIN_PLAYERS,
+  SHANAI_RENAI_VIEW_MS,
   type CardType,
   dealHands,
   getPairableTypes,
@@ -469,8 +470,8 @@ export class GameEngine {
       result: this.result,
       revealedCard: this.revealedCard,
       meetingDeclarations: { ...this.meetingDeclarations },
-      peekedCards: forPlayerId === this.effectUserId ? [...this.peekedCards] : [],
-      canAct: this.pending?.playerIds.includes(forPlayerId) ?? false,
+      peekedCards: this.buildPeekedCards(forPlayerId),
+      canAct: this.canPlayerAct(forPlayerId),
       deadlineAt: this.pending?.deadlineAt ?? null,
       activityLog: [...this.activityLog],
       cpuStatus: this.cpuStatus ? { ...this.cpuStatus } : null,
@@ -479,6 +480,25 @@ export class GameEngine {
       lastTransfer: this.buildTransferView(forPlayerId),
       lastRoukiReveal: this.lastRoukiReveal ? { ...this.lastRoukiReveal } : null,
     };
+  }
+
+  private buildPeekedCards(forPlayerId: PlayerId): CardInstance[] {
+    if (this.pending?.type === "romance_view") {
+      const userId = this.pending.effectUserId!;
+      const targetId = this.pending.targetId!;
+      if (forPlayerId !== userId && forPlayerId !== targetId) return [];
+      const partnerId = forPlayerId === userId ? targetId : userId;
+      return [...(this.players.get(partnerId)?.hand ?? [])];
+    }
+    if (forPlayerId === this.effectUserId) {
+      return [...this.peekedCards];
+    }
+    return [];
+  }
+
+  private canPlayerAct(forPlayerId: PlayerId): boolean {
+    if (!this.pending || this.pending.type === "romance_view") return false;
+    return this.pending.playerIds.includes(forPlayerId);
   }
 
   private buildTransferView(forPlayerId: PlayerId): CardTransfer | null {
@@ -530,6 +550,11 @@ export class GameEngine {
     }
     if (p.type === "training_take" && forPlayerId === p.effectUserId) {
       view.validCardIds = p.peekedCards?.map((c) => c.id);
+    }
+    if (p.type === "romance_view") {
+      const partnerId =
+        forPlayerId === p.effectUserId ? p.targetId! : p.effectUserId!;
+      view.sourcePlayerId = partnerId;
     }
 
     return view;
@@ -591,6 +616,10 @@ export class GameEngine {
       }
       case "training_take":
         this.resolveTrainingTake(this.pending.effectUserId!, false);
+        break;
+      case "romance_view":
+        this.log("社内恋愛の手札確認が終了", "shanai_renai");
+        this.afterEffectResolved();
         break;
     }
   }
@@ -817,12 +846,18 @@ export class GameEngine {
     switch (cardType) {
       case "shanai_renai":
         this.effectStep = "reveal";
-        this.peekedCards = [...this.players.get(userId)!.hand, ...this.players.get(targetId)!.hand];
         this.log(
           `${this.playerName(userId)}と${this.playerName(targetId)}の手札がお互いに見えた（社内恋愛）`,
           "shanai_renai",
         );
-        this.afterEffectResolved();
+        this.pending = {
+          type: "romance_view",
+          playerIds: [userId, targetId],
+          deadlineAt: Date.now() + SHANAI_RENAI_VIEW_MS,
+          effectCard: cardType,
+          effectUserId: userId,
+          targetId,
+        };
         return null;
       case "shinjin_kyouiku": {
         const target = this.players.get(targetId)!;

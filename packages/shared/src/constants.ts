@@ -2,6 +2,8 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 6;
 export const ROOM_CODE_LENGTH = 6;
 export const IDLE_TIMEOUT_MS = 20_000;
+/** 社内恋愛: 互いの手札を見せ合う時間 */
+export const SHANAI_RENAI_VIEW_MS = 10_000;
 
 /** 人が接続していないルームを掃除するまでの時間（24時間） */
 export const ROOM_IDLE_TTL_MS = 24 * 60 * 60 * 1000;

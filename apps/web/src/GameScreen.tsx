@@ -428,7 +428,23 @@ export function GameScreen({
         </p>
       )}
 
-      {view.peekedCards.length > 0 && (
+      {view.peekedCards.length > 0 && view.pending?.type === "romance_view" && (
+        <div className="peek romance-peek">
+          <div className="romance-peek__header">
+            <p className="romance-peek__title">
+              社内恋愛 — {nameOf(view.seats, view.pending.sourcePlayerId ?? "")}の手札
+            </p>
+            <DeadlineCountdown deadlineAt={view.deadlineAt} />
+          </div>
+          <CardFan>
+            {view.peekedCards.map((c, i) => (
+              <PlayingCard key={c.id} cardType={c.type} index={i} total={view.peekedCards.length} />
+            ))}
+          </CardFan>
+        </div>
+      )}
+
+      {view.peekedCards.length > 0 && view.pending?.type !== "romance_view" && (
         <div className="peek">
           <p>見えたカード:</p>
           <CardFan>

@@ -200,4 +200,49 @@ describe("GameEngine", () => {
     const view = engine.getView("p3");
     expect(view.lastRoukiReveal?.cardType).toBe(engine.lastRoukiReveal?.cardType);
   });
+
+  it("社内恋愛: 選んだ2人が相手の手札を一定時間見られる", () => {
+    const engine = createStartedEngine();
+    engine.players.get("p1")!.hand = [
+      { id: "s1", type: "shanai_renai" },
+      { id: "s2", type: "shanai_renai" },
+      { id: "p1extra", type: "norma" },
+    ];
+    engine.players.get("p2")!.hand = [
+      { id: "p2a", type: "norma" },
+      { id: "p2b", type: "rouki" },
+    ];
+    engine.phase = "play";
+    engine.pairsRemainingThisTurn = 1;
+    engine.pending = {
+      type: "play_or_skip",
+      playerIds: ["p1"],
+      deadlineAt: Date.now() + IDLE_TIMEOUT_MS,
+      effectCard: null,
+      effectUserId: null,
+    };
+
+    expect(engine.handleAction("p1", { type: "play_pair", cardType: "shanai_renai" })).toBeNull();
+    expect(engine.pending?.type).toBe("select_target");
+
+    expect(engine.handleAction("p1", { type: "select_target", targetId: "p2" })).toBeNull();
+    expect(engine.pending?.type).toBe("romance_view");
+    expect(engine.effectStep).toBe("reveal");
+
+    const actorView = engine.getView("p1");
+    expect(actorView.peekedCards.map((c) => c.id)).toEqual(["p2a", "p2b"]);
+    expect(actorView.pending?.sourcePlayerId).toBe("p2");
+    expect(actorView.canAct).toBe(false);
+
+    const targetView = engine.getView("p2");
+    expect(targetView.peekedCards.map((c) => c.id)).toEqual(["p1extra"]);
+    expect(targetView.pending?.sourcePlayerId).toBe("p1");
+
+    expect(engine.getView("p3").peekedCards).toEqual([]);
+
+    const deadline = engine.pending!.deadlineAt;
+    engine.tick(deadline);
+    expect(engine.pending?.type).not.toBe("romance_view");
+    expect(engine.getView("p1").peekedCards).toEqual([]);
+  });
 });
