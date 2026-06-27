@@ -5,6 +5,7 @@ import { useGameSocket } from "./useGameSocket";
 import { GameScreen } from "./GameScreen";
 import { ProductAdBanner } from "./product-ad";
 import { HomePromoShareButton, MottainaiLinks } from "./social-promo";
+import { HomeRules } from "./home-rules";
 
 function readInviteCodeFromUrl(): string {
   if (typeof window === "undefined") return "";
@@ -124,6 +125,7 @@ export default function App() {
       {screen === "home" && (
         <>
           <ProductAdBanner className="product-ad-banner--home" />
+          <HomeRules />
           <div className="card">
           <label htmlFor="name">表示名</label>
           <input

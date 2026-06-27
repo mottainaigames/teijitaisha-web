@@ -60,17 +60,32 @@ export function CardEffectsModal({ open, onClose }: { open: boolean; onClose: ()
   );
 }
 
-export function CardEffectsButton({ className = "" }: { className?: string }) {
+export function CardEffectsButton({
+  className = "",
+  label = "カード効果一覧",
+  block = false,
+}: {
+  className?: string;
+  label?: string;
+  block?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         type="button"
-        className={`secondary card-effects-btn ${className}`.trim()}
+        className={[
+          "secondary",
+          "card-effects-btn",
+          block ? "card-effects-btn--block" : "",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => setOpen(true)}
       >
-        カード効果一覧
+        {label}
       </button>
       <CardEffectsModal open={open} onClose={() => setOpen(false)} />
     </>

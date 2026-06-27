@@ -230,6 +230,61 @@ button.secondary {
   font-weight: 600;
 }
 
+.home-rules {
+  margin-bottom: 1rem;
+}
+
+.home-rules__heading {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.home-rules__actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.home-rules__btn {
+  margin-top: 0;
+}
+
+.home-rules__comic {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.home-rules__comic--modal {
+  padding: 0.75rem 1rem 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.home-rules__panel {
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 6%);
+}
+
+.home-rules__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.card-effects-btn--block {
+  width: 100%;
+  margin-top: 0;
+}
+
 .lobby-screen__recommended {
   display: block;
   margin-top: 0.2rem;
