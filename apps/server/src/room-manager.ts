@@ -3,6 +3,7 @@ import {
   CPU_SPEED_ORDER,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  normalizePlayerName,
   ROOM_CODE_CHARS,
   ROOM_CODE_LENGTH,
   ROOM_IDLE_TTL_MS,
@@ -83,7 +84,7 @@ export class RoomManager {
     const sessionToken = randomUUID();
     const player: Player = {
       id: playerId,
-      name: playerName.trim() || "社員",
+      name: normalizePlayerName(playerName),
       status: "active",
       handCount: 0,
       seatIndex: 0,
@@ -131,7 +132,7 @@ export class RoomManager {
     const sessionToken = randomUUID();
     const player: Player = {
       id: playerId,
-      name: playerName.trim() || "社員",
+      name: normalizePlayerName(playerName),
       status: "active",
       handCount: 0,
       seatIndex: room.players.size,

@@ -10,6 +10,7 @@ import {
 } from "@teijitaisha/shared";
 import { logEvent } from "./logger.js";
 import { parseClientMessage, RoomManager, send } from "./room-manager.js";
+import { SocketRateLimiter } from "./rate-limit.js";
 
 export interface AppOptions {
   port?: number;
@@ -25,6 +26,8 @@ export interface AppHandle {
 export function createApp(options: AppOptions = {}): Promise<AppHandle> {
   const corsOrigin = options.corsOrigin ?? process.env.CORS_ORIGIN ?? "http://localhost:5173";
   const roomManager = new RoomManager();
+  const createRoomLimiter = new SocketRateLimiter(8, 60_000);
+  const joinRoomLimiter = new SocketRateLimiter(30, 60_000);
   const socketRegistry = new WeakMap<WebSocket, string>();
   const cpuRunning = new Set<RoomCode>();
 
@@ -234,6 +237,10 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           break;
 
         case "create_room": {
+          if (!createRoomLimiter.allow(id)) {
+            send(ws, { type: "error", message: "操作が多すぎます。しばらく待ってから再試行してください" });
+            return;
+          }
           const { room, playerId, sessionToken } = roomManager.createRoom(message.playerName, id);
           logEvent("room_created", { code: room.code, playerId });
           send(ws, { type: "room_created", room, playerId, sessionToken });
@@ -241,6 +248,10 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
         }
 
         case "join_room": {
+          if (!joinRoomLimiter.allow(id)) {
+            send(ws, { type: "error", message: "操作が多すぎます。しばらく待ってから再試行してください" });
+            return;
+          }
           const result = roomManager.joinRoom(message.code, message.playerName, id);
           if ("error" in result) {
             send(ws, { type: "error", message: result.error });

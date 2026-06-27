@@ -99,4 +99,10 @@ describe("RoomManager rejoin", () => {
     expect(rm.purgeExpiredRooms(Date.now())).toEqual([]);
     expect(rm.getRoomPublic(host.room.code)).toBeDefined();
   });
+
+  it("長いプレイヤー名は正規化して保存する", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("あ".repeat(30), "socket-host");
+    expect(host.room.players[0]?.name).toHaveLength(20);
+  });
 });

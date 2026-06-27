@@ -1,7 +1,16 @@
 import type { GameView } from "@teijitaisha/shared";
+import { MAX_PLAYER_NAME_LENGTH, ROOM_CODE_LENGTH } from "@teijitaisha/shared";
+import { useEffect, useState } from "react";
 import { useGameSocket } from "./useGameSocket";
 import { GameScreen } from "./GameScreen";
 import { ProductAdBanner } from "./product-ad";
+import { HomePromoShareButton, MottainaiLinks } from "./social-promo";
+
+function readInviteCodeFromUrl(): string {
+  if (typeof window === "undefined") return "";
+  const code = new URLSearchParams(window.location.search).get("code")?.trim().toUpperCase() ?? "";
+  return code.length === ROOM_CODE_LENGTH ? code : "";
+}
 
 export default function App() {
   const {
@@ -25,6 +34,16 @@ export default function App() {
     advanceCpu,
     goHome,
   } = useGameSocket();
+
+  const [invitedViaLink, setInvitedViaLink] = useState(() => Boolean(readInviteCodeFromUrl()));
+
+  useEffect(() => {
+    const code = readInviteCodeFromUrl();
+    if (code) {
+      setJoinCode(code);
+      setInvitedViaLink(true);
+    }
+  }, [setJoinCode]);
 
   const lobbyView: GameView | null =
     room && playerId
@@ -72,6 +91,7 @@ export default function App() {
       <div className="app-brand">
         <h1>定時退社</h1>
         <p className="subtitle">Mottainai Games — Web版</p>
+        <MottainaiLinks />
       </div>
 
       {!showRejoinFallback && !connected && reconnecting && (
@@ -111,7 +131,7 @@ export default function App() {
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder="社員名"
-            maxLength={20}
+            maxLength={MAX_PLAYER_NAME_LENGTH}
           />
           <button type="button" onClick={createRoom} disabled={!connected || !playerName.trim()}>
             ルームを作成
@@ -119,6 +139,9 @@ export default function App() {
           <label htmlFor="code" style={{ marginTop: "1rem" }}>
             ルームコード
           </label>
+          {invitedViaLink && joinCode.length >= ROOM_CODE_LENGTH && (
+            <p className="status invite-hint">招待リンクからルームコードが入力されました</p>
+          )}
           <input
             id="code"
             value={joinCode}
@@ -134,6 +157,7 @@ export default function App() {
           >
             ルームに参加
           </button>
+          <HomePromoShareButton />
         </div>
         </>
       )}

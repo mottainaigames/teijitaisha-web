@@ -18,6 +18,36 @@ body {
   min-height: 100vh;
 }
 
+.error-boundary {
+  max-width: 480px;
+  margin: 4rem auto;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgb(15 23 42 / 8%);
+}
+
+.error-boundary h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.error-boundary p {
+  margin: 0 0 1.25rem;
+  color: #64748b;
+}
+
+.error-boundary button {
+  padding: 0.55rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;
@@ -94,6 +124,110 @@ button.secondary {
   letter-spacing: 0.2em;
   text-align: center;
   margin: 1rem 0;
+}
+
+.mottainai-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.mottainai-links a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.mottainai-links a:hover {
+  text-decoration: underline;
+}
+
+.mottainai-links__sep {
+  color: #94a3b8;
+}
+
+.mottainai-links--lobby,
+.mottainai-links--footer {
+  flex-shrink: 0;
+  padding: 0.65rem 0 0.25rem;
+}
+
+.room-invite {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.room-invite .room-code {
+  margin: 0 0 0.35rem;
+}
+
+.room-invite__url {
+  margin: 0 0 0.65rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  word-break: break-all;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.room-invite__feedback {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  color: #059669;
+}
+
+.room-invite__actions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.room-invite__actions button {
+  margin-top: 0;
+}
+
+.share-x-btn {
+  margin-top: 0;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  background: #0f1419;
+  color: #fff;
+  cursor: pointer;
+}
+
+.share-x-btn:hover {
+  background: #272c30;
+}
+
+.share-x-btn--block {
+  width: 100%;
+}
+
+.share-x-btn--block + .secondary,
+.share-x-btn--block + button {
+  margin-top: 0;
+}
+
+.card .share-x-btn--block {
+  margin-top: 0.75rem;
+}
+
+.invite-hint {
+  margin: 0.35rem 0 0.5rem;
+  text-align: center;
+  color: #2563eb;
+  font-weight: 600;
 }
 
 .lobby-screen__recommended {

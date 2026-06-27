@@ -21,6 +21,7 @@ import { ReorderableHandFan } from "./reorderable-hand-fan";
 import { RoukiRevealOverlay } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 import { ProductAdBanner, ProductAdPopup } from "./product-ad";
+import { GameResultShareButton, MottainaiLinks, RoomInviteShare } from "./social-promo";
 
 interface Props {
   room: RoomPublic;
@@ -206,9 +207,9 @@ export function GameScreen({
               <p className="status">{isHost ? "あなたがホストです" : "ルームに参加しました"}</p>
               <GameMenuButton onClick={() => setMenuOpen(true)} />
             </div>
-            <p className="room-code">{room.code}</p>
+            <RoomInviteShare roomCode={room.code} />
             <p className="status" style={{ textAlign: "center" }}>
-              このコードを共有してください
+              コードまたは招待リンクを共有してください
             </p>
             <p className="status">
               参加者 {playerCount} / {MAX_PLAYERS}
@@ -275,6 +276,7 @@ export function GameScreen({
             {!isHost && <p className="status">ホストの開始を待っています…</p>}
           </div>
         </div>
+        <MottainaiLinks className="mottainai-links--lobby" />
       </div>
     );
   }
@@ -372,6 +374,13 @@ export function GameScreen({
               </section>
             </div>
             <div className="game-end-actions">
+              <GameResultShareButton
+                playerId={playerId}
+                playerName={nameOf(view.seats, playerId)}
+                result={result}
+                seats={view.seats}
+                roomCode={room.code}
+              />
               <button type="button" onClick={onReturnToLobby}>
                 ルームに戻る
               </button>
@@ -380,6 +389,7 @@ export function GameScreen({
               </button>
             </div>
           </div>
+          <MottainaiLinks className="mottainai-links--footer" />
         </div>
       </div>
     );

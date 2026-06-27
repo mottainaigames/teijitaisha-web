@@ -60,6 +60,7 @@ jobs:
         env:
           VITE_WS_URL: wss://api.teijitaisha-web-staging.mottainaigames.com
           VITE_ENV: staging
+          VITE_APP_URL: https://teijitaisha-web-staging.mottainaigames.com
         run: pnpm build:web
 
       - name: Deploy to Cloudflare Pages
@@ -112,6 +113,7 @@ jobs:
         env:
           VITE_WS_URL: wss://api.teijitaisha-web.mottainaigames.com
           VITE_ENV: production
+          VITE_APP_URL: https://teijitaisha-web.mottainaigames.com
         run: pnpm build:web
 
       - name: Deploy to Cloudflare Pages

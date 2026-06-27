@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameView, RoomPublic, ServerMessage } from "@teijitaisha/shared";
+import { normalizePlayerName } from "@teijitaisha/shared";
 import { clearSession, loadSession, saveSession, type StoredSession } from "./session";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080";
+const RECONNECT_BASE_MS = 1_000;
+const RECONNECT_MAX_MS = 30_000;
+const PING_INTERVAL_MS = 30_000;
+/** 意図的な切断（アンマウント等） */
+const WS_CLOSE_INTENTIONAL = 4001;
 
 type Screen = "home" | "game";
 
@@ -17,13 +23,33 @@ export function useGameSocket() {
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(() => !!initialSession);
+
   const wsRef = useRef<WebSocket | null>(null);
   const sessionRef = useRef<StoredSession | null>(initialSession);
   const playerNameRef = useRef(playerName);
+  const reconnectDelayRef = useRef(RECONNECT_BASE_MS);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const shouldReconnectRef = useRef(true);
+  const unmountedRef = useRef(false);
 
   useEffect(() => {
     playerNameRef.current = playerName;
   }, [playerName]);
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const clearPingTimer = useCallback(() => {
+    if (pingTimerRef.current) {
+      clearInterval(pingTimerRef.current);
+      pingTimerRef.current = null;
+    }
+  }, []);
 
   const persistSession = useCallback((session: StoredSession) => {
     sessionRef.current = session;
@@ -46,6 +72,8 @@ export function useGameSocket() {
   const handleServerMessage = useCallback(
     (data: ServerMessage) => {
       switch (data.type) {
+        case "pong":
+          break;
         case "room_created":
         case "room_joined":
         case "room_rejoined":
@@ -63,6 +91,7 @@ export function useGameSocket() {
           setScreen("game");
           setError(null);
           setReconnecting(false);
+          reconnectDelayRef.current = RECONNECT_BASE_MS;
           break;
         case "room_updated":
           setRoom(data.room);
@@ -98,6 +127,7 @@ export function useGameSocket() {
           setGameView(data.view);
           setScreen("game");
           setReconnecting(false);
+          reconnectDelayRef.current = RECONNECT_BASE_MS;
           break;
         case "error":
           if (sessionRef.current) {
@@ -118,11 +148,43 @@ export function useGameSocket() {
     [persistSession],
   );
 
-  const connect = useCallback(() => {
+  const handleServerMessageRef = useRef(handleServerMessage);
+  handleServerMessageRef.current = handleServerMessage;
+
+  const startPing = useCallback((ws: WebSocket) => {
+    clearPingTimer();
+    pingTimerRef.current = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "ping" }));
+      }
+    }, PING_INTERVAL_MS);
+  }, [clearPingTimer]);
+
+  const openSocketRef = useRef<() => void>(() => {});
+
+  const scheduleReconnect = useCallback(() => {
+    if (unmountedRef.current || !shouldReconnectRef.current) return;
+    if (reconnectTimerRef.current) return;
+
+    if (sessionRef.current) {
+      setReconnecting(true);
+    }
+
+    const delay = reconnectDelayRef.current;
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = null;
+      reconnectDelayRef.current = Math.min(delay * 2, RECONNECT_MAX_MS);
+      openSocketRef.current();
+    }, delay);
+  }, []);
+
+  const openSocket = useCallback(() => {
     const existing = wsRef.current;
     if (existing?.readyState === WebSocket.OPEN || existing?.readyState === WebSocket.CONNECTING) {
-      return existing;
+      return;
     }
+
+    clearReconnectTimer();
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
@@ -131,6 +193,7 @@ export function useGameSocket() {
       if (wsRef.current !== ws) return;
       setConnected(true);
       setError(null);
+      startPing(ws);
 
       const session = sessionRef.current;
       if (session) {
@@ -142,58 +205,111 @@ export function useGameSocket() {
             sessionToken: session.sessionToken,
           }),
         );
+      } else {
+        setReconnecting(false);
       }
     };
-    ws.onclose = () => {
-      if (wsRef.current !== ws) return;
+
+    ws.onclose = (event) => {
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
+      clearPingTimer();
       setConnected(false);
-      if (sessionRef.current) {
-        setReconnecting(true);
+
+      if (event.code === WS_CLOSE_INTENTIONAL || unmountedRef.current || !shouldReconnectRef.current) {
+        return;
       }
+
+      scheduleReconnect();
     };
+
     ws.onerror = () => {
       if (wsRef.current !== ws) return;
-      setError("サーバーに接続できません");
-    };
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data) as ServerMessage;
-      handleServerMessage(data);
+      if (sessionRef.current) {
+        setError("サーバーに接続できません。再接続しています…");
+      } else {
+        setError("サーバーに接続できません");
+      }
     };
 
-    return ws;
-  }, [handleServerMessage]);
+    ws.onmessage = (event) => {
+      let data: ServerMessage;
+      try {
+        data = JSON.parse(String(event.data)) as ServerMessage;
+      } catch {
+        setError("サーバーからの応答を読み取れませんでした");
+        return;
+      }
+      if (!data || typeof data !== "object" || !("type" in data)) {
+        return;
+      }
+      handleServerMessageRef.current(data);
+    };
+  }, [clearPingTimer, clearReconnectTimer, scheduleReconnect, startPing]);
+
+  openSocketRef.current = openSocket;
 
   useEffect(() => {
-    const ws = connect();
+    unmountedRef.current = false;
+    shouldReconnectRef.current = true;
+    reconnectDelayRef.current = RECONNECT_BASE_MS;
+    openSocket();
+
     return () => {
-      if (wsRef.current === ws) wsRef.current = null;
-      ws.close();
+      unmountedRef.current = true;
+      shouldReconnectRef.current = false;
+      clearReconnectTimer();
+      clearPingTimer();
+      const ws = wsRef.current;
+      if (ws) {
+        wsRef.current = null;
+        ws.close(WS_CLOSE_INTENTIONAL);
+      }
     };
-  }, [connect]);
+  }, [clearPingTimer, clearReconnectTimer, openSocket]);
 
   const send = useCallback(
     (payload: object) => {
-      const ws = connect();
+      const ws = wsRef.current;
       const json = JSON.stringify(payload);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(json);
+
+      const deliver = (socket: WebSocket) => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(json);
+        }
+      };
+
+      if (ws?.readyState === WebSocket.OPEN) {
+        deliver(ws);
+        return;
+      }
+
+      openSocket();
+      const active = wsRef.current;
+      if (!active) return;
+
+      if (active.readyState === WebSocket.OPEN) {
+        deliver(active);
       } else {
-        ws.addEventListener("open", () => ws.send(json), { once: true });
+        active.addEventListener("open", () => deliver(active), { once: true });
       }
     },
-    [connect],
+    [openSocket],
   );
 
   const createRoom = useCallback(() => {
     setError(null);
-    setReconnecting(false);
-    send({ type: "create_room", playerName });
+    send({ type: "create_room", playerName: normalizePlayerName(playerName) });
   }, [playerName, send]);
 
   const joinRoom = useCallback(() => {
     setError(null);
-    setReconnecting(false);
-    send({ type: "join_room", code: joinCode.trim().toUpperCase(), playerName });
+    send({
+      type: "join_room",
+      code: joinCode.trim().toUpperCase(),
+      playerName: normalizePlayerName(playerName),
+    });
   }, [joinCode, playerName, send]);
 
   const leaveRoom = useCallback(() => {
