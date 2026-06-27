@@ -21,7 +21,7 @@ import { LobbyMemberCard } from "./lobby-member-card";
 import { LobbyAnnouncementStack, useLobbyAnnouncements } from "./lobby-announcement";
 import { LobbySeatOrder } from "./lobby-seat-order";
 import { ReorderableHandFan } from "./reorderable-hand-fan";
-import { RoukiRevealOverlay } from "./rouki-reveal";
+import { RoukiRevealOverlay, getRoukiFinaleRole } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 import { ProductAdBanner, ProductAdPopup } from "./product-ad";
 import { GameResultShareButton, MottainaiLinks, RoomInviteShare } from "./social-promo";
@@ -101,9 +101,12 @@ export function GameScreen({
   onRenamePlayer,
 }: Props) {
   const isHost = room.hostId === playerId;
-  const me = view.seats.find((s) => s.playerId === playerId);
+  const meSeat = view.seats.find((s) => s.playerId === playerId);
   const roomMe = room.players.find((p) => p.id === playerId);
   const isObserverMode = Boolean(view.isObserver ?? roomMe?.isObserver);
+  const isLobby = Boolean(
+    view.phase === "lobby" || !room.started || (room.postGame && roomMe?.inLobby),
+  );
   const playingMembers = room.players.filter((p) => !p.isObserver);
   const observerMembers = room.players.filter((p) => p.isObserver);
   const current = view.seats.find((s) => s.playerId === view.currentPlayerId);
@@ -130,12 +133,14 @@ export function GameScreen({
     setFocusedHandCardId(null);
   }, [pendingKey]);
 
+  const prevInLobbyRef = useRef(false);
   useEffect(() => {
-    if (prevPhaseRef.current === "game_end" && view.phase === "lobby") {
+    if (!prevInLobbyRef.current && isLobby && (room.postGame || prevPhaseRef.current === "game_end")) {
       setShowProductAdPopup(true);
     }
+    prevInLobbyRef.current = isLobby;
     prevPhaseRef.current = view.phase;
-  }, [view.phase]);
+  }, [isLobby, view.phase, room.postGame]);
 
   useEffect(() => {
     if (focusedHandCardId && !view.myHand.some((c) => c.id === focusedHandCardId)) {
@@ -152,7 +157,6 @@ export function GameScreen({
     return () => clearTimeout(timer);
   }, [view.lastTransfer]);
 
-  const isLobby = view.phase === "lobby" || !room.started;
   const lobbyAnnouncements = useLobbyAnnouncements({
     room,
     playerId,
@@ -214,8 +218,11 @@ export function GameScreen({
     const canStart =
       !isObserverMode &&
       playerCount >= MIN_PLAYERS &&
-      playerCount <= MAX_PLAYERS;
-    const canManageMembers = isHost && !isObserverMode && !room.started;
+      playerCount <= MAX_PLAYERS &&
+      (!room.postGame ||
+        playingMembers.filter((p) => !p.isCpu).every((p) => p.inLobby !== false));
+    const canManageMembers =
+      isHost && !isObserverMode && Boolean(!room.started || room.postGame);
 
     return (
       <div className="game-shell game-shell--lobby">
@@ -263,6 +270,15 @@ export function GameScreen({
             </div>
           )}
 
+          {room.postGame && (
+            <div className="lobby-postgame-banner" role="status">
+              <p className="lobby-postgame-banner__title">前のゲームが終了しました</p>
+              <p className="lobby-postgame-banner__body">
+                結果を見ている人がいる間は「結果確認中」と表示されます。全員がルームに戻ると次のゲームを開始できます。
+              </p>
+            </div>
+          )}
+
           <section className="lobby-screen__members" aria-label="参加メンバー">
             <div className="lobby-screen__members-head">
               <h2 className="lobby-screen__members-title">プレイヤー</h2>
@@ -277,6 +293,7 @@ export function GameScreen({
                   isMe={p.id === playerId}
                   isRoomHost={p.id === room.hostId}
                   canManage={canManageMembers}
+                  postGame={Boolean(room.postGame)}
                   onRename={onRenamePlayer}
                   onKick={onKickPlayer}
                 />
@@ -297,6 +314,7 @@ export function GameScreen({
                       isMe={p.id === playerId}
                       isRoomHost={false}
                       canManage={canManageMembers}
+                      postGame={Boolean(room.postGame)}
                       onRename={onRenamePlayer}
                       onKick={onKickPlayer}
                     />
@@ -320,7 +338,7 @@ export function GameScreen({
 
           <footer className="lobby-screen__footer">
             <div className="lobby-screen__actions">
-              {isHost && !room.started && !isObserverMode && (
+              {isHost && (!room.started || room.postGame) && !isObserverMode && (
                 <div className="cpu-controls">
                   <button
                     type="button"
@@ -477,7 +495,7 @@ export function GameScreen({
   }
 
   const isSpectating =
-    isObserverMode || (me?.status === "retired" && view.phase !== "game_end");
+    isObserverMode || (meSeat?.status === "retired" && view.phase !== "game_end");
   const pairable = countPairs(view.myHand);
   const cardTargetPlayerId = getCardTargetPlayerId(view);
   const remoteOnMe = view.remoteSelection?.targetPlayerId === playerId;
@@ -759,7 +777,11 @@ export function GameScreen({
 
         <RoukiRevealOverlay
           reveal={view.lastRoukiReveal}
-          isZangyoFinale={view.pending?.type === "rouki_finale"}
+          isZangyoFinale={
+            view.pending?.type === "rouki_finale" ||
+            (view.phase === "game_end" && view.result?.reason === "rouki")
+          }
+          role={getRoukiFinaleRole(playerId, view.pending, view.result)}
         />
 
         {Object.keys(view.meetingDeclarations).length > 0 && (
@@ -869,8 +891,8 @@ export function GameScreen({
           )}
           <div className="my-hand__toolbar">
             <p className="my-hand__label">
-              あなたの手札（{me?.handCount ?? 0}枚）
-              {me?.status === "retired" && " — 退社済み"}
+              あなたの手札（{meSeat?.handCount ?? 0}枚）
+              {meSeat?.status === "retired" && " — 退社済み"}
               {!handPickPurpose && !canReorderHand && view.myHand.length > 0 &&
                 " — タップで効果を表示"}
             </p>

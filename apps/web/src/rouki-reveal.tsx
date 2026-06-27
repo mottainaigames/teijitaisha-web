@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { CARD_LABELS, ROUKI_ZANGYO_FINALE_MS, type RoukiReveal } from "@teijitaisha/shared";
 import { PlayingCard } from "./cards-ui";
 
+export type RoukiFinaleRole = "winner" | "loser" | "spectator";
+
 type Stage = "enter" | "flip" | "revealed" | "expose" | "ending";
 
 const FLIP_DELAY_MS = 400;
@@ -9,12 +11,73 @@ const FLIP_DURATION_MS = 700;
 const REVEAL_HOLD_MS = 900;
 const EXPOSE_DELAY_MS = FLIP_DELAY_MS + FLIP_DURATION_MS + REVEAL_HOLD_MS;
 
+function titleForStage(
+  stage: Stage,
+  role: RoukiFinaleRole,
+  active: RoukiReveal,
+  isZangyoFinale: boolean,
+): string {
+  if (!isZangyoFinale) return "労基摘発 — カード公開";
+
+  if (stage === "expose") {
+    switch (role) {
+      case "winner":
+        return "残業を摘発！";
+      case "loser":
+        return "残業が暴露！";
+      default:
+        return `${active.ownerName}の残業が暴露！`;
+    }
+  }
+  if (stage === "ending") {
+    switch (role) {
+      case "winner":
+        return "勝利！";
+      case "loser":
+        return "敗北…";
+      default:
+        return "ゲーム終了";
+    }
+  }
+  return "労基摘発 — カード公開";
+}
+
+function calloutForStage(
+  stage: Stage,
+  role: RoukiFinaleRole,
+  active: RoukiReveal,
+): string | null {
+  if (stage === "expose") {
+    switch (role) {
+      case "winner":
+        return "労基法により残業カードを摘発しました";
+      case "loser":
+        return "定時退社できませんでした…";
+      default:
+        return `${active.actorName}が${active.ownerName}の残業を暴きました`;
+    }
+  }
+  if (stage === "ending") {
+    switch (role) {
+      case "winner":
+        return "おめでとうございます";
+      case "loser":
+        return `${active.ownerName}の負け`;
+      default:
+        return "結果画面を確認できます";
+    }
+  }
+  return null;
+}
+
 export function RoukiRevealOverlay({
   reveal,
   isZangyoFinale = false,
+  role = "spectator",
 }: {
   reveal: RoukiReveal | null;
   isZangyoFinale?: boolean;
+  role?: RoukiFinaleRole;
 }) {
   const [active, setActive] = useState<RoukiReveal | null>(null);
   const [stage, setStage] = useState<Stage>("enter");
@@ -58,12 +121,14 @@ export function RoukiRevealOverlay({
 
   const flipped = stage !== "enter";
   const showResult = stage === "revealed" || stage === "expose" || stage === "ending";
+  const callout = isZangyoFinale ? calloutForStage(stage, role, active) : null;
 
   return (
     <div
       className={[
         "rouki-reveal",
         isZangyo ? "rouki-reveal--zangyo" : "",
+        isZangyoFinale ? `rouki-reveal--role-${role}` : "",
         stage === "expose" ? "rouki-reveal--expose" : "",
         stage === "ending" ? "rouki-reveal--ending" : "",
       ]
@@ -75,11 +140,7 @@ export function RoukiRevealOverlay({
       <div className="rouki-reveal__backdrop" />
       <div className="rouki-reveal__content">
         <p className="rouki-reveal__title">
-          {isZangyo && stage === "expose"
-            ? "残業が暴露！"
-            : isZangyo && stage === "ending"
-              ? "ゲーム終了"
-              : "労基摘発 — カード公開"}
+          {titleForStage(stage, role, active, isZangyoFinale)}
         </p>
         <p className="rouki-reveal__meta">
           {active.actorName}が{active.ownerName}の手札から選んだカード
@@ -99,15 +160,24 @@ export function RoukiRevealOverlay({
             <strong>{CARD_LABELS[active.cardType]}</strong>
           </p>
         )}
-        {isZangyo && stage === "expose" && (
-          <p className="rouki-reveal__zangyo-callout">
-            {active.ownerName}の負け…
-          </p>
-        )}
-        {isZangyo && stage === "ending" && (
-          <p className="rouki-reveal__ending-hint">結果を表示しています…</p>
+        {callout && <p className="rouki-reveal__zangyo-callout">{callout}</p>}
+        {isZangyoFinale && stage === "ending" && (
+          <p className="rouki-reveal__ending-hint">まもなく結果画面へ…</p>
         )}
       </div>
     </div>
   );
+}
+
+export function getRoukiFinaleRole(
+  playerId: string,
+  pending: { type: string; effectUserId?: string | null; targetId?: string } | null,
+  result: { reason: string; roukiPlayerId?: string; zangyoPlayerId?: string } | null,
+): RoukiFinaleRole {
+  const roukiId = pending?.effectUserId ?? result?.roukiPlayerId;
+  const zangyoId = pending?.targetId ?? result?.zangyoPlayerId;
+  if (!roukiId || !zangyoId) return "spectator";
+  if (playerId === roukiId) return "winner";
+  if (playerId === zangyoId) return "loser";
+  return "spectator";
 }

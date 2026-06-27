@@ -429,6 +429,28 @@ button.secondary {
   flex-shrink: 0;
 }
 
+.lobby-postgame-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.lobby-postgame-banner__title {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1e40af;
+}
+
+.lobby-postgame-banner__body {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #1e3a8a;
+  line-height: 1.45;
+}
+
 .lobby-screen__members {
   flex: 1;
   min-height: 0;
@@ -532,6 +554,16 @@ button.secondary {
   border-radius: 999px;
   background: #e2e8f0;
   color: #475569;
+}
+
+.lobby-player-card__tag--in-lobby {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.lobby-player-card__tag--results {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .lobby-player-card__manage {
@@ -2716,6 +2748,65 @@ body.lobby-seat-order-dragging * {
   color: #991b1b;
   border: 2px solid #f87171;
   font-size: 1rem;
+}
+
+.rouki-reveal--role-winner.rouki-reveal--expose .rouki-reveal__title {
+  color: #fef08a;
+  text-shadow: 0 0 12px rgb(250 204 21 / 55%);
+}
+
+.rouki-reveal--role-winner.rouki-reveal--ending .rouki-reveal__title {
+  font-size: 1.6rem;
+  color: #fde047;
+  animation: rouki-winner-pop 0.6s ease-out;
+}
+
+.rouki-reveal--role-winner .rouki-reveal__backdrop {
+  background: rgb(30 58 95 / 70%);
+}
+
+.rouki-reveal--role-winner.rouki-reveal--expose .rouki-reveal__flip-inner {
+  filter: drop-shadow(0 0 20px rgb(250 204 21 / 70%));
+}
+
+.rouki-reveal--role-loser.rouki-reveal--expose .rouki-reveal__title {
+  color: #fecaca;
+}
+
+.rouki-reveal--role-loser .rouki-reveal__backdrop {
+  background: rgb(69 10 10 / 72%);
+}
+
+.rouki-reveal--role-loser .rouki-reveal__zangyo-callout {
+  color: #fca5a5;
+}
+
+.rouki-reveal--role-spectator.rouki-reveal--expose .rouki-reveal__title {
+  color: #e2e8f0;
+}
+
+.rouki-reveal--role-spectator .rouki-reveal__backdrop {
+  background: rgb(30 41 59 / 68%);
+}
+
+.rouki-reveal--role-spectator .rouki-reveal__zangyo-callout {
+  color: #cbd5e1;
+}
+
+@keyframes rouki-winner-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .rouki-reveal__zangyo-callout {

@@ -285,3 +285,53 @@ describe("RoomManager host member management", () => {
     );
   });
 });
+
+describe("RoomManager post-game lobby", () => {
+  function endGameTwoPlayers(rm: RoomManager, host: ReturnType<RoomManager["createRoom"]>) {
+    const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
+    if ("error" in guest) throw new Error(guest.error);
+    expect(rm.startGame(host.playerId, host.room.code)).toBeNull();
+
+    const game = rm.getRoom(host.room.code)!.game!;
+    game.players.get(host.playerId)!.hand = [];
+    (game as unknown as { checkRetirement: () => boolean }).checkRetirement();
+    expect(game.phase).toBe("game_end");
+
+    const room = rm.getRoomPublic(host.room.code)!;
+    expect(room.postGame).toBe(true);
+    expect(room.players.find((p) => p.id === host.playerId)?.inLobby).toBe(false);
+    expect(room.players.find((p) => p.id === guest.playerId)?.inLobby).toBe(false);
+    return guest;
+  }
+
+  it("ルームに戻るのは本人だけ（他員は結果画面のまま）", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = endGameTwoPlayers(rm, host);
+
+    expect(rm.returnToLobby(host.playerId, host.room.code)).toBeNull();
+
+    const room = rm.getRoomPublic(host.room.code)!;
+    expect(room.postGame).toBe(true);
+    expect(room.started).toBe(true);
+    expect(room.players.find((p) => p.id === host.playerId)?.inLobby).toBe(true);
+    expect(room.players.find((p) => p.id === guest.playerId)?.inLobby).toBe(false);
+    expect(rm.getGameView(host.room.code, host.playerId)).toBeNull();
+    expect(rm.getGameView(host.room.code, guest.playerId)?.phase).toBe("game_end");
+  });
+
+  it("全員がルームに戻るまで再開できない", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+    const guest = endGameTwoPlayers(rm, host);
+
+    rm.returnToLobby(host.playerId, host.room.code);
+    expect(rm.startGame(host.playerId, host.room.code)).toBe(
+      "全員がルームに戻るまで開始できません",
+    );
+
+    rm.returnToLobby(guest.playerId, host.room.code);
+    expect(rm.startGame(host.playerId, host.room.code)).toBeNull();
+    expect(rm.getRoomPublic(host.room.code)?.postGame).toBeFalsy();
+  });
+});

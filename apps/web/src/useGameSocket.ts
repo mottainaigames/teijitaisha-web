@@ -95,8 +95,12 @@ export function useGameSocket() {
           break;
         case "room_updated":
           setRoom(data.room);
-          if (!data.room.started) {
-            setGameView(null);
+          {
+            const pid = sessionRef.current?.playerId;
+            const myPlayer = pid ? data.room.players.find((p) => p.id === pid) : undefined;
+            if (!data.room.started || myPlayer?.inLobby) {
+              setGameView(null);
+            }
           }
           break;
         case "room_left":
@@ -134,7 +138,18 @@ export function useGameSocket() {
           setScreen("game");
           break;
         case "game_state":
-          setGameView(data.view);
+          setRoom((currentRoom) => {
+            const pid = sessionRef.current?.playerId;
+            if (!currentRoom) {
+              setGameView(data.view);
+              return currentRoom;
+            }
+            const myPlayer = currentRoom.players.find((p) => p.id === pid);
+            if (!myPlayer?.inLobby) {
+              setGameView(data.view);
+            }
+            return currentRoom;
+          });
           setScreen("game");
           setReconnecting(false);
           reconnectDelayRef.current = RECONNECT_BASE_MS;

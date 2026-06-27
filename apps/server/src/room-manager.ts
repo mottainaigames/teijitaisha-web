@@ -34,6 +34,8 @@ interface Player {
   isCpu: boolean;
   isObserver: boolean;
   disconnectedAt: number | null;
+  /** true = ロビー画面、false = 対局中または結果画面 */
+  inLobby: boolean;
 }
 
 interface Room {
@@ -48,6 +50,8 @@ interface Room {
   lobbySinceAt: number;
   cpuSpeed: CpuSpeed;
   cpuWaitingAdvance: boolean;
+  /** ゲーム終了後の inLobby 初期化を一度だけ行う */
+  postGameHandled: boolean;
 }
 
 export type DissolvedRoomReason = "idle" | "lobby_timeout";
@@ -99,6 +103,7 @@ export class RoomManager {
       isCpu: false,
       isObserver: false,
       disconnectedAt: null,
+      inLobby: true,
     };
 
     const room: Room = {
@@ -112,6 +117,7 @@ export class RoomManager {
       lobbySinceAt: Date.now(),
       cpuSpeed: "2x",
       cpuWaitingAdvance: false,
+      postGameHandled: false,
     };
 
     this.rooms.set(code, room);
@@ -130,7 +136,7 @@ export class RoomManager {
     if (!room) {
       return { error: "ルームが見つかりません" };
     }
-    if (!asObserver && room.started) {
+    if (!asObserver && this.isActiveGame(room)) {
       return { error: "ゲームはすでに開始しています" };
     }
 
@@ -158,6 +164,7 @@ export class RoomManager {
       isCpu: false,
       isObserver: asObserver,
       disconnectedAt: null,
+      inLobby: !this.isActiveGame(room),
     };
 
     room.players.set(playerId, player);
@@ -227,7 +234,7 @@ export class RoomManager {
     const player = room.players.get(ref.playerId);
     if (!player || player.isCpu) return { error: "退出できません" };
 
-    if (room.game && room.started && !player.isObserver) {
+    if (room.game && this.isActiveGame(room) && !player.isObserver) {
       const gp = room.game.players.get(ref.playerId);
       if (gp && gp.status === "active") {
         gp.status = "retired";
@@ -369,7 +376,7 @@ export class RoomManager {
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ操作できます";
     if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
-    if (room.started) return "ゲーム開始後は追加できません";
+    if (this.isActiveGame(room)) return "ゲーム開始後は追加できません";
     if (this.countPlaying(room) >= room.maxPlayers) return "ルームが満員です";
 
     const cpuCount = [...room.players.values()].filter((p) => p.isCpu).length;
@@ -385,6 +392,7 @@ export class RoomManager {
       isCpu: true,
       isObserver: false,
       disconnectedAt: null,
+      inLobby: true,
     };
     room.players.set(playerId, player);
     this.touchRoom(room);
@@ -395,7 +403,7 @@ export class RoomManager {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ操作できます";
-    if (room.started) return "ゲーム開始後は削除できません";
+    if (this.isActiveGame(room)) return "ゲーム開始後は削除できません";
 
     const cpus = [...room.players.values()]
       .filter((p) => p.isCpu)
@@ -413,7 +421,7 @@ export class RoomManager {
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ操作できます";
     if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
-    if (room.started) return "ゲーム開始後は変更できません";
+    if (this.isActiveGame(room)) return "ゲーム開始後は変更できません";
 
     const playing = [...room.players.values()].filter((p) => !p.isObserver);
     const expected = new Set(playing.map((p) => p.id));
@@ -433,7 +441,7 @@ export class RoomManager {
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ操作できます";
     if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
-    if (room.started) return "ゲーム開始後は変更できません";
+    if (this.isActiveGame(room)) return "ゲーム開始後は変更できません";
 
     const ids = [...room.players.values()]
       .filter((p) => !p.isObserver)
@@ -455,7 +463,7 @@ export class RoomManager {
     if (!room) return { error: "ルームが見つかりません" };
     if (room.hostId !== hostId) return { error: "ホストのみ操作できます" };
     if (room.players.get(hostId)?.isObserver) return { error: "観戦者は操作できません" };
-    if (room.started) return { error: "ゲーム開始後は追い出せません" };
+    if (this.isActiveGame(room)) return { error: "ゲーム開始後は追い出せません" };
     if (targetPlayerId === hostId) return { error: "自分自身は追い出せません" };
 
     const target = room.players.get(targetPlayerId);
@@ -492,7 +500,7 @@ export class RoomManager {
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ操作できます";
     if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
-    if (room.started) return "ゲーム開始後は名前を変更できません";
+    if (this.isActiveGame(room)) return "ゲーム開始後は名前を変更できません";
 
     const target = room.players.get(targetPlayerId);
     if (!target) return "プレイヤーが見つかりません";
@@ -507,7 +515,7 @@ export class RoomManager {
     if (!room) return "ルームが見つかりません";
     if (room.hostId !== hostId) return "ホストのみ開始できます";
     if (room.players.get(hostId)?.isObserver) return "観戦者は開始できません";
-    if (room.started) return "すでに開始しています";
+    if (this.isActiveGame(room)) return "すでに開始しています";
     const playingCount = this.countPlaying(room);
     if (playingCount < MIN_PLAYERS) {
       return `最低${MIN_PLAYERS}人必要です`;
@@ -519,6 +527,11 @@ export class RoomManager {
     const playing = [...room.players.values()]
       .filter((p) => !p.isObserver)
       .sort((a, b) => a.seatIndex - b.seatIndex);
+    const humans = playing.filter((p) => !p.isCpu);
+    if (this.isPostGame(room) && humans.some((p) => !p.inLobby)) {
+      return "全員がルームに戻るまで開始できません";
+    }
+
     const entries = playing.map((p) => ({ id: p.id, name: p.name }));
     const seatOrder = playing.map((p) => p.id);
     const firstSeatIndex = Math.floor(Math.random() * seatOrder.length);
@@ -528,6 +541,10 @@ export class RoomManager {
 
     room.game = game;
     room.started = true;
+    room.postGameHandled = false;
+    for (const p of room.players.values()) {
+      p.inLobby = false;
+    }
     this.syncHandCounts(room);
     this.touchRoom(room);
     return null;
@@ -537,22 +554,15 @@ export class RoomManager {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return "ルームが見つかりません";
     if (!room.players.has(playerId)) return "ルームに参加していません";
-    if (!room.started || !room.game || room.game.phase !== "game_end") {
+    if (!this.isPostGame(room)) {
       return "ゲーム終了後にルームへ戻れます";
     }
 
-    room.game = null;
-    room.started = false;
-    room.lobbySinceAt = Date.now();
-    room.cpuWaitingAdvance = false;
-    this.resolveCpuAdvance(room.code);
-
-    for (const p of room.players.values()) {
-      p.status = "active";
-      p.handCount = 0;
-      p.disconnectedAt = null;
-    }
-
+    const player = room.players.get(playerId)!;
+    player.inLobby = true;
+    player.status = "active";
+    player.handCount = 0;
+    player.disconnectedAt = null;
     this.touchRoom(room);
     return null;
   }
@@ -711,7 +721,9 @@ export class RoomManager {
   getGameView(code: RoomCode, playerId: PlayerId) {
     const room = this.rooms.get(code.toUpperCase());
     if (!room?.game) return null;
-    if (room.players.get(playerId)?.isObserver) {
+    const player = room.players.get(playerId);
+    if (player?.inLobby) return null;
+    if (player?.isObserver) {
       return room.game.getObserverView(playerId);
     }
     return room.game.getView(playerId);
@@ -811,6 +823,24 @@ export class RoomManager {
       p.handCount = gp?.hand.length ?? 0;
       if (gp) p.status = gp.status;
     }
+    if (room.game.phase === "game_end" && !room.postGameHandled) {
+      this.enterPostGame(room);
+    }
+  }
+
+  private isActiveGame(room: Room): boolean {
+    return room.started && room.game != null && room.game.phase !== "game_end";
+  }
+
+  private isPostGame(room: Room): boolean {
+    return room.started && room.game != null && room.game.phase === "game_end";
+  }
+
+  private enterPostGame(room: Room): void {
+    room.postGameHandled = true;
+    for (const p of room.players.values()) {
+      p.inLobby = p.isCpu;
+    }
   }
 
   private syncCpuIds(room: Room, now = Date.now()): void {
@@ -829,6 +859,7 @@ export class RoomManager {
         seatIndex: p.seatIndex,
         isCpu: p.isCpu || undefined,
         isObserver: p.isObserver || undefined,
+        inLobby: p.inLobby,
       }));
 
     return {
@@ -837,6 +868,7 @@ export class RoomManager {
       players,
       maxPlayers: room.maxPlayers,
       started: room.started,
+      postGame: this.isPostGame(room),
       cpuSpeed: room.cpuSpeed,
       cpuWaitingAdvance: room.cpuWaitingAdvance,
     };

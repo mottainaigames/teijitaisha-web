@@ -12,6 +12,7 @@ interface Props {
   isMe: boolean;
   isRoomHost: boolean;
   canManage: boolean;
+  postGame?: boolean;
   onRename: (playerId: string, name: string) => void;
   onKick: (playerId: string) => void;
 }
@@ -22,6 +23,7 @@ export function LobbyMemberCard({
   isMe,
   isRoomHost,
   canManage,
+  postGame = false,
   onRename,
   onKick,
 }: Props) {
@@ -102,6 +104,18 @@ export function LobbyMemberCard({
             {player.isCpu && <span className="lobby-player-card__tag">CPU</span>}
             {variant === "observer" && <span className="lobby-player-card__tag">観戦</span>}
             {isMe && <span className="lobby-player-card__tag">あなた</span>}
+            {postGame && !player.isCpu && !player.isObserver && (
+              <span
+                className={[
+                  "lobby-player-card__tag",
+                  player.inLobby
+                    ? "lobby-player-card__tag--in-lobby"
+                    : "lobby-player-card__tag--results",
+                ].join(" ")}
+              >
+                {player.inLobby ? "ロビー" : "結果確認中"}
+              </span>
+            )}
           </span>
           {showManage && (
             <div className="lobby-player-card__manage">

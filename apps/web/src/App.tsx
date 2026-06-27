@@ -46,6 +46,9 @@ export default function App() {
     }
   }, [setJoinCode]);
 
+  const me = room?.players.find((p) => p.id === playerId);
+  const showingLobby = Boolean(room && me && (!room.started || me.inLobby));
+
   const lobbyView: GameView | null =
     room && playerId
       ? {
@@ -87,7 +90,7 @@ export default function App() {
         }
       : null;
 
-  const view = gameView ?? lobbyView;
+  const view = showingLobby ? lobbyView : gameView;
   const showRejoinFallback = screen === "game" && !room;
 
   return (

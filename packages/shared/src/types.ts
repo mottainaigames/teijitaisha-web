@@ -12,6 +12,8 @@ export interface PlayerPublic {
   isCpu?: boolean;
   /** ゲームには参加せず観戦のみ */
   isObserver?: boolean;
+  /** true = ロビー画面、false = 対局中または結果画面 */
+  inLobby?: boolean;
 }
 
 import type { CpuSpeed } from "./constants.js";
@@ -22,6 +24,8 @@ export interface RoomPublic {
   players: PlayerPublic[];
   maxPlayers: number;
   started: boolean;
+  /** ゲーム終了後、再開待ちのロビー状態 */
+  postGame?: boolean;
   cpuSpeed: CpuSpeed;
   cpuWaitingAdvance: boolean;
 }
