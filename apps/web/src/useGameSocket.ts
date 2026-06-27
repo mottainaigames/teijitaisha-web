@@ -32,6 +32,17 @@ export function useGameSocket() {
     setJoinCode(session.code);
   }, []);
 
+  const goHome = useCallback(() => {
+    clearSession();
+    sessionRef.current = null;
+    setRoom(null);
+    setGameView(null);
+    setPlayerId(null);
+    setScreen("home");
+    setError(null);
+    setReconnecting(false);
+  }, []);
+
   const handleServerMessage = useCallback(
     (data: ServerMessage) => {
       switch (data.type) {
@@ -76,10 +87,12 @@ export function useGameSocket() {
           setReconnecting(false);
           break;
         case "error":
+          if (sessionRef.current) {
+            setReconnecting(false);
+          }
           if (data.message.includes("セッション")) {
             clearSession();
             sessionRef.current = null;
-            setReconnecting(false);
             setScreen("home");
             setRoom(null);
             setGameView(null);
@@ -200,5 +213,6 @@ export function useGameSocket() {
     leaveRoom,
     cycleCpuSpeed,
     advanceCpu,
+    goHome,
   };
 }

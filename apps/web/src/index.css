@@ -249,6 +249,14 @@ button.secondary {
   margin-left: 0.15rem;
 }
 
+.rejoin-fallback .status {
+  margin-bottom: 1rem;
+}
+
+.rejoin-fallback button {
+  margin-top: 0;
+}
+
 .deadline-timer {
   margin-left: auto;
   padding: 0.2rem 0.55rem;

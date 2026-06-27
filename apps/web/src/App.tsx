@@ -21,6 +21,7 @@ export default function App() {
     leaveRoom,
     cycleCpuSpeed,
     advanceCpu,
+    goHome,
   } = useGameSocket();
 
   const lobbyView: GameView | null =
@@ -60,18 +61,39 @@ export default function App() {
       : null;
 
   const view = gameView ?? lobbyView;
+  const showRejoinFallback = screen === "game" && !room;
 
   return (
     <div className="app">
       <h1>定時退社</h1>
       <p className="subtitle">Mottainai Games — Web版</p>
 
-      {!connected && reconnecting && <p className="status">再接続中…</p>}
-      {!connected && !reconnecting && <p className="status">サーバー接続中…</p>}
-      {connected && reconnecting && screen === "game" && (
+      {!showRejoinFallback && !connected && reconnecting && (
+        <p className="status">再接続中…</p>
+      )}
+      {!showRejoinFallback && !connected && !reconnecting && (
+        <p className="status">サーバー接続中…</p>
+      )}
+      {!showRejoinFallback && connected && reconnecting && screen === "game" && (
         <p className="status">ルームに復帰しています…</p>
       )}
-      {error && <p className="error">{error}</p>}
+      {!showRejoinFallback && error && <p className="error">{error}</p>}
+
+      {showRejoinFallback && (
+        <div className="card rejoin-fallback">
+          {!connected && reconnecting && <p className="status">再接続中…</p>}
+          {connected && reconnecting && <p className="status">ルームに復帰しています…</p>}
+          {!reconnecting && (
+            <p className="status">
+              {error ?? "ルームに復帰できませんでした。ルームが終了したか、セッションが無効になっている可能性があります。"}
+            </p>
+          )}
+          {error && reconnecting && <p className="error">{error}</p>}
+          <button type="button" className="secondary" onClick={goHome}>
+            ホームに戻る
+          </button>
+        </div>
+      )}
 
       {screen === "home" && (
         <div className="card">
