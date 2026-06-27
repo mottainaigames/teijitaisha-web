@@ -4,7 +4,6 @@ import {
   dealHands,
   hasUnequalHandSizes,
   MAX_PLAYERS,
-  type CardInstance,
   type PlayerId,
 } from "@teijitaisha/shared";
 import { GameEngine } from "./game-engine.js";
