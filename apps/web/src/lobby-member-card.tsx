@@ -1,10 +1,5 @@
-import { useState, type FormEvent } from "react";
-import {
-  CPU_NAME_SUFFIX,
-  maxEditableNameLength,
-  stripCpuNameSuffix,
-  type PlayerPublic,
-} from "@teijitaisha/shared";
+import type { PlayerPublic } from "@teijitaisha/shared";
+import { seatNameStyle } from "./player-name-display";
 
 interface Props {
   player: PlayerPublic;
@@ -13,7 +8,6 @@ interface Props {
   isRoomHost: boolean;
   canManage: boolean;
   postGame?: boolean;
-  onRename: (playerId: string, name: string) => void;
   onKick: (playerId: string) => void;
 }
 
@@ -24,40 +18,17 @@ export function LobbyMemberCard({
   isRoomHost,
   canManage,
   postGame = false,
-  onRename,
   onKick,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [draftName, setDraftName] = useState(() =>
-    player.isCpu ? stripCpuNameSuffix(player.name) : player.name,
-  );
-
-  const showManage = canManage && !isMe;
-  const maxLength = maxEditableNameLength(Boolean(player.isCpu));
-
-  const startEdit = () => {
-    setDraftName(player.isCpu ? stripCpuNameSuffix(player.name) : player.name);
-    setEditing(true);
-  };
-
-  const cancelEdit = () => {
-    setDraftName(player.isCpu ? stripCpuNameSuffix(player.name) : player.name);
-    setEditing(false);
-  };
-
-  const submitRename = (e: FormEvent) => {
-    e.preventDefault();
-    const trimmed = draftName.trim();
-    if (!trimmed) return;
-    onRename(player.id, trimmed);
-    setEditing(false);
-  };
+  const showManage = canManage && !isMe && !player.isCpu;
 
   const handleKick = () => {
     const label = player.isCpu ? player.name : `${player.name}さん`;
     if (!window.confirm(`${label}をルームから追い出しますか？`)) return;
     onKick(player.id);
   };
+
+  const nameStyle = seatNameStyle(player);
 
   return (
     <li
@@ -74,60 +45,37 @@ export function LobbyMemberCard({
         <span className="lobby-player-card__seat">{player.seatIndex + 1}</span>
       )}
 
-      {editing ? (
-        <form className="lobby-player-card__rename" onSubmit={submitRename}>
-          <input
-            className="lobby-player-card__rename-input"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            maxLength={maxLength}
-            autoFocus
-            aria-label={`${player.name}の新しい名前`}
-          />
-          {player.isCpu && (
-            <p className="lobby-player-card__rename-hint">保存時に{CPU_NAME_SUFFIX}が付きます</p>
-          )}
-          <div className="lobby-player-card__rename-actions">
-            <button type="submit" className="lobby-player-card__action">
-              保存
-            </button>
-            <button type="button" className="lobby-player-card__action secondary" onClick={cancelEdit}>
-              取消
-            </button>
-          </div>
-        </form>
-      ) : (
-        <>
-          <span className="lobby-player-card__name">{player.name}</span>
-          <span className="lobby-player-card__tags">
-            {isRoomHost && <span className="lobby-player-card__tag">ホスト</span>}
-            {player.isCpu && <span className="lobby-player-card__tag">CPU</span>}
-            {variant === "observer" && <span className="lobby-player-card__tag">観戦</span>}
-            {isMe && <span className="lobby-player-card__tag">あなた</span>}
-            {postGame && !player.isCpu && !player.isObserver && (
-              <span
-                className={[
-                  "lobby-player-card__tag",
-                  player.inLobby
-                    ? "lobby-player-card__tag--in-lobby"
-                    : "lobby-player-card__tag--results",
-                ].join(" ")}
-              >
-                {player.inLobby ? "ロビー" : "結果確認中"}
-              </span>
-            )}
+      <span className="lobby-player-card__name" style={nameStyle}>
+        {player.name}
+      </span>
+      <span className="lobby-player-card__tags">
+        {isRoomHost && <span className="lobby-player-card__tag">ホスト</span>}
+        {player.isCpu && <span className="lobby-player-card__tag">CPU</span>}
+        {variant === "observer" && <span className="lobby-player-card__tag">観戦</span>}
+        {isMe && <span className="lobby-player-card__tag">あなた</span>}
+        {postGame && !player.isCpu && !player.isObserver && (
+          <span
+            className={[
+              "lobby-player-card__tag",
+              player.inLobby
+                ? "lobby-player-card__tag--in-lobby"
+                : "lobby-player-card__tag--results",
+            ].join(" ")}
+          >
+            {player.inLobby ? "ロビー" : "結果確認中"}
           </span>
-          {showManage && (
-            <div className="lobby-player-card__manage">
-              <button type="button" className="lobby-player-card__action secondary" onClick={startEdit}>
-                名前
-              </button>
-              <button type="button" className="lobby-player-card__action lobby-player-card__action--kick" onClick={handleKick}>
-                追い出す
-              </button>
-            </div>
-          )}
-        </>
+        )}
+      </span>
+      {showManage && (
+        <div className="lobby-player-card__manage">
+          <button
+            type="button"
+            className="lobby-player-card__action lobby-player-card__action--kick"
+            onClick={handleKick}
+          >
+            追い出す
+          </button>
+        </div>
       )}
     </li>
   );

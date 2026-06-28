@@ -247,31 +247,77 @@ describe("RoomManager host member management", () => {
     expect(room.players.some((p) => p.id === guest.playerId)).toBe(false);
   });
 
-  it("ホストがプレイヤーの名前を変更できる", () => {
+  it("プレイヤーが自分の表示色を設定できる", () => {
+    const rm = new RoomManager();
+    const host = rm.createRoom("ホスト", "socket-host");
+
+    expect(
+      rm.setPlayerStyle(host.playerId, host.room.code, {
+        nameplateBg: "#112233",
+        nameColor: "#aabbcc",
+      }),
+    ).toBeNull();
+
+    const room = rm.getRoomPublic(host.room.code)!;
+    const me = room.players.find((p) => p.id === host.playerId);
+    expect(me?.nameplateBg).toBe("#112233");
+    expect(me?.nameColor).toBe("#aabbcc");
+  });
+
+  it("表示色は不正値を拒否し、部分更新とリセットができる", () => {
     const rm = new RoomManager();
     const host = rm.createRoom("ホスト", "socket-host");
     const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
     if ("error" in guest) throw new Error(guest.error);
 
-    expect(rm.renamePlayer(host.playerId, host.room.code, guest.playerId, "新しい名前")).toBeNull();
+    expect(
+      rm.setPlayerStyle(guest.playerId, host.room.code, {
+        nameplateBg: "red",
+      }),
+    ).toBe("背景色の形式が正しくありません（#RGB または #RRGGBB）");
+
+    expect(
+      rm.setPlayerStyle(guest.playerId, host.room.code, {
+        nameplateBg: "#ff0000",
+        nameColor: "#00ff00",
+      }),
+    ).toBeNull();
+
+    expect(
+      rm.setPlayerStyle(guest.playerId, host.room.code, {
+        nameplateBg: "#0000ff",
+      }),
+    ).toBeNull();
+
     const room = rm.getRoomPublic(host.room.code)!;
-    expect(room.players.find((p) => p.id === guest.playerId)?.name).toBe("新しい名前");
+    const g = room.players.find((p) => p.id === guest.playerId);
+    expect(g?.nameplateBg).toBe("#0000ff");
+    expect(g?.nameColor).toBe("#00ff00");
+
+    expect(
+      rm.setPlayerStyle(guest.playerId, host.room.code, {
+        nameplateBg: null,
+        nameColor: null,
+      }),
+    ).toBeNull();
+    const reset = rm.getRoomPublic(host.room.code)!.players.find((p) => p.id === guest.playerId);
+    expect(reset?.nameplateBg).toBeUndefined();
+    expect(reset?.nameColor).toBeUndefined();
   });
 
-  it("ホストがCPU名を変更できる", () => {
+  it("CPUは表示色を変更できない", () => {
     const rm = new RoomManager();
     const host = rm.createRoom("ホスト", "socket-host");
     rm.addCpu(host.playerId, host.room.code);
-
     const cpu = rm.getRoomPublic(host.room.code)!.players.find((p) => p.isCpu);
     if (!cpu) throw new Error("CPU missing");
 
-    expect(rm.renamePlayer(host.playerId, host.room.code, cpu.id, "あああ")).toBeNull();
-    const updated = rm.getRoomPublic(host.room.code)!.players.find((p) => p.id === cpu.id);
-    expect(updated?.name).toBe("あああ（CPU）");
+    expect(
+      rm.setPlayerStyle(cpu.id, host.room.code, { nameplateBg: "#ff0000" }),
+    ).toBe("変更できません");
   });
 
-  it("非ホストは追い出し・改名できない", () => {
+  it("非ホストは追い出しできない", () => {
     const rm = new RoomManager();
     const host = rm.createRoom("ホスト", "socket-host");
     const guest = rm.joinRoom(host.room.code, "ゲスト", "socket-guest");
@@ -280,9 +326,6 @@ describe("RoomManager host member management", () => {
     expect(rm.kickPlayer(guest.playerId, host.room.code, host.playerId)).toEqual({
       error: "ホストのみ操作できます",
     });
-    expect(rm.renamePlayer(guest.playerId, host.room.code, host.playerId, "改変")).toBe(
-      "ホストのみ操作できます",
-    );
   });
 });
 

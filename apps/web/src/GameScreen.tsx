@@ -20,6 +20,8 @@ import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
 import { LobbyMemberCard } from "./lobby-member-card";
 import { LobbyAnnouncementStack, useLobbyAnnouncements } from "./lobby-announcement";
 import { LobbySeatOrder } from "./lobby-seat-order";
+import { formatLogMessage, seatNameStyle } from "./player-name-display";
+import { PlayerStyleSettings } from "./player-style-settings";
 import { ReorderableHandFan } from "./reorderable-hand-fan";
 import { RoukiRevealOverlay, getRoukiFinaleRole } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
@@ -58,7 +60,7 @@ interface Props {
   onReorderSeats: (playerIds: string[]) => void;
   onShuffleSeats: () => void;
   onKickPlayer: (targetPlayerId: string) => void;
-  onRenamePlayer: (targetPlayerId: string, name: string) => void;
+  onSetPlayerStyle: (style: { nameplateBg?: string | null; nameColor?: string | null }) => void;
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
@@ -98,7 +100,7 @@ export function GameScreen({
   onReorderSeats,
   onShuffleSeats,
   onKickPlayer,
-  onRenamePlayer,
+  onSetPlayerStyle,
 }: Props) {
   const isHost = room.hostId === playerId;
   const meSeat = view.seats.find((s) => s.playerId === playerId);
@@ -174,12 +176,21 @@ export function GameScreen({
 
   const menuExtra = (
     <>
+      {!isObserverMode && (
+        <CollapsibleSection title="表示カスタム" defaultOpen={false}>
+          <PlayerStyleSettings
+            nameplateBg={roomMe?.nameplateBg}
+            nameColor={roomMe?.nameColor}
+            onApply={onSetPlayerStyle}
+          />
+        </CollapsibleSection>
+      )}
       <CollapsibleSection title="プレイ順" defaultOpen={view.seats.length <= 8}>
         {seatOrder}
       </CollapsibleSection>
       {view.activityLog.length > 0 && (
         <CollapsibleSection title="ログ" badge={view.activityLog.length}>
-          <ActivityLogList entries={view.activityLog} />
+          <ActivityLogList entries={view.activityLog} seats={view.seats} />
         </CollapsibleSection>
       )}
       {view.discardTypes.length > 0 && (
@@ -279,6 +290,16 @@ export function GameScreen({
             </div>
           )}
 
+          {!isObserverMode && (
+            <CollapsibleSection title="表示カスタム" defaultOpen={false}>
+              <PlayerStyleSettings
+                nameplateBg={roomMe?.nameplateBg}
+                nameColor={roomMe?.nameColor}
+                onApply={onSetPlayerStyle}
+              />
+            </CollapsibleSection>
+          )}
+
           <section className="lobby-screen__members" aria-label="参加メンバー">
             <div className="lobby-screen__members-head">
               <h2 className="lobby-screen__members-title">プレイヤー</h2>
@@ -294,7 +315,6 @@ export function GameScreen({
                   isRoomHost={p.id === room.hostId}
                   canManage={canManageMembers}
                   postGame={Boolean(room.postGame)}
-                  onRename={onRenamePlayer}
                   onKick={onKickPlayer}
                 />
               ))}
@@ -315,7 +335,6 @@ export function GameScreen({
                       isRoomHost={false}
                       canManage={canManageMembers}
                       postGame={Boolean(room.postGame)}
-                      onRename={onRenamePlayer}
                       onKick={onKickPlayer}
                     />
                   ))}
@@ -985,7 +1004,7 @@ export function GameScreen({
   );
 }
 
-function ActivityLogList({ entries }: { entries: GameView["activityLog"] }) {
+function ActivityLogList({ entries, seats }: { entries: GameView["activityLog"]; seats: GameView["seats"] }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1001,7 +1020,7 @@ function ActivityLogList({ entries }: { entries: GameView["activityLog"] }) {
             {entry.cardType && (
               <span className="card-chip small">{CARD_LABELS[entry.cardType]}</span>
             )}
-            {entry.message}
+            {formatLogMessage(entry.message, seats)}
           </li>
         ))}
       </ul>
@@ -1065,7 +1084,7 @@ function Opponent({
 
   return (
     <div className={opponentClass}>
-      <div className="opponent__header">
+      <div className="opponent__header" style={seatNameStyle(seat)}>
         <strong>
           {seat.name}
           {isCpu && <span className="cpu-tag">CPU</span>}

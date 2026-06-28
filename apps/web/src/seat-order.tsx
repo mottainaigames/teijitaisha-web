@@ -1,10 +1,12 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 
 interface Seat {
   playerId: string;
   name: string;
   status: "active" | "retired" | "disconnected";
   seatIndex: number;
+  nameplateBg?: string;
+  nameColor?: string;
 }
 
 interface Props {
@@ -38,6 +40,13 @@ export function SeatOrderBar({
             prev?.playerId === drawSourcePlayerId &&
             seat.playerId === currentPlayerId;
 
+          const plateStyle: CSSProperties = {};
+          if (seat.nameplateBg) plateStyle.background = seat.nameplateBg;
+          if (seat.nameColor) plateStyle.color = seat.nameColor;
+          const nameStyle: CSSProperties | undefined = seat.nameColor
+            ? { color: seat.nameColor }
+            : undefined;
+
           return (
             <Fragment key={seat.playerId}>
               {i > 0 && (
@@ -57,9 +66,12 @@ export function SeatOrderBar({
                 ]
                   .filter(Boolean)
                   .join(" ")}
+                style={Object.keys(plateStyle).length > 0 ? plateStyle : undefined}
               >
                 <span className="seat-order__index">{seat.seatIndex + 1}</span>
-                <span className="seat-order__name">{seat.name}</span>
+                <span className="seat-order__name" style={nameStyle}>
+                  {seat.name}
+                </span>
                 {isCurrent && <span className="seat-order__badge">手番</span>}
               </div>
             </Fragment>

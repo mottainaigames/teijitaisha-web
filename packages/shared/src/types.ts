@@ -14,6 +14,10 @@ export interface PlayerPublic {
   isObserver?: boolean;
   /** true = ロビー画面、false = 対局中または結果画面 */
   inLobby?: boolean;
+  /** ネームプレート背景（#RGB / #RRGGBB） */
+  nameplateBg?: string;
+  /** プレイヤー名の文字色 */
+  nameColor?: string;
 }
 
 import type { CpuSpeed } from "./constants.js";
@@ -48,7 +52,7 @@ export type ClientMessage =
   | { type: "reorder_seats"; playerIds: PlayerId[] }
   | { type: "shuffle_seats" }
   | { type: "kick_player"; targetPlayerId: PlayerId }
-  | { type: "rename_player"; targetPlayerId: PlayerId; name: string }
+  | { type: "set_player_style"; nameplateBg?: string | null; nameColor?: string | null }
   | { type: "ping" }
   | {
       type: "selection_preview";

@@ -434,18 +434,16 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
           break;
         }
 
-        case "rename_player": {
+        case "set_player_style": {
           const ref = roomManager.getSocketRef(id);
           if (!ref) {
             send(ws, { type: "error", message: "ルームに参加していません" });
             return;
           }
-          const err = roomManager.renamePlayer(
-            ref.playerId,
-            ref.code,
-            message.targetPlayerId,
-            message.name,
-          );
+          const err = roomManager.setPlayerStyle(ref.playerId, ref.code, {
+            nameplateBg: message.nameplateBg,
+            nameColor: message.nameColor,
+          });
           if (err) {
             send(ws, { type: "error", message: err });
             return;

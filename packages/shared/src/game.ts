@@ -54,6 +54,10 @@ export interface SeatPublic {
   seatIndex: number;
   /** 切断後20秒経過で自動プレイ中 */
   autoPlay?: boolean;
+  /** ネームプレート背景 */
+  nameplateBg?: string;
+  /** プレイヤー名の文字色 */
+  nameColor?: string;
 }
 
 export type CpuProcessStep = "thinking" | "acting" | "effect";

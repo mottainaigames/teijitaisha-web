@@ -1,11 +1,13 @@
 import type { GameView } from "@teijitaisha/shared";
 import { MAX_PLAYER_NAME_LENGTH, ROOM_CODE_LENGTH } from "@teijitaisha/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useGameSocket } from "./useGameSocket";
 import { GameScreen } from "./GameScreen";
 import { ProductAdBanner } from "./product-ad";
 import { HomePromoShareButton, MottainaiLinks } from "./social-promo";
 import { HomeRules } from "./home-rules";
+
+type HomeMode = "join" | "create";
 
 function readInviteCodeFromUrl(): string {
   if (typeof window === "undefined") return "";
@@ -37,14 +39,36 @@ export default function App() {
   } = useGameSocket();
 
   const [invitedViaLink, setInvitedViaLink] = useState(() => Boolean(readInviteCodeFromUrl()));
+  const [homeMode, setHomeMode] = useState<HomeMode>(() =>
+    readInviteCodeFromUrl() ? "join" : "join",
+  );
 
   useEffect(() => {
     const code = readInviteCodeFromUrl();
     if (code) {
       setJoinCode(code);
       setInvitedViaLink(true);
+      setHomeMode("join");
     }
   }, [setJoinCode]);
+
+  useEffect(() => {
+    if (joinCode.trim().length > 0) {
+      setHomeMode("join");
+    }
+  }, [joinCode]);
+
+  const trimmedName = playerName.trim();
+  const trimmedCode = joinCode.trim().toUpperCase();
+  const canJoin =
+    connected && trimmedName.length > 0 && trimmedCode.length >= ROOM_CODE_LENGTH;
+  const canCreate = connected && trimmedName.length > 0 && trimmedCode.length === 0;
+
+  const handleJoinKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || !canJoin) return;
+    e.preventDefault();
+    joinRoom(false);
+  };
 
   const me = room?.players.find((p) => p.id === playerId);
   const showingLobby = Boolean(room && me && (!room.started || me.inLobby));
@@ -129,48 +153,102 @@ export default function App() {
       {screen === "home" && (
         <>
           <ProductAdBanner className="product-ad-banner--home" />
-          <div className="card">
-          <label htmlFor="name">表示名</label>
-          <input
-            id="name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="社員名"
-            maxLength={MAX_PLAYER_NAME_LENGTH}
-          />
-          <button type="button" onClick={createRoom} disabled={!connected || !playerName.trim()}>
-            ルームを作成
-          </button>
-          <label htmlFor="code" style={{ marginTop: "1rem" }}>
-            ルームコード
-          </label>
-          {invitedViaLink && joinCode.length >= ROOM_CODE_LENGTH && (
-            <p className="status invite-hint">招待リンクからルームコードが入力されました</p>
-          )}
-          <input
-            id="code"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="ABC123"
-            maxLength={6}
-          />
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => joinRoom(false)}
-            disabled={!connected || !playerName.trim() || joinCode.length < 6}
-          >
-            ルームに参加（プレイヤー）
-          </button>
-          <button
-            type="button"
-            className="secondary home-join-observe"
-            onClick={() => joinRoom(true)}
-            disabled={!connected || !playerName.trim() || joinCode.length < 6}
-          >
-            オブザーバーとして参加
-          </button>
-          <HomePromoShareButton />
+          <div className="card home-entry">
+            <label htmlFor="name">表示名</label>
+            <input
+              id="name"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="社員名"
+              maxLength={MAX_PLAYER_NAME_LENGTH}
+              autoComplete="nickname"
+            />
+
+            <div className="home-entry-tabs" role="tablist" aria-label="ルーム操作">
+              <button
+                type="button"
+                role="tab"
+                id="home-tab-join"
+                aria-selected={homeMode === "join"}
+                aria-controls="home-panel-join"
+                className={homeMode === "join" ? "home-entry-tabs__tab--active" : undefined}
+                onClick={() => setHomeMode("join")}
+              >
+                ルームに参加
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="home-tab-create"
+                aria-selected={homeMode === "create"}
+                aria-controls="home-panel-create"
+                className={homeMode === "create" ? "home-entry-tabs__tab--active" : undefined}
+                onClick={() => setHomeMode("create")}
+              >
+                ルームを作成
+              </button>
+            </div>
+
+            {homeMode === "join" ? (
+              <section
+                id="home-panel-join"
+                role="tabpanel"
+                aria-labelledby="home-tab-join"
+                className="home-entry-panel"
+              >
+                <p className="home-entry-hint">
+                  ホストから共有された6文字のルームコードを入力してください。
+                </p>
+                <label htmlFor="code">ルームコード</label>
+                {invitedViaLink && trimmedCode.length >= ROOM_CODE_LENGTH && (
+                  <p className="status invite-hint">招待リンクからルームコードが入力されました</p>
+                )}
+                <input
+                  id="code"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  onKeyDown={handleJoinKeyDown}
+                  placeholder="ABC123"
+                  maxLength={ROOM_CODE_LENGTH}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="characters"
+                />
+                <button type="button" onClick={() => joinRoom(false)} disabled={!canJoin}>
+                  参加する（プレイヤー）
+                </button>
+                <button
+                  type="button"
+                  className="secondary home-join-observe"
+                  onClick={() => joinRoom(true)}
+                  disabled={!canJoin}
+                >
+                  オブザーバーとして参加
+                </button>
+              </section>
+            ) : (
+              <section
+                id="home-panel-create"
+                role="tabpanel"
+                aria-labelledby="home-tab-create"
+                className="home-entry-panel"
+              >
+                <p className="home-entry-hint">
+                  新しいルームを作成し、表示されるコードを友達に共有します。
+                </p>
+                {trimmedCode.length > 0 && (
+                  <p className="home-entry-warning" role="status">
+                    ルームコードが入力されています。既存のルームに入る場合は「ルームに参加」を選んでください。
+                  </p>
+                )}
+                <button type="button" onClick={createRoom} disabled={!canCreate}>
+                  ルームを作成
+                </button>
+              </section>
+            )}
+
+            <HomePromoShareButton />
           </div>
           <HomeRules />
         </>
@@ -205,7 +283,7 @@ export default function App() {
           onReorderSeats={(playerIds) => send({ type: "reorder_seats", playerIds })}
           onShuffleSeats={() => send({ type: "shuffle_seats" })}
           onKickPlayer={(targetPlayerId) => send({ type: "kick_player", targetPlayerId })}
-          onRenamePlayer={(targetPlayerId, name) => send({ type: "rename_player", targetPlayerId, name })}
+          onSetPlayerStyle={(style) => send({ type: "set_player_style", ...style })}
         />
       )}
 

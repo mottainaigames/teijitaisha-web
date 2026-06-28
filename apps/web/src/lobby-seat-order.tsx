@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PlayerPublic } from "@teijitaisha/shared";
+import { seatNameStyle } from "./player-name-display";
 
 const DRAG_THRESHOLD_PX = 8;
 
@@ -175,6 +176,8 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
         {displayPlayers.map((player, i) => {
           const isMe = player.id === myPlayerId;
           const isDragging = drag?.id === player.id;
+          const nameStyle = seatNameStyle(player);
+          const plateStyle = nameStyle;
           return (
             <Fragment key={player.id}>
               {i > 0 && <span className="lobby-seat-order__arrow" aria-hidden>→</span>}
@@ -204,12 +207,18 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
                         transform: "translate(-50%, -50%)",
                         zIndex: 50,
                         pointerEvents: "none",
+                        ...plateStyle,
                       }
-                    : undefined
+                    : plateStyle
                 }
               >
                 <span className="lobby-seat-order__index">{i + 1}</span>
-                <span className="lobby-seat-order__name">{player.name}</span>
+                <span
+                  className="lobby-seat-order__name"
+                  style={player.nameColor ? { color: player.nameColor } : undefined}
+                >
+                  {player.name}
+                </span>
                 {player.isCpu && <span className="lobby-seat-order__badge">CPU</span>}
                 {isMe && <span className="lobby-seat-order__badge">あなた</span>}
               </div>

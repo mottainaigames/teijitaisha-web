@@ -3,6 +3,8 @@ import {
   CPU_NAME_SUFFIX,
   formatCpuPlayerName,
   MAX_PLAYER_NAME_LENGTH,
+  normalizePlayerColor,
+  normalizePlayerDisplayStyle,
   normalizePlayerName,
   resolveLobbyPlayerName,
   stripCpuNameSuffix,
@@ -41,5 +43,19 @@ describe("CPU player names", () => {
 
   it("stripCpuNameSuffix で編集用のベース名を得られる", () => {
     expect(stripCpuNameSuffix(`CPU 1${CPU_NAME_SUFFIX}`)).toBe("CPU 1");
+  });
+});
+
+describe("player display style", () => {
+  it("normalizePlayerColor は有効な hex のみ受け付ける", () => {
+    expect(normalizePlayerColor("#abc")).toBe("#abc");
+    expect(normalizePlayerColor("red")).toBeNull();
+  });
+
+  it("normalizePlayerDisplayStyle は不正色を拒否する", () => {
+    expect(normalizePlayerDisplayStyle({ nameplateBg: "nope" })).toBeNull();
+    expect(
+      normalizePlayerDisplayStyle({ nameplateBg: "#112233", nameColor: "#fff" }),
+    ).toEqual({ nameplateBg: "#112233", nameColor: "#fff" });
   });
 });

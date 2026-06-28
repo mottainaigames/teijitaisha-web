@@ -279,6 +279,60 @@ button.secondary {
   font-weight: 600;
 }
 
+.home-entry input#name {
+  margin-bottom: 0.85rem;
+}
+
+.home-entry-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.home-entry-tabs button {
+  margin: 0;
+  padding: 0.62rem 0.5rem;
+  font-size: 0.88rem;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.home-entry-tabs button.home-entry-tabs__tab--active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.home-entry-panel label {
+  margin-top: 0;
+}
+
+.home-entry-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.home-entry-warning {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.82rem;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.home-entry-panel input#code {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .home-rules {
   margin-bottom: 1rem;
 }
@@ -1357,6 +1411,66 @@ body.lobby-seat-order-dragging * {
   justify-content: space-between;
   align-items: baseline;
   gap: 0.35rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+}
+
+.log-player-name {
+  font-weight: 700;
+}
+
+.player-style-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.player-style-settings__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.player-style-settings__preview {
+  display: flex;
+  justify-content: center;
+}
+
+.player-style-settings__sample {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.player-style-settings__field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.player-style-settings__field input[type="color"] {
+  width: 2.75rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.player-style-settings__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.player-style-settings__actions button {
+  flex: 1;
+  margin: 0;
 }
 
 .opponent__hand-preview {

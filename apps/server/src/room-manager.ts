@@ -6,7 +6,8 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   normalizePlayerName,
-  resolveLobbyPlayerName,
+  normalizePlayerColor,
+  type PlayerDisplayStyle,
   formatCpuPlayerName,
   ROOM_CODE_CHARS,
   ROOM_CODE_LENGTH,
@@ -36,6 +37,8 @@ interface Player {
   disconnectedAt: number | null;
   /** true = ロビー画面、false = 対局中または結果画面 */
   inLobby: boolean;
+  nameplateBg: string | null;
+  nameColor: string | null;
 }
 
 interface Room {
@@ -104,6 +107,8 @@ export class RoomManager {
       isObserver: false,
       disconnectedAt: null,
       inLobby: true,
+      nameplateBg: null,
+      nameColor: null,
     };
 
     const room: Room = {
@@ -165,6 +170,8 @@ export class RoomManager {
       isObserver: asObserver,
       disconnectedAt: null,
       inLobby: !this.isActiveGame(room),
+      nameplateBg: null,
+      nameColor: null,
     };
 
     room.players.set(playerId, player);
@@ -393,6 +400,8 @@ export class RoomManager {
       isObserver: false,
       disconnectedAt: null,
       inLobby: true,
+      nameplateBg: null,
+      nameColor: null,
     };
     room.players.set(playerId, player);
     this.touchRoom(room);
@@ -490,22 +499,35 @@ export class RoomManager {
     return { kickedSocketId, roomDeleted: false };
   }
 
-  renamePlayer(
-    hostId: PlayerId,
+  setPlayerStyle(
+    playerId: PlayerId,
     code: RoomCode,
-    targetPlayerId: PlayerId,
-    rawName: string,
+    style: PlayerDisplayStyle,
   ): string | null {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return "ルームが見つかりません";
-    if (room.hostId !== hostId) return "ホストのみ操作できます";
-    if (room.players.get(hostId)?.isObserver) return "観戦者は操作できません";
-    if (this.isActiveGame(room)) return "ゲーム開始後は名前を変更できません";
+    const player = room.players.get(playerId);
+    if (!player || player.isCpu) return "変更できません";
 
-    const target = room.players.get(targetPlayerId);
-    if (!target) return "プレイヤーが見つかりません";
+    if (style.nameplateBg !== undefined) {
+      if (style.nameplateBg != null && style.nameplateBg !== "") {
+        const normalized = normalizePlayerColor(style.nameplateBg);
+        if (!normalized) return "背景色の形式が正しくありません（#RGB または #RRGGBB）";
+        player.nameplateBg = normalized;
+      } else {
+        player.nameplateBg = null;
+      }
+    }
+    if (style.nameColor !== undefined) {
+      if (style.nameColor != null && style.nameColor !== "") {
+        const normalized = normalizePlayerColor(style.nameColor);
+        if (!normalized) return "文字色の形式が正しくありません（#RGB または #RRGGBB）";
+        player.nameColor = normalized;
+      } else {
+        player.nameColor = null;
+      }
+    }
 
-    target.name = resolveLobbyPlayerName(rawName, target.isCpu);
     this.touchRoom(room);
     return null;
   }
@@ -723,10 +745,22 @@ export class RoomManager {
     if (!room?.game) return null;
     const player = room.players.get(playerId);
     if (player?.inLobby) return null;
-    if (player?.isObserver) {
-      return room.game.getObserverView(playerId);
-    }
-    return room.game.getView(playerId);
+    const base =
+      player?.isObserver
+        ? room.game.getObserverView(playerId)
+        : room.game.getView(playerId);
+    if (!base) return null;
+    return {
+      ...base,
+      seats: base.seats.map((seat) => {
+        const rp = room.players.get(seat.playerId);
+        return {
+          ...seat,
+          nameplateBg: rp?.nameplateBg ?? undefined,
+          nameColor: rp?.nameColor ?? undefined,
+        };
+      }),
+    };
   }
 
   getRoomBySocket(socketId: string): Room | undefined {
@@ -860,6 +894,8 @@ export class RoomManager {
         isCpu: p.isCpu || undefined,
         isObserver: p.isObserver || undefined,
         inLobby: p.inLobby,
+        nameplateBg: p.nameplateBg ?? undefined,
+        nameColor: p.nameColor ?? undefined,
       }));
 
     return {
@@ -937,9 +973,34 @@ export function parseClientMessage(data: unknown): ClientMessage | null {
     case "kick_player":
       if (typeof msg.targetPlayerId !== "string") return null;
       return { type: "kick_player", targetPlayerId: msg.targetPlayerId };
-    case "rename_player":
-      if (typeof msg.targetPlayerId !== "string" || typeof msg.name !== "string") return null;
-      return { type: "rename_player", targetPlayerId: msg.targetPlayerId, name: msg.name };
+    case "set_player_style": {
+      const hasBg = "nameplateBg" in msg;
+      const hasColor = "nameColor" in msg;
+      if (!hasBg && !hasColor) return null;
+      return {
+        type: "set_player_style",
+        ...(hasBg
+          ? {
+              nameplateBg:
+                msg.nameplateBg === null
+                  ? null
+                  : typeof msg.nameplateBg === "string"
+                    ? msg.nameplateBg
+                    : undefined,
+            }
+          : {}),
+        ...(hasColor
+          ? {
+              nameColor:
+                msg.nameColor === null
+                  ? null
+                  : typeof msg.nameColor === "string"
+                    ? msg.nameColor
+                    : undefined,
+            }
+          : {}),
+      };
+    }
     case "selection_preview":
       if (!("mode" in msg)) return null;
       return {
