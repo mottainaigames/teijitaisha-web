@@ -6,6 +6,13 @@ import { GameScreen } from "./GameScreen";
 import { ProductAdBanner } from "./product-ad";
 import { HomePromoShareButton, MottainaiLinks } from "./social-promo";
 import { HomeRules } from "./home-rules";
+import {
+  LegalFooterLinks,
+  LegalPageRouter,
+  navigateLegal,
+  readLegalPage,
+  type LegalPageId,
+} from "./legal-pages";
 
 type HomeMode = "join" | "create";
 
@@ -42,6 +49,13 @@ export default function App() {
   const [homeMode, setHomeMode] = useState<HomeMode>(() =>
     readInviteCodeFromUrl() ? "join" : "join",
   );
+  const [legalPage, setLegalPage] = useState<LegalPageId | null>(() => readLegalPage());
+
+  useEffect(() => {
+    const syncLegalPage = () => setLegalPage(readLegalPage());
+    window.addEventListener("popstate", syncLegalPage);
+    return () => window.removeEventListener("popstate", syncLegalPage);
+  }, []);
 
   useEffect(() => {
     const code = readInviteCodeFromUrl();
@@ -69,6 +83,8 @@ export default function App() {
     e.preventDefault();
     joinRoom(false);
   };
+
+  const handleLegalBack = () => navigateLegal(null);
 
   const me = room?.players.find((p) => p.id === playerId);
   const showingLobby = Boolean(room && me && (!room.started || me.inLobby));
@@ -150,10 +166,14 @@ export default function App() {
         </div>
       )}
 
-      {screen === "home" && (
+      {legalPage ? (
+        <LegalPageRouter page={legalPage} onBack={handleLegalBack} />
+      ) : (
         <>
-          <ProductAdBanner className="product-ad-banner--home" />
-          <div className="card home-entry">
+          {screen === "home" && (
+            <>
+              <ProductAdBanner className="product-ad-banner--home" />
+              <div className="card home-entry">
             <label htmlFor="name">表示名</label>
             <input
               id="name"
@@ -259,12 +279,12 @@ export default function App() {
             )}
 
             <HomePromoShareButton />
-          </div>
-          <HomeRules />
-        </>
-      )}
+              </div>
+              <HomeRules />
+            </>
+          )}
 
-      {screen === "game" && room && playerId && view && (
+          {screen === "game" && room && playerId && view && (
         <GameScreen
           room={room}
           view={view}
@@ -294,12 +314,15 @@ export default function App() {
           onShuffleSeats={() => send({ type: "shuffle_seats" })}
           onKickPlayer={(targetPlayerId) => send({ type: "kick_player", targetPlayerId })}
           onSetPlayerStyle={(style) => send({ type: "set_player_style", ...style })}
-        />
+            />
+          )}
+        </>
       )}
 
-      {!(screen === "game" && room) && (
+      {!(screen === "game" && room) && !legalPage && (
         <footer className="app-footer">
           <MottainaiLinks className="mottainai-links--footer" />
+          <LegalFooterLinks className="legal-footer-links--app" />
           <p className="app-footer__copy">© MottainaiGames 2026</p>
         </footer>
       )}

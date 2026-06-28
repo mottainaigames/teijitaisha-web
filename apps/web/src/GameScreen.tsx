@@ -26,6 +26,7 @@ import { ReorderableHandFan } from "./reorderable-hand-fan";
 import { RoukiRevealOverlay, getRoukiFinaleRole } from "./rouki-reveal";
 import { SeatOrderBar } from "./seat-order";
 import { ProductAdBanner, ProductAdPopup } from "./product-ad";
+import { LegalFooterLinks } from "./legal-pages";
 import { GameResultShareButton, MottainaiLinks, RoomInviteShare } from "./social-promo";
 
 interface Props {
@@ -393,6 +394,7 @@ export function GameScreen({
             </div>
             <ProductAdBanner className="product-ad-banner--lobby" />
             <MottainaiLinks className="mottainai-links--lobby" />
+            <LegalFooterLinks />
           </footer>
         </div>
       </div>
@@ -508,6 +510,7 @@ export function GameScreen({
             </div>
           </div>
           <MottainaiLinks className="mottainai-links--footer" />
+          <LegalFooterLinks />
         </div>
       </div>
     );
