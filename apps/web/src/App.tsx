@@ -215,7 +215,12 @@ export default function App() {
                   spellCheck={false}
                   autoCapitalize="characters"
                 />
-                <button type="button" onClick={() => joinRoom(false)} disabled={!canJoin}>
+                <button
+                  type="button"
+                  className="home-entry-action"
+                  onClick={() => joinRoom(false)}
+                  disabled={!canJoin}
+                >
                   参加する（プレイヤー）
                 </button>
                 <button
@@ -242,7 +247,12 @@ export default function App() {
                     ルームコードが入力されています。既存のルームに入る場合は「ルームに参加」を選んでください。
                   </p>
                 )}
-                <button type="button" onClick={createRoom} disabled={!canCreate}>
+                <button
+                  type="button"
+                  className="home-entry-action"
+                  onClick={createRoom}
+                  disabled={!canCreate}
+                >
                   ルームを作成
                 </button>
               </section>
