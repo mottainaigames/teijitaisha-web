@@ -116,6 +116,8 @@ export function GameScreen({
   const hasCpu = room.players.some((p) => p.isCpu);
   const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuStyleOpen, setMenuStyleOpen] = useState(false);
+  const [lobbyStyleOpen, setLobbyStyleOpen] = useState(false);
   const [showProductAdPopup, setShowProductAdPopup] = useState(false);
   const prevPhaseRef = useRef<GameView["phase"]>(view.phase);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -175,14 +177,27 @@ export function GameScreen({
     />
   );
 
+  const handleApplyPlayerStyle = (style: {
+    nameplateBg?: string | null;
+    nameColor?: string | null;
+  }) => {
+    onSetPlayerStyle(style);
+    setMenuStyleOpen(false);
+    setLobbyStyleOpen(false);
+  };
+
   const menuExtra = (
     <>
       {!isObserverMode && (
-        <CollapsibleSection title="表示カスタム" defaultOpen={false}>
+        <CollapsibleSection
+          title="表示カスタム"
+          open={menuStyleOpen}
+          onOpenChange={setMenuStyleOpen}
+        >
           <PlayerStyleSettings
             nameplateBg={roomMe?.nameplateBg}
             nameColor={roomMe?.nameColor}
-            onApply={onSetPlayerStyle}
+            onApply={handleApplyPlayerStyle}
           />
         </CollapsibleSection>
       )}
@@ -292,11 +307,15 @@ export function GameScreen({
           )}
 
           {!isObserverMode && (
-            <CollapsibleSection title="表示カスタム" defaultOpen={false}>
+            <CollapsibleSection
+              title="表示カスタム"
+              open={lobbyStyleOpen}
+              onOpenChange={setLobbyStyleOpen}
+            >
               <PlayerStyleSettings
                 nameplateBg={roomMe?.nameplateBg}
                 nameColor={roomMe?.nameColor}
-                onApply={onSetPlayerStyle}
+                onApply={handleApplyPlayerStyle}
               />
             </CollapsibleSection>
           )}

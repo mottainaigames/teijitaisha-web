@@ -60,48 +60,50 @@ export function GameMenu({
               </button>
             </div>
 
-            <div className="game-menu__actions">
-              {showAdvanceCpu && onAdvanceCpu && (
-                <button type="button" className="game-menu__advance" onClick={onAdvanceCpu}>
-                  CPUを進める ▶
+            <div className="game-menu__body">
+              <div className="game-menu__actions">
+                {showAdvanceCpu && onAdvanceCpu && (
+                  <button type="button" className="game-menu__advance" onClick={onAdvanceCpu}>
+                    CPUを進める ▶
+                  </button>
+                )}
+                {showCpuSpeed && onCycleCpuSpeed && cpuSpeedLabel && (
+                  <button type="button" className="secondary" onClick={onCycleCpuSpeed}>
+                    CPU速度: {cpuSpeedLabel}
+                  </button>
+                )}
+                <button type="button" className="secondary" onClick={() => setEffectsOpen(true)}>
+                  カード効果一覧
                 </button>
-              )}
-              {showCpuSpeed && onCycleCpuSpeed && cpuSpeedLabel && (
-                <button type="button" className="secondary" onClick={onCycleCpuSpeed}>
-                  CPU速度: {cpuSpeedLabel}
-                </button>
-              )}
-              <button type="button" className="secondary" onClick={() => setEffectsOpen(true)}>
-                カード効果一覧
-              </button>
-              {showLeave && !leaveConfirm && (
-                <button type="button" className="game-menu__leave" onClick={() => setLeaveConfirm(true)}>
-                  ルームを退出
-                </button>
-              )}
-              {showLeave && leaveConfirm && (
-                <div className="game-menu__leave-confirm" role="group" aria-label="退出の確認">
-                  <p className="game-menu__leave-confirm-text">ルームを退出しますか？</p>
-                  <div className="game-menu__leave-confirm-actions">
-                    <button
-                      type="button"
-                      className="game-menu__leave"
-                      onClick={() => {
-                        onLeave();
-                        onClose();
-                      }}
-                    >
-                      退出する
-                    </button>
-                    <button type="button" className="secondary" onClick={() => setLeaveConfirm(false)}>
-                      キャンセル
-                    </button>
+                {showLeave && !leaveConfirm && (
+                  <button type="button" className="game-menu__leave" onClick={() => setLeaveConfirm(true)}>
+                    ルームを退出
+                  </button>
+                )}
+                {showLeave && leaveConfirm && (
+                  <div className="game-menu__leave-confirm" role="group" aria-label="退出の確認">
+                    <p className="game-menu__leave-confirm-text">ルームを退出しますか？</p>
+                    <div className="game-menu__leave-confirm-actions">
+                      <button
+                        type="button"
+                        className="game-menu__leave"
+                        onClick={() => {
+                          onLeave();
+                          onClose();
+                        }}
+                      >
+                        退出する
+                      </button>
+                      <button type="button" className="secondary" onClick={() => setLeaveConfirm(false)}>
+                        キャンセル
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {children && <div className="game-menu__extra">{children}</div>}
+              {children && <div className="game-menu__extra">{children}</div>}
+            </div>
           </div>
         </div>
       )}

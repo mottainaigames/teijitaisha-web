@@ -3868,6 +3868,7 @@ body.lobby-seat-order-dragging * {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  touch-action: pan-y;
 }
 
 .game-menu__header {
@@ -3905,7 +3906,7 @@ body.lobby-seat-order-dragging * {
 .game-menu__actions {
   display: grid;
   gap: 0.45rem;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem 0.35rem;
   flex-shrink: 0;
 }
 
@@ -3949,12 +3950,16 @@ body.lobby-seat-order-dragging * {
   gap: 0.4rem;
 }
 
-.game-menu__extra {
+.game-menu__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.game-menu__extra {
   padding: 0 1rem 1rem;
   display: grid;
   gap: 0.5rem;
@@ -4009,15 +4014,11 @@ body.lobby-seat-order-dragging * {
 }
 
 .game-menu__extra .collapsible__body {
-  max-height: min(40vh, 260px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
+  overflow: visible;
 }
 
 .game-menu__extra .collapsible {
-  min-height: 0;
+  overflow: visible;
 }
 
 .collapsible__body .seat-order {

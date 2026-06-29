@@ -3,6 +3,8 @@ import { useState, type ReactNode } from "react";
 interface Props {
   title: string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   badge?: string | number;
   children: ReactNode;
   className?: string;
@@ -11,11 +13,20 @@ interface Props {
 export function CollapsibleSection({
   title,
   defaultOpen = false,
+  open: openProp,
+  onOpenChange,
   badge,
   children,
   className = "",
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : internalOpen;
+
+  const setOpen = (next: boolean) => {
+    if (isControlled) onOpenChange?.(next);
+    else setInternalOpen(next);
+  };
 
   return (
     <div className={`collapsible ${open ? "collapsible--open" : ""} ${className}`.trim()}>
@@ -23,7 +34,7 @@ export function CollapsibleSection({
         type="button"
         className="collapsible__toggle"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
       >
         <span className="collapsible__title">{title}</span>
         {badge !== undefined && badge !== "" && (
