@@ -117,7 +117,6 @@ export function GameScreen({
   const drawSourceId = view.pending?.type === "draw" ? view.pending.sourcePlayerId : null;
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuStyleOpen, setMenuStyleOpen] = useState(false);
-  const [lobbyStyleOpen, setLobbyStyleOpen] = useState(false);
   const [showProductAdPopup, setShowProductAdPopup] = useState(false);
   const prevPhaseRef = useRef<GameView["phase"]>(view.phase);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -183,7 +182,6 @@ export function GameScreen({
   }) => {
     onSetPlayerStyle(style);
     setMenuStyleOpen(false);
-    setLobbyStyleOpen(false);
   };
 
   const menuExtra = (
@@ -304,20 +302,6 @@ export function GameScreen({
                 結果を見ている人がいる間は「結果確認中」と表示されます。全員がルームに戻ると次のゲームを開始できます。
               </p>
             </div>
-          )}
-
-          {!isObserverMode && (
-            <CollapsibleSection
-              title="表示カスタム"
-              open={lobbyStyleOpen}
-              onOpenChange={setLobbyStyleOpen}
-            >
-              <PlayerStyleSettings
-                nameplateBg={roomMe?.nameplateBg}
-                nameColor={roomMe?.nameColor}
-                onApply={handleApplyPlayerStyle}
-              />
-            </CollapsibleSection>
           )}
 
           <section className="lobby-screen__members" aria-label="参加メンバー">
