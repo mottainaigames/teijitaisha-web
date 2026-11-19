@@ -4670,3 +4670,633 @@ select:focus {
 .game-shell--scroll .screen-header h2 {
   font-size: 1.4rem;
 }
+
+/* ================================================================
+   第3弾：卓を囲むゲーム画面（会議テーブル）
+   ================================================================ */
+:root {
+  --font-display: "Dela Gothic One", "Hiragino Sans", sans-serif;
+  --font-body: "M PLUS 1p", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --floor: #171a2c;
+  --wood: #5a3e2b;
+  --wood-dark: #3f2a1d;
+  --hud: rgb(12 14 28 / 88%);
+  --hud-line: rgb(255 255 255 / 14%);
+  --red: #d8423a;
+}
+:root,
+body,
+button,
+input {
+  font-family: var(--font-body);
+}
+
+/* 部屋（床）と卓 */
+.app--in-game:has(.game-shell--table) {
+  max-width: none;
+  background: var(--floor);
+}
+body:has(.game-shell--table) {
+  background: var(--floor);
+}
+.game-shell--table {
+  position: relative;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  color: #fff;
+}
+.game-shell--table .game-main {
+  position: relative;
+  margin: 0 -0.5rem;
+  padding: 0 0.5rem;
+  overflow: hidden auto;
+}
+.game-shell--table .game-main::before {
+  /* 卓：上下を丸く切った木の天板 */
+  content: "";
+  position: absolute;
+  inset: 0.75rem 0.25rem -40px;
+  border-radius: 50% 50% 0 0 / 22% 22% 0 0;
+  background-color: var(--wood);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgb(0 0 0 / 0%) 0 22px,
+      rgb(0 0 0 / 7%) 22px 23px,
+      rgb(255 255 255 / 3%) 23px 41px,
+      rgb(0 0 0 / 5%) 41px 42px
+    );
+  box-shadow:
+    inset 0 0 0 6px var(--wood-dark),
+    inset 0 18px 40px rgb(0 0 0 / 35%);
+  pointer-events: none;
+}
+.game-shell--table .game-main > * {
+  position: relative;
+}
+
+/* 上部HUD */
+.game-shell--table .game-topbar {
+  margin: 0 -0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: #0d0f1d;
+  border-bottom: 1px solid var(--hud-line);
+}
+.game-shell--table .game-topbar--mine {
+  background: #0d0f1d;
+  box-shadow: inset 4px 0 0 var(--red);
+}
+.game-shell--table .game-topbar__turn {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+}
+.game-shell--table .game-topbar--mine .game-topbar__turn {
+  color: #ffd9d4;
+}
+.game-shell--table .deadline-timer {
+  font-family: var(--font-display);
+  font-weight: 400;
+  border-radius: 2px;
+  background: #fff !important;
+  color: var(--ink) !important;
+  padding: 0.15rem 0.5rem;
+}
+.game-shell--table .game-topbar__menu-btn {
+  border-radius: 2px;
+}
+
+/* 座席：社員証 */
+.table-seats {
+  display: block;
+  position: relative;
+  height: 9.5rem;
+  margin: 0;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.table-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 7rem;
+}
+.table-seats--list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  height: auto;
+  padding: 1.25rem 0.25rem 0.5rem;
+}
+.table-seats--list .table-seat {
+  position: static;
+  transform: none;
+  flex: 1 1 7rem;
+}
+.table-seats--list .table-seat:has(.opponent--spectator) {
+  flex-basis: 100%;
+}
+.game-shell--table .opponent {
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none !important;
+  align-items: center;
+  gap: 0.25rem;
+  color: #fff;
+}
+.seat-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.3rem 0.35rem 0.3rem 0.3rem;
+  background: #fff;
+  color: var(--ink);
+  border-radius: 2px;
+  border-top: 4px solid var(--ink);
+  box-shadow: 0 3px 0 rgb(0 0 0 / 35%);
+}
+.seat-badge__avatar {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  border-radius: 1px;
+}
+.seat-badge__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.seat-badge__name {
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seat-badge__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+.seat-badge__count {
+  font-weight: 800;
+  color: var(--ink);
+}
+.seat-badge .cpu-tag {
+  margin: 0;
+  padding: 0 0.2rem;
+  font-size: 0.55rem;
+}
+.seat-badge__turn {
+  position: absolute;
+  top: -0.85rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.05rem 0.45rem;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+.game-shell--table .opponent.current .seat-badge {
+  border-top-color: var(--red);
+  outline: 2px solid var(--red);
+}
+.game-shell--table .opponent--draw-source .seat-badge {
+  outline: 2px dashed #ffd9d4;
+}
+.game-shell--table .opponent.retired .seat-badge {
+  opacity: 0.55;
+}
+.game-shell--table .opponent > span:not(.opponent__draw-badge) {
+  font-size: 0.65rem;
+  color: rgb(255 255 255 / 80%);
+}
+.game-shell--table .opponent__draw-badge {
+  background: var(--red);
+  color: #fff;
+  font-size: 0.6rem;
+  padding: 0 0.35rem;
+  border-radius: 0;
+}
+/* 相手の手札：裏向きの小さな扇 */
+.game-shell--table .opponent__hand-preview {
+  display: flex;
+  justify-content: center;
+  height: 1.6rem;
+  margin-top: 0.1rem;
+}
+.game-shell--table .opponent__mini-card {
+  width: 1.05rem;
+  height: 1.5rem;
+  margin-left: -0.55rem;
+  background: var(--ink) url("/cards/back.png") center / cover;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 1px;
+  transform: rotate(calc((var(--mini-index) - 2.5) * 7deg));
+  transform-origin: bottom center;
+}
+.game-shell--table .opponent__mini-card:first-child {
+  margin-left: 0;
+}
+
+/* 卓の中央 */
+.game-shell--table .game-table {
+  justify-content: center;
+  padding: 0.25rem 0.5rem 0.75rem;
+}
+.game-shell--table .table-field {
+  align-self: center;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  text-align: center;
+}
+.game-shell--table .table-field__cards .playing-card {
+  width: 60px;
+  height: 84px;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 30%);
+}
+.game-shell--table .table-field__cards .playing-card:first-child {
+  transform: rotate(-8deg) translateX(6px);
+}
+.game-shell--table .table-field__cards .playing-card:last-child {
+  transform: rotate(6deg);
+}
+.game-shell--table .table-field__title {
+  color: #fff;
+  font-size: 0.8rem;
+}
+.game-shell--table .table-field__title strong {
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+.game-shell--table .table-field__effect {
+  color: rgb(255 255 255 / 70%);
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+/* 卓上のパネル類はHUD（暗い板）に */
+.game-shell--table .cpu-banner,
+.game-shell--table .draw-zone,
+.game-shell--table .pending,
+.game-shell--table .actions,
+.game-shell--table .peek,
+.game-shell--table .notice,
+.game-shell--table .being-targeted,
+.game-shell--table .spectator-banner,
+.game-shell--table .game-table > .card,
+.game-shell--table .game-table > div:not(.table-field):not(.rouki-reveal-overlay):not([class*="overlay"]) {
+  background: var(--hud) !important;
+  color: #fff !important;
+  border: 1px solid var(--hud-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+.game-shell--table .game-table p,
+.game-shell--table .game-table h3,
+.game-shell--table .game-table strong,
+.game-shell--table .game-table label {
+  color: inherit;
+}
+.game-shell--table .game-table .status,
+.game-shell--table .game-table [class*="hint"] {
+  color: rgb(255 255 255 / 70%) !important;
+  background: transparent !important;
+  border: none !important;
+}
+.game-shell--table .draw-zone--active {
+  border: 2px solid var(--red) !important;
+}
+.game-shell--table .game-table > p.status {
+  background: transparent !important;
+  border: none !important;
+  text-align: center;
+  font-size: 0.78rem;
+}
+.game-shell--table .option-btn {
+  border-radius: 2px !important;
+}
+.game-shell--table .game-table button:not(.option-btn):not(.playing-card):not(.pair-card) {
+  border-radius: 2px;
+}
+.game-shell--table .game-table button.secondary {
+  background: transparent !important;
+  color: #fff !important;
+  border: 1px solid rgb(255 255 255 / 45%) !important;
+}
+
+/* 手前：自分の手札（卓の縁に置く） */
+.game-shell--table .game-hand-dock {
+  position: relative;
+  background: #0d0f1d;
+  border-top: 3px solid var(--wood-dark);
+  color: #fff;
+}
+.game-shell--table .my-hand,
+.game-shell--table .my-hand--has-zangyo,
+.game-shell--table .game-hand-dock .my-hand[class*="my-hand--purpose-"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.game-shell--table .game-hand-dock .my-hand[class*="my-hand--purpose-"] {
+  box-shadow: inset 0 0 0 2px var(--red) !important;
+}
+.game-shell--table .my-hand__label {
+  color: rgb(255 255 255 / 65%);
+}
+.game-shell--table .my-hand__label strong {
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+.game-shell--table .my-hand__shuffle {
+  background: transparent !important;
+  color: #fff !important;
+  border: 1px solid rgb(255 255 255 / 40%) !important;
+  border-radius: 2px !important;
+}
+.game-shell--table .my-hand__zangyo-banner {
+  background: var(--red) !important;
+  font-family: var(--font-display);
+  font-weight: 400 !important;
+  letter-spacing: 0.1em;
+  border-radius: 0 !important;
+}
+.game-shell--table .my-hand__skip-pair {
+  background: transparent !important;
+  color: #fff !important;
+  border: 1px solid rgb(255 255 255 / 45%) !important;
+  border-radius: 2px !important;
+}
+.game-shell--table .hand-pick-hint,
+.game-shell--table [class*="hand-pick-hint"] {
+  background: var(--red) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+.game-shell--table .card-detail {
+  border-radius: 2px;
+  border: none;
+  border-left: 6px solid var(--card-border, var(--ink));
+}
+.game-shell--table .card-detail__action {
+  background: var(--red);
+  border-radius: 2px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+}
+
+/* カードは角を立てる */
+.playing-card,
+.pair-card,
+.playing-card__back-img {
+  border-radius: 3px !important;
+}
+.playing-card--face {
+  box-shadow: 0 2px 0 rgb(0 0 0 / 25%) !important;
+}
+
+/* 手番が来た瞬間の帯（1回だけ） */
+.turn-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.turn-banner span {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.25em;
+  text-align: center;
+  transform: skewY(-4deg);
+  animation: turn-banner-sweep 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes turn-banner-sweep {
+  0% { clip-path: inset(0 100% 0 0); }
+  25% { clip-path: inset(0 0 0 0); }
+  75% { clip-path: inset(0 0 0 0); opacity: 1; }
+  100% { clip-path: inset(0 0 0 100%); opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-banner span { animation: none; }
+}
+.table-seats {
+  height: 10.5rem;
+}
+.game-shell--table .game-main::before {
+  inset: 2.25rem 0.25rem -40px;
+}
+.table-seats {
+  height: 11.5rem;
+}
+.table-seat {
+  width: 7.6rem;
+}
+
+/* 引く場面：卓に収まるサイズ */
+.game-shell--table .card-fan.card-fan--draw {
+  min-height: 130px;
+  padding: 0.75rem 0.5rem 1.5rem;
+}
+.game-shell--table .card-fan--draw .playing-card--lg {
+  width: 62px;
+  height: 88px;
+  margin-left: -22px;
+}
+.game-shell--table .card-fan--draw .playing-card--lg:first-child {
+  margin-left: 0;
+}
+.game-shell--table .game-table:has(.draw-zone--active) .table-field {
+  display: none;
+}
+
+/* ================================================================
+   第3弾：ホーム・ロビー・結果も同じ「夜のオフィス」に
+   ================================================================ */
+body {
+  background: var(--floor);
+}
+.app {
+  color: var(--ink);
+}
+.app .card,
+.home-entry,
+.lobby-screen__invite,
+.lobby-player-card,
+.game-screen-scroll > .card {
+  border-radius: 2px !important;
+  border: none !important;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 35%) !important;
+}
+.app button {
+  border-radius: 2px;
+}
+.app input {
+  border-radius: 2px !important;
+}
+.app-footer,
+.app-footer a,
+.mottainai-links,
+.mottainai-links a,
+.legal-footer-links,
+.legal-footer-links a,
+.legal-footer-links button {
+  color: rgb(255 255 255 / 70%) !important;
+}
+
+/* ホーム：タイトル画面 */
+.app-brand--hero {
+  margin: -2rem -1rem 1rem;
+  padding: 2.5rem 1rem 1.5rem;
+  background: transparent;
+  border-bottom: none;
+}
+.app-brand--hero::before {
+  content: "";
+  display: block;
+  width: 9rem;
+  height: 9rem;
+  margin: 0 auto 0.75rem;
+  background: url("/promo/teijitaisha-box.png") center / contain no-repeat;
+  filter: drop-shadow(0 8px 0 rgb(0 0 0 / 35%));
+}
+.app-brand--hero h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 3rem;
+  letter-spacing: 0.06em;
+}
+.app-brand--hero .app-brand__sub {
+  border: none;
+  background: var(--red);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  padding: 0.15rem 0.8rem;
+}
+.app-brand--hero .app-brand__specs li {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 35%);
+}
+.home-entry-action,
+.lobby-screen__actions > button:not(.secondary) {
+  background: var(--red) !important;
+  font-family: var(--font-display);
+  font-weight: 400 !important;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 0 #8f2620 !important;
+}
+.home-entry-action:disabled {
+  background: #b9b3a6 !important;
+  box-shadow: 0 4px 0 #8f897c !important;
+}
+.home-entry-tabs,
+.home-entry-tabs button {
+  border-radius: 2px !important;
+}
+.app:not(.app--in-game) .app-brand:not(.app-brand--hero) h1 {
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+.home-rules,
+.home-rules h2 {
+  color: var(--ink);
+}
+
+/* ロビー：会議室 */
+.game-shell--lobby {
+  color: #fff;
+}
+.lobby-screen__header {
+  background: #0d0f1d;
+  border-bottom: 1px solid var(--hud-line);
+}
+.lobby-screen__role {
+  font-family: var(--font-display);
+  font-weight: 400 !important;
+}
+.lobby-screen__invite .room-code {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+.lobby-screen__members-title,
+.lobby-section__title,
+.lobby-screen__members-count {
+  color: #fff !important;
+  font-family: var(--font-display);
+  font-weight: 400 !important;
+}
+.lobby-player-card {
+  border-top: 4px solid var(--ink) !important;
+}
+.lobby-player-card--me {
+  border-top-color: var(--red) !important;
+}
+.lobby-player-card__seat {
+  font-family: var(--font-display);
+}
+.lobby-screen__footer {
+  background: #0d0f1d;
+  border-top: 1px solid var(--hud-line);
+}
+.lobby-screen__footer .secondary {
+  background: transparent !important;
+  color: #fff !important;
+  border: 1px solid rgb(255 255 255 / 40%) !important;
+}
+.lobby-screen__waiting {
+  color: rgb(255 255 255 / 75%) !important;
+}
+.lobby-section > *:not(.lobby-section__head),
+.lobby-seat-order {
+  border-radius: 2px !important;
+}
+
+/* 結果 */
+.game-shell--scroll .screen-header h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+}
+.game-shell--table .table-field__title strong,
+.game-shell--table .seat-badge__turn {
+  font-family: var(--font-body);
+  font-weight: 800;
+}
+.game-shell--table .table-field__title strong {
+  font-size: 0.95rem;
+}

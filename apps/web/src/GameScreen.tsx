@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   CARD_EFFECTS,
@@ -159,6 +160,21 @@ export function GameScreen({
     lastTransferAtRef.current = t.at;
     setTransferFx(t);
   }, [view.lastTransfer]);
+
+  // 自分の番になった瞬間だけ帯を流す
+  const [turnBanner, setTurnBanner] = useState(false);
+  const prevTurnRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cur = view.currentPlayerId ?? null;
+    const active = view.phase !== "lobby" && view.phase !== "game_end";
+    if (active && cur && cur !== prevTurnRef.current && cur === playerId) setTurnBanner(true);
+    prevTurnRef.current = cur;
+  }, [view.currentPlayerId, view.phase, playerId]);
+  useEffect(() => {
+    if (!turnBanner) return;
+    const timer = setTimeout(() => setTurnBanner(false), 1200);
+    return () => clearTimeout(timer);
+  }, [turnBanner]);
 
   // 受け渡し演出は一定時間で消す（状態更新でタイマーが取り消されないよう分けている）
   useEffect(() => {
@@ -680,10 +696,20 @@ export function GameScreen({
   const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickPurpose;
   const hasZangyoInHand = view.myHand.some((c) => c.type === "zangyo");
   const isMyTurn = view.currentPlayerId === playerId && view.phase !== "game_end";
+  const myIndex = view.seats.findIndex((x) => x.playerId === playerId);
+  const opponentSeats =
+    myIndex >= 0
+      ? [...view.seats.slice(myIndex + 1), ...view.seats.slice(0, myIndex)]
+      : view.seats;
 
   return (
-    <div className="game-shell">
+    <div className="game-shell game-shell--table">
       {gameMenu}
+      {turnBanner && (
+        <div className="turn-banner" aria-hidden>
+          <span>あなたの番</span>
+        </div>
+      )}
 
       <header className={`game-topbar${isMyTurn ? " game-topbar--mine" : ""}`}>
         <div className="game-topbar__info">
@@ -709,12 +735,19 @@ export function GameScreen({
       </header>
 
       <div className="game-main">
-        <div className={`opponents ${anyoneDrawing && !isSpectating ? "opponents--compact" : ""}`}>
-          {view.seats
-            .filter((s) => s.playerId !== playerId)
-            .map((s) => (
+        <div
+          className={[
+            "opponents",
+            "table-seats",
+            anyoneDrawing && !isSpectating ? "opponents--compact" : "",
+            opponentSeats.length > 6 || isSpectating ? "table-seats--list" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {opponentSeats.map((s, i) => (
+            <div key={s.playerId} className="table-seat" style={seatPosition(i, opponentSeats.length)}>
               <Opponent
-                key={s.playerId}
                 seat={s}
                 isCurrent={s.playerId === view.currentPlayerId}
                 isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
@@ -732,6 +765,7 @@ export function GameScreen({
                   view.remoteSelection.mode === "selected"
                 }
               />
+            </div>
             ))}
         </div>
 
@@ -1110,6 +1144,24 @@ function DeadlineCountdown({ deadlineAt }: { deadlineAt: number | null }) {
   );
 }
 
+/** 卓の上半分に弧を描くように相手を並べる（左から時計回り） */
+function seatPosition(index: number, total: number): CSSProperties {
+  if (total > 6) return {};
+  const start = 200;
+  const end = 340;
+  const angle = total === 1 ? 270 : start + ((end - start) * index) / (total - 1);
+  const rad = (angle * Math.PI) / 180;
+  return {
+    left: `${50 + 34 * Math.cos(rad)}%`,
+    top: `${80 + 50 * Math.sin(rad)}%`,
+  };
+}
+
+function seatInitial(name: string, isCpu: boolean): string {
+  if (isCpu) return name.match(/\d+/)?.[0] ?? "C";
+  return Array.from(name)[0] ?? "?";
+}
+
 function Opponent({
   seat,
   isCurrent,
@@ -1129,7 +1181,7 @@ function Opponent({
   remoteTarget?: boolean;
   remoteTargetSelected?: boolean;
 }) {
-  const previewCount = Math.min(seat.handCount, 4);
+  const previewCount = Math.min(seat.handCount, 6);
   const opponentClass = [
     "opponent",
     compact ? "opponent--compact" : "",
@@ -1145,12 +1197,18 @@ function Opponent({
 
   return (
     <div className={opponentClass}>
-      <div className="opponent__header" style={seatNameStyle(seat)}>
-        <strong>
-          {seat.name}
-          {isCpu && <span className="cpu-tag">CPU</span>}
-        </strong>
-        <span>{seat.handCount}枚</span>
+      <div className="seat-badge">
+        <span className="seat-badge__avatar" style={seatNameStyle(seat)} aria-hidden>
+          {seatInitial(seat.name, isCpu)}
+        </span>
+        <span className="seat-badge__body">
+          <strong className="seat-badge__name">{seat.name}</strong>
+          <span className="seat-badge__meta">
+            {isCpu && <span className="cpu-tag">CPU</span>}
+            <span className="seat-badge__count">{seat.handCount}枚</span>
+          </span>
+        </span>
+        {isCurrent && <span className="seat-badge__turn">手番</span>}
       </div>
       {visibleHand && visibleHand.length > 0 && (
         <CardFan className="card-fan--spectator">
@@ -1168,7 +1226,7 @@ function Opponent({
       {visibleHand && visibleHand.length === 0 && (
         <p className="status opponent__empty-hand">手札なし</p>
       )}
-      {compact && previewCount > 0 && !visibleHand && (
+      {previewCount > 0 && !visibleHand && (
         <div className="opponent__hand-preview" aria-hidden>
           {Array.from({ length: previewCount }, (_, i) => (
             <span
@@ -1182,7 +1240,7 @@ function Opponent({
       {seat.status === "retired" && <span>退社</span>}
       {seat.autoPlay && <span className="opponent__auto-play">自動プレイ</span>}
       {seat.status === "disconnected" && !seat.autoPlay && <span>切断</span>}
-      {isDrawSource && compact && <span className="opponent__draw-badge">引く相手</span>}
+      {isDrawSource && <span className="opponent__draw-badge">引く相手</span>}
     </div>
   );
 }
