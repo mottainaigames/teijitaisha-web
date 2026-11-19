@@ -135,9 +135,20 @@ export default function App() {
 
   return (
     <div className={`app${screen === "game" && room ? " app--in-game" : ""}`}>
-      <div className="app-brand">
-        <h1>定時退社Web版</h1>
-      </div>
+      {!(screen === "game" && room) && (
+        <header className={`app-brand${screen === "home" && !legalPage ? " app-brand--hero" : ""}`}>
+          <p className="app-brand__kana">ていじたいしゃ</p>
+          <h1>定時退社</h1>
+          <p className="app-brand__sub">オンライン版</p>
+          {screen === "home" && !legalPage && (
+            <ul className="app-brand__specs" aria-label="ゲーム情報">
+              <li>3〜6人</li>
+              <li>約10分</li>
+              <li>ブラウザだけで遊べる</li>
+            </ul>
+          )}
+        </header>
+      )}
 
       {!showRejoinFallback && !connected && reconnecting && (
         <p className="status">再接続中…</p>
@@ -172,7 +183,6 @@ export default function App() {
         <>
           {screen === "home" && (
             <>
-              <ProductAdBanner className="product-ad-banner--home" />
               <div className="card home-entry">
             <label htmlFor="name">表示名</label>
             <input
@@ -281,6 +291,7 @@ export default function App() {
             <HomePromoShareButton />
               </div>
               <HomeRules />
+              <ProductAdBanner className="product-ad-banner--home" />
             </>
           )}
 

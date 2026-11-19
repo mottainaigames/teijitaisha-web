@@ -351,9 +351,10 @@ export function GameScreen({
                 </ul>
               </>
             )}
+            {isHost && !isObserverMode && (
             <section className="lobby-section" aria-label="プレイ順">
               <div className="lobby-section__head">
-                <h2 className="lobby-section__title">プレイ順（座席）</h2>
+                <h2 className="lobby-section__title">プレイ順を変える</h2>
               </div>
               <LobbySeatOrder
                 players={playingMembers}
@@ -363,7 +364,14 @@ export function GameScreen({
                 onShuffle={onShuffleSeats}
               />
             </section>
+            )}
           </section>
+
+          <div className="lobby-extras">
+            <ProductAdBanner className="product-ad-banner--lobby" />
+            <MottainaiLinks className="mottainai-links--lobby" />
+            <LegalFooterLinks />
+          </div>
 
           <footer className="lobby-screen__footer">
             <div className="lobby-screen__actions">
@@ -401,9 +409,6 @@ export function GameScreen({
                 </p>
               )}
             </div>
-            <ProductAdBanner className="product-ad-banner--lobby" />
-            <MottainaiLinks className="mottainai-links--lobby" />
-            <LegalFooterLinks />
           </footer>
         </div>
       </div>
@@ -674,24 +679,29 @@ export function GameScreen({
 
   const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickPurpose;
   const hasZangyoInHand = view.myHand.some((c) => c.type === "zangyo");
+  const isMyTurn = view.currentPlayerId === playerId && view.phase !== "game_end";
 
   return (
     <div className="game-shell">
       {gameMenu}
 
-      <header className="game-topbar">
+      <header className={`game-topbar${isMyTurn ? " game-topbar--mine" : ""}`}>
         <div className="game-topbar__info">
-          <span className="game-topbar__code">{room.code}</span>
-          <span className="game-topbar__phase">{PHASE_LABELS[view.phase]}</span>
-          {current && <span className="game-topbar__turn">手番: {current.name}</span>}
-          {view.nomikaiBlocked && <span className="badge">飲み会</span>}
-          {view.phase === "play" && view.pairsRemainingThisTurn > 0 && (
-            <span className="game-topbar__pairs">ペア×{view.pairsRemainingThisTurn}</span>
-          )}
-          <DeadlineCountdown deadlineAt={view.deadlineAt} />
+          <p className="game-topbar__turn">
+            {isMyTurn ? "あなたの番" : current ? `${current.name}の番` : PHASE_LABELS[view.phase]}
+          </p>
+          <p className="game-topbar__meta">
+            <span className="game-topbar__phase">{PHASE_LABELS[view.phase]}</span>
+            {view.phase === "play" && view.pairsRemainingThisTurn > 0 && (
+              <span className="game-topbar__pairs">ペア残り{view.pairsRemainingThisTurn}</span>
+            )}
+            {view.nomikaiBlocked && <span className="badge">飲み会</span>}
+            <span className="game-topbar__code">ルーム {room.code}</span>
+          </p>
         </div>
+        <DeadlineCountdown deadlineAt={view.deadlineAt} />
         {room.cpuWaitingAdvance && (
-          <button type="button" className="game-topbar__advance" onClick={onAdvanceCpu}>
+          <button type="button" className="game-topbar__advance" onClick={onAdvanceCpu} aria-label="CPUを進める">
             ▶
           </button>
         )}
@@ -699,6 +709,33 @@ export function GameScreen({
       </header>
 
       <div className="game-main">
+        <div className={`opponents ${anyoneDrawing && !isSpectating ? "opponents--compact" : ""}`}>
+          {view.seats
+            .filter((s) => s.playerId !== playerId)
+            .map((s) => (
+              <Opponent
+                key={s.playerId}
+                seat={s}
+                isCurrent={s.playerId === view.currentPlayerId}
+                isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
+                compact={anyoneDrawing && !isSpectating}
+                isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
+                visibleHand={
+                  isObserverMode || isSpectating ? view.otherHands[s.playerId] : undefined
+                }
+                remoteTarget={
+                  view.remoteSelection?.targetPlayerId === s.playerId &&
+                  view.remoteSelection.actorId !== playerId
+                }
+                remoteTargetSelected={
+                  view.remoteSelection?.targetPlayerId === s.playerId &&
+                  view.remoteSelection.mode === "selected"
+                }
+              />
+            ))}
+        </div>
+
+        <div className="game-table">
         {isSpectating && (
           <div className="spectator-banner" role="status">
             <p className="spectator-banner__title">
@@ -719,21 +756,18 @@ export function GameScreen({
         )}
 
         {view.lastPlay && (
-          <CollapsibleSection
-            title={`場: ${CARD_LABELS[view.lastPlay.cardType]}（${view.lastPlay.actorName}）`}
-          >
-            <div className="field-cards field-cards--compact">
-              <div className="field-cards__pair">
-                <PlayingCard cardType={view.lastPlay.cardType} />
-                <PlayingCard cardType={view.lastPlay.cardType} />
-              </div>
-              <p className="field-cards__effect">
-                <strong>{CARD_LABELS[view.lastPlay.cardType]}</strong>
-                {" — "}
-                {CARD_EFFECTS[view.lastPlay.cardType]}
-              </p>
+          <div className="table-field" aria-label="場">
+            <div className="table-field__cards">
+              <PlayingCard cardType={view.lastPlay.cardType} size="sm" flat />
+              <PlayingCard cardType={view.lastPlay.cardType} size="sm" flat />
             </div>
-          </CollapsibleSection>
+            <div className="table-field__text">
+              <p className="table-field__title">
+                {view.lastPlay.actorName}が<strong>{CARD_LABELS[view.lastPlay.cardType]}</strong>を出した
+              </p>
+              <p className="table-field__effect">{CARD_EFFECTS[view.lastPlay.cardType]}</p>
+            </div>
+          </div>
         )}
 
         {remoteOnMe && view.remoteSelection && (
@@ -802,31 +836,6 @@ export function GameScreen({
           sendTargetPreview={sendTargetPreview}
         />
 
-        <div className={`opponents ${anyoneDrawing && !isSpectating ? "opponents--compact" : ""}`}>
-          {view.seats
-            .filter((s) => s.playerId !== playerId)
-            .map((s) => (
-              <Opponent
-                key={s.playerId}
-                seat={s}
-                isCurrent={s.playerId === view.currentPlayerId}
-                isCpu={room.players.find((p) => p.id === s.playerId)?.isCpu ?? false}
-                compact={anyoneDrawing && !isSpectating}
-                isDrawSource={anyoneDrawing && drawSourceId === s.playerId}
-                visibleHand={
-                  isObserverMode || isSpectating ? view.otherHands[s.playerId] : undefined
-                }
-                remoteTarget={
-                  view.remoteSelection?.targetPlayerId === s.playerId &&
-                  view.remoteSelection.actorId !== playerId
-                }
-                remoteTargetSelected={
-                  view.remoteSelection?.targetPlayerId === s.playerId &&
-                  view.remoteSelection.mode === "selected"
-                }
-              />
-            ))}
-        </div>
 
         {view.revealedCard && !view.lastRoukiReveal && (
           <p className="notice">
@@ -900,6 +909,7 @@ export function GameScreen({
             </CardFan>
           </div>
         )}
+        </div>
       </div>
 
       {isSpectating ? (
@@ -951,10 +961,11 @@ export function GameScreen({
           )}
           <div className="my-hand__toolbar">
             <p className="my-hand__label">
-              あなたの手札（{meSeat?.handCount ?? 0}枚）
+              手札 <strong>{meSeat?.handCount ?? 0}</strong>枚
               {meSeat?.status === "retired" && " — 退社済み"}
               {!handPickPurpose && !canReorderHand && view.myHand.length > 0 &&
-                " — タップで効果を表示"}
+                " ・タップで効果"}
+              {canReorderHand && view.myHand.length > 1 && " ・ドラッグで並べ替え"}
             </p>
             {canReorderHand && view.myHand.length > 1 && (
               <button type="button" className="my-hand__shuffle secondary" onClick={onShuffleHand}>
@@ -962,9 +973,6 @@ export function GameScreen({
               </button>
             )}
           </div>
-          {canReorderHand && view.myHand.length > 1 && (
-            <p className="status my-hand__hint">ドラッグで並べ替え</p>
-          )}
           {!canReorderHand && view.canReorderHand === false && view.myHand.length > 0 && !handPickPurpose && (
             <p className="status my-hand__hint my-hand__hint--locked">
               手札が選ばれている間は並べ替えできません

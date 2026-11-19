@@ -4160,3 +4160,513 @@ select:focus {
   font-size: 1rem;
   line-height: 1;
 }
+
+/* ================================================================
+   配置の見直し（2026-11 第2弾）
+   ================================================================ */
+
+/* ---- ホーム：ルールブック風の紺帯ヘッダー ---- */
+.app-brand {
+  margin-bottom: 1rem;
+}
+.app-brand__kana,
+.app-brand__sub,
+.app-brand__specs {
+  display: none;
+}
+.app-brand--hero {
+  margin: -2rem -1rem 1.25rem;
+  padding: 2rem 1.25rem 1.25rem;
+  background: var(--ink);
+  color: #fff;
+  text-align: center;
+}
+.app-brand--hero .app-brand__kana {
+  display: block;
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  opacity: 0.75;
+}
+.app-brand--hero h1 {
+  margin: 0.1rem 0 0;
+  font-size: 2.6rem;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+.app-brand--hero .app-brand__sub {
+  display: inline-block;
+  margin: 0.5rem 0 0;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid rgb(255 255 255 / 60%);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+.app-brand--hero .app-brand__specs {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.72rem;
+}
+.app-brand--hero .app-brand__specs li {
+  padding: 0.2rem 0.55rem;
+  background: rgb(255 255 255 / 12%);
+  border-radius: 999px;
+}
+.app:not(.app--in-game) .app-brand:not(.app-brand--hero) h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+.home-entry {
+  padding: 1.1rem 1rem 1rem;
+}
+.home-entry label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.home-entry input {
+  font-size: 1.05rem;
+  padding: 0.7rem 0.75rem;
+}
+.home-entry-panel input#code {
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-weight: 800;
+}
+.home-entry-tabs {
+  background: var(--paper-2) !important;
+  border: 1px solid var(--line);
+  border-radius: var(--radius) !important;
+  padding: 3px !important;
+}
+.home-entry-tabs button.home-entry-tabs__tab--active {
+  background: var(--ink) !important;
+  color: #fff !important;
+}
+.home-entry-action {
+  padding: 0.9rem !important;
+  font-size: 1.05rem !important;
+}
+.product-ad-banner--home {
+  margin-top: 1rem;
+}
+
+/* ---- 対局画面：上=相手、中=卓、下=手札 ---- */
+.app--in-game {
+  padding: 0;
+  max-width: 560px;
+}
+.app--in-game > .game-shell {
+  padding: 0 0.5rem;
+}
+
+.game-topbar {
+  margin: 0 -0.5rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+  gap: 0.5rem;
+}
+.game-topbar--mine {
+  background: var(--accent);
+}
+.game-topbar__info {
+  display: block;
+}
+.game-topbar__turn {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-topbar__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.7rem;
+  color: rgb(255 255 255 / 75%);
+}
+.game-topbar__phase,
+.game-topbar__pairs,
+.game-topbar__code {
+  color: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.game-topbar .badge {
+  background: rgb(255 255 255 / 18%);
+  color: #fff;
+}
+.game-topbar .deadline-timer {
+  flex-shrink: 0;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  border: none;
+  font-variant-numeric: tabular-nums;
+}
+.game-topbar__menu-btn {
+  background: rgb(255 255 255 / 14%) !important;
+  color: #fff;
+}
+
+.game-main {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 相手：横に並ぶ小さな札 */
+.opponents {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.opponents::-webkit-scrollbar {
+  display: none;
+}
+.opponent {
+  flex: 1 0 auto;
+  min-width: 6.5rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  gap: 0.15rem;
+}
+.opponent__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.opponent__header strong {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.opponent__header > span {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.opponent.current {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: inset 0 -3px 0 var(--ink);
+}
+.opponent--draw-source {
+  border-color: var(--accent);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.opponent--spectator {
+  flex-basis: 100%;
+}
+.opponents:has(.opponent--spectator) {
+  flex-wrap: wrap;
+}
+.cpu-tag {
+  margin-left: 0.3rem;
+  padding: 0 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: transparent;
+}
+
+/* 卓：状況と操作を中央に */
+.game-table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 0;
+  padding: 0.25rem 0;
+}
+.game-table > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+.table-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--paper-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+.table-field__cards {
+  display: flex;
+  flex-shrink: 0;
+}
+.table-field__cards .playing-card {
+  margin-left: -18px;
+  transform: none;
+}
+.table-field__cards .playing-card:first-child {
+  margin-left: 0;
+  transform: rotate(-6deg);
+}
+.table-field__text {
+  min-width: 0;
+}
+.table-field__title {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-2);
+}
+.table-field__title strong {
+  color: var(--ink);
+  margin: 0 0.1rem;
+}
+.table-field__effect {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.cpu-banner {
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text-2) !important;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.6rem !important;
+}
+.draw-zone {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.draw-zone--active {
+  border: 2px solid var(--accent);
+}
+
+/* 手札 */
+.game-hand-dock {
+  margin: 0 -0.5rem;
+  border-radius: 0;
+  border-top: 1px solid var(--line-strong);
+  box-shadow: none;
+  max-height: min(56vh, 460px);
+}
+.my-hand__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.my-hand__label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.my-hand__label strong {
+  font-size: 1rem;
+  color: var(--ink);
+}
+.my-hand__shuffle {
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0.3rem 0.7rem !important;
+  font-size: 0.75rem !important;
+}
+.my-hand__zangyo-banner {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-radius: var(--radius) !important;
+  font-size: 0.75rem !important;
+}
+.game-hand-dock .my-hand[class*="my-hand--purpose-"] {
+  background: var(--paper-2) !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow: none !important;
+}
+
+/* ---- ロビー ---- */
+.game-shell--lobby {
+  overflow-y: auto;
+}
+.lobby-screen__header {
+  margin: 0 -0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--ink);
+  color: #fff;
+}
+.lobby-screen__role {
+  color: #fff !important;
+  font-weight: 800;
+}
+.lobby-screen__count,
+.lobby-screen__recommended {
+  color: rgb(255 255 255 / 75%) !important;
+}
+.lobby-screen__header .game-topbar__menu-btn {
+  background: rgb(255 255 255 / 14%) !important;
+}
+.lobby-screen__invite {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  text-align: center;
+}
+.lobby-screen__invite::before {
+  content: "ルームコード";
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+.lobby-screen__invite .room-code {
+  margin: 0.1rem 0 0.6rem;
+  font-size: 2.2rem;
+}
+.lobby-player-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.4rem !important;
+}
+.lobby-player-card {
+  padding: 0.5rem 0.6rem !important;
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+}
+.lobby-player-card--me {
+  border-color: var(--ink) !important;
+}
+.lobby-screen__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 0.75rem -0.5rem 0;
+  padding: 0.6rem 0.75rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  border-top: 1px solid var(--line-strong);
+}
+.lobby-screen__footer .x-unused,
+.lobby-screen__footer .mottainai-links--lobby,
+.lobby-screen__footer .legal-footer-links {
+  display: none;
+}
+.cpu-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.cpu-controls button {
+  margin: 0 !important;
+  padding: 0.5rem !important;
+  font-size: 0.85rem !important;
+}
+.lobby-screen__actions > button:not(.secondary) {
+  padding: 0.85rem;
+  font-size: 1.05rem;
+}
+.lobby-extras {
+  margin-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+@media (min-width: 720px) {
+  .app--in-game {
+    max-width: 720px;
+  }
+}
+.home-entry .share-x-btn {
+  background: transparent !important;
+  color: var(--text-2) !important;
+  border: 1px solid var(--line-strong) !important;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+}
+.lobby-screen {
+  height: auto !important;
+  min-height: 100%;
+  overflow: visible !important;
+}
+.lobby-screen__members {
+  flex: none;
+  overflow: visible;
+}
+.lobby-section {
+  margin-top: 0.5rem;
+}
+.opponent {
+  flex: 1 1 0;
+  min-width: 5.75rem;
+}
+.my-hand--has-zangyo,
+.game-hand-dock .my-hand--has-zangyo {
+  border: 2px solid var(--ink) !important;
+  box-shadow: none !important;
+  background: var(--paper) !important;
+}
+.game-hand-dock {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+.card-transfer-fx__label {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-radius: var(--radius) !important;
+}
+.option-btn {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+.option-btn.selected,
+.option-btn[aria-pressed="true"] {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-color: var(--ink) !important;
+}
+@media (min-width: 720px) {
+  .game-hand-dock .playing-card--md {
+    width: 88px;
+    height: 124px;
+    margin-left: -28px;
+  }
+  .game-hand-dock .playing-card--md:first-child {
+    margin-left: 0;
+  }
+  .game-hand-dock .playing-card--md .playing-card__icon-wrap {
+    height: auto;
+  }
+  .game-hand-dock .playing-card__name {
+    font-size: 0.68rem;
+  }
+  .game-topbar__turn {
+    font-size: 1.2rem;
+  }
+}
+.game-shell--scroll .game-screen-scroll {
+  padding-top: 0.75rem;
+}
+.game-shell--scroll .screen-header h2 {
+  font-size: 1.4rem;
+}
