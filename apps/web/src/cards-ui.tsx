@@ -150,16 +150,6 @@ export function PlayingCard({
       ) : (
         <div className="playing-card__unknown">{displayLabel}</div>
       )}
-      {selectable && (
-        <span className="playing-card__hand" aria-hidden>
-          ✋
-        </span>
-      )}
-      {(remoteHover || remoteSelected) && (
-        <span className="playing-card__remote-hand" aria-hidden>
-          👆
-        </span>
-      )}
       {confirmReady && (
         <span className="playing-card__confirm-hint" aria-hidden>
           もう一度
@@ -217,11 +207,6 @@ export function PairCard({
         </span>
       </div>
       <span className="pair-card__badge">×2</span>
-      {selectable && (
-        <span className="playing-card__hand" aria-hidden>
-          ✋
-        </span>
-      )}
       {confirmReady && (
         <span className="playing-card__confirm-hint" aria-hidden>
           もう一度

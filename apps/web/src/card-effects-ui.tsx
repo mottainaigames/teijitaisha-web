@@ -6,6 +6,47 @@ import {
   type CardType,
 } from "@teijitaisha/shared";
 import { PlayingCard } from "./cards-ui";
+import { CARD_ICON_URLS, CARD_THEMES } from "./card-assets";
+import { t } from "./i18n";
+import type { CSSProperties } from "react";
+
+/** 手札で選んだカードの名前・効果（＋決定ボタン） */
+export function CardDetailPanel({
+  cardType,
+  actionLabel,
+  onAction,
+  onClose,
+}: {
+  cardType: CardType;
+  actionLabel?: string;
+  onAction?: () => void;
+  onClose: () => void;
+}) {
+  const style = { ["--card-border" as string]: CARD_THEMES[cardType].border } as CSSProperties;
+  return (
+    <div className="card-detail" style={style} role="status" aria-live="polite">
+      <img className="card-detail__icon" src={CARD_ICON_URLS[cardType]} alt="" />
+      <div className="card-detail__body">
+        <p className="card-detail__name">{CARD_LABELS[cardType]}</p>
+        <p className="card-detail__effect">{CARD_EFFECTS[cardType]}</p>
+        <p className="card-detail__note">{t("cardDetail.note")}</p>
+        {actionLabel && onAction && (
+          <button type="button" className="card-detail__action" onClick={onAction}>
+            {actionLabel}
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        className="card-detail__close"
+        aria-label={t("cardDetail.close")}
+        onClick={onClose}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
 
 export function CardEffectText({ cardType }: { cardType: CardType }) {
   return (

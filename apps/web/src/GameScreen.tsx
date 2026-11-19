@@ -13,7 +13,8 @@ import {
   type RoomPublic,
 } from "@teijitaisha/shared";
 import { CardFan, PairCard, PlayingCard } from "./cards-ui";
-import { CardEffectText } from "./card-effects-ui";
+import { CardDetailPanel } from "./card-effects-ui";
+import { t } from "./i18n";
 import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
 import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
@@ -65,12 +66,12 @@ interface Props {
 }
 
 const PHASE_LABELS: Record<GameView["phase"], string> = {
-  lobby: "ロビー",
-  dealing: "配布中",
-  draw: "カードを引く",
-  play: "ペアを出す",
-  effect: "効果処理",
-  game_end: "ゲーム終了",
+  lobby: t("phase.lobby"),
+  dealing: t("phase.dealing"),
+  draw: t("phase.draw"),
+  play: t("phase.play"),
+  effect: t("phase.effect"),
+  game_end: t("phase.game_end"),
 };
 
 export function GameScreen({
@@ -157,9 +158,14 @@ export function GameScreen({
     if (!t || t.at === lastTransferAtRef.current) return;
     lastTransferAtRef.current = t.at;
     setTransferFx(t);
+  }, [view.lastTransfer]);
+
+  // 受け渡し演出は一定時間で消す（状態更新でタイマーが取り消されないよう分けている）
+  useEffect(() => {
+    if (!transferFx) return;
     const timer = setTimeout(() => setTransferFx(null), 750);
     return () => clearTimeout(timer);
-  }, [view.lastTransfer]);
+  }, [transferFx]);
 
   const lobbyAnnouncements = useLobbyAnnouncements({
     room,
@@ -637,6 +643,35 @@ export function GameScreen({
     if (isMyHandPicking) handleMyCardClick(card);
   };
 
+  /** 効果パネルの「出す／渡す」ボタン（2回目のタップと同じ動作） */
+  const detailAction: { label: string; run: () => void } | null = (() => {
+    if (!view.canAct) return null;
+    if (handPickPurpose === "play_or_skip" && selectedPairType) {
+      const type = selectedPairType;
+      return {
+        label: t("cardDetail.playPair"),
+        run: () => {
+          onPlayPair(type);
+          setSelectedPairType(null);
+          setSelectedCardId(null);
+          sendCardPreview(null, "clear");
+        },
+      };
+    }
+    if (!isMyHandPicking || !selectedCardId) return null;
+    const card = view.myHand.find((c) => c.id === selectedCardId);
+    if (!card) return null;
+    const label =
+      handPickPurpose === "info_share"
+        ? t("cardDetail.infoShare")
+        : handPickPurpose === "trade"
+          ? t("cardDetail.trade")
+          : handPickPurpose === "pawahara_give"
+            ? t("cardDetail.pawaharaGive")
+            : null;
+    return label ? { label, run: () => handleMyCardClick(card) } : null;
+  })();
+
   const canReorderHand = view.canReorderHand && !isMyHandPicking && !handPickPurpose;
   const hasZangyoInHand = view.myHand.some((c) => c.type === "zangyo");
 
@@ -936,10 +971,22 @@ export function GameScreen({
             </p>
           )}
           {inspectedHandCardType && (
-            <CollapsibleSection title={`効果: ${CARD_LABELS[inspectedHandCardType]}`} defaultOpen>
-              <CardEffectText cardType={inspectedHandCardType} />
-              <p className="hand-card-effect__note">ペアを場に出したときの効果</p>
-            </CollapsibleSection>
+            <CardDetailPanel
+              cardType={inspectedHandCardType}
+              actionLabel={detailAction?.label}
+              onAction={detailAction?.run}
+              onClose={() => {
+                setFocusedHandCardId(null);
+                if (handPickPurpose === "play_or_skip") {
+                  setSelectedPairType(null);
+                  setSelectedCardId(null);
+                  sendCardPreview(null, "clear");
+                } else if (isMyHandPicking) {
+                  setSelectedCardId(null);
+                  sendCardPreview(null, "clear");
+                }
+              }}
+            />
           )}
           {view.myHand.length > 0 ? (
             canReorderHand ? (
