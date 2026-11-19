@@ -5300,3 +5300,55 @@ body {
 .game-shell--table .table-field__title strong {
   font-size: 0.95rem;
 }
+.table-seats.table-seats--list {
+  height: auto;
+}
+.table-seats--list .card-fan--spectator {
+  min-height: 70px;
+  padding: 0.35rem 0.25rem 0.5rem;
+}
+.table-seats--list .opponent {
+  align-items: stretch;
+}
+/* 卓の中身が多いときは上に溢れさせず下へスクロール */
+.game-shell--table .game-table {
+  flex: 1 0 auto;
+  justify-content: safe center;
+}
+.lobby-screen__invite,
+.lobby-player-card,
+.lobby-section > *:not(.lobby-section__head),
+.lobby-postgame-banner,
+.lobby-warning {
+  color: var(--ink);
+}
+/* 太いディスプレイ書体は大きな文字だけに使う */
+.lobby-screen__role,
+.lobby-screen__members-title,
+.lobby-section__title,
+.lobby-screen__members-count,
+.lobby-player-card__seat,
+.home-entry-action,
+.lobby-screen__actions > button:not(.secondary),
+.game-shell--table .card-detail__action,
+.game-shell--table .my-hand__zangyo-banner,
+.game-shell--table .my-hand__label strong,
+.app-brand--hero .app-brand__sub {
+  font-family: var(--font-body) !important;
+  font-weight: 800 !important;
+}
+.home-entry-action,
+.lobby-screen__actions > button:not(.secondary) {
+  font-size: 1.1rem !important;
+  letter-spacing: 0.12em;
+}
+.app-brand--hero::before {
+  width: 6.2rem;
+  height: 8.6rem;
+  background: url("/cards/back.png") center / cover no-repeat;
+  border: 2px solid rgb(255 255 255 / 85%);
+  border-radius: 4px;
+  transform: rotate(-6deg);
+  filter: none;
+  box-shadow: 10px 8px 0 -2px var(--red), 0 6px 0 rgb(0 0 0 / 40%);
+}
