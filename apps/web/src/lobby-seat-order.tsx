@@ -227,7 +227,7 @@ export function LobbySeatOrder({ players, myPlayerId, editable, onReorder, onShu
         })}
         {sorted.length > 1 && (
           <span className="lobby-seat-order__wrap" aria-label="順番は一周する">
-            ↺
+            1番に戻る
           </span>
         )}
       </div>

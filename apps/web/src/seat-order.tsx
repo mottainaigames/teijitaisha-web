@@ -79,7 +79,7 @@ export function SeatOrderBar({
         })}
         {sorted.length > 1 && (
           <span className="seat-order__wrap" aria-label="順番は一周する">
-            ↺
+            1番に戻る
           </span>
         )}
       </div>

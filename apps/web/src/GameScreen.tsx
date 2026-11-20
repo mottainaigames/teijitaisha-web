@@ -413,7 +413,7 @@ export function GameScreen({
               )}
               {isHost && !isObserverMode && (
                 <button type="button" onClick={onStart} disabled={!canStart}>
-                  ゲームを開始（{MIN_PLAYERS}〜{MAX_PLAYERS}人）
+                  ゲームを開始
                 </button>
               )}
               {!isHost && !isObserverMode && (
@@ -714,7 +714,7 @@ export function GameScreen({
       <header className={`game-topbar${isMyTurn ? " game-topbar--mine" : ""}`}>
         <div className="game-topbar__info">
           <p className="game-topbar__turn">
-            {isMyTurn ? "あなたの番" : current ? `${current.name}の番` : PHASE_LABELS[view.phase]}
+            {isMyTurn ? "あなたの番" : current ? `${current.name.replace(/\s*[（(]CPU[）)]\s*$/, "")}の番` : PHASE_LABELS[view.phase]}
           </p>
           <p className="game-topbar__meta">
             <span className="game-topbar__phase">{PHASE_LABELS[view.phase]}</span>
@@ -999,7 +999,7 @@ export function GameScreen({
               {meSeat?.status === "retired" && " — 退社済み"}
               {!handPickPurpose && !canReorderHand && view.myHand.length > 0 &&
                 " ・タップで効果"}
-              {canReorderHand && view.myHand.length > 1 && " ・ドラッグで並べ替え"}
+              
             </p>
             {canReorderHand && view.myHand.length > 1 && (
               <button type="button" className="my-hand__shuffle secondary" onClick={onShuffleHand}>
@@ -1202,7 +1202,7 @@ function Opponent({
           {seatInitial(seat.name, isCpu)}
         </span>
         <span className="seat-badge__body">
-          <strong className="seat-badge__name">{seat.name}</strong>
+          <strong className="seat-badge__name">{seat.name.replace(/\s*[（(]CPU[）)]\s*$/, "")}</strong>
           <span className="seat-badge__meta">
             {isCpu && <span className="cpu-tag">CPU</span>}
             <span className="seat-badge__count">{seat.handCount}枚</span>
