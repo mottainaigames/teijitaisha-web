@@ -5352,3 +5352,183 @@ body {
   filter: none;
   box-shadow: 10px 8px 0 -2px var(--red), 0 6px 0 rgb(0 0 0 / 40%);
 }
+
+/* ================================================================
+   第4弾：明るいオフィス（昼の会議室）・書体は BIZ UDPゴシック
+   ================================================================ */
+:root {
+  --font-display: "BIZ UDPGothic", "Hiragino Sans", sans-serif;
+  --font-body: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --floor: #dfe3e8;            /* タイルカーペット */
+  --floor-line: #d2d7de;
+  --desk: #f6f5f1;             /* 会議机の天板（メラミン） */
+  --desk-edge: #9aa3ad;        /* スチールの縁 */
+  --hud: #ffffff;
+  --hud-line: #c9cfd6;
+  --red: #d8423a;
+  --office-ink: #1b1f3b;
+  --office-muted: #5d6576;
+}
+body,
+.app--in-game:has(.game-shell--table),
+body:has(.game-shell--table) {
+  background-color: var(--floor);
+  background-image:
+    linear-gradient(var(--floor-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--floor-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.game-shell--table,
+.game-shell--lobby,
+.game-shell--table .opponent {
+  color: var(--office-ink);
+}
+
+/* 卓：長方形の会議机（角は小さく、縁はスチール） */
+.game-shell--table .game-main::before {
+  inset: 2.25rem 0.5rem -40px;
+  border-radius: 10px 10px 0 0;
+  background-color: var(--desk);
+  background-image: none;
+  box-shadow:
+    inset 0 0 0 5px var(--desk-edge),
+    inset 0 0 0 7px #ffffff,
+    0 6px 0 rgb(27 31 59 / 12%);
+}
+
+/* 上部：オフィスの案内板（白地＋紺） */
+.game-shell--table .game-topbar,
+.game-shell--table .game-topbar--mine,
+.lobby-screen__header,
+.lobby-screen__footer,
+.game-shell--table .game-hand-dock {
+  background: #ffffff;
+  color: var(--office-ink);
+  border-color: var(--hud-line);
+}
+.game-shell--table .game-topbar { border-bottom: 3px solid var(--office-ink); }
+.game-shell--table .game-topbar--mine { border-bottom-color: var(--red); box-shadow: none; }
+.game-shell--table .game-topbar__turn,
+.game-shell--table .game-topbar--mine .game-topbar__turn {
+  color: var(--office-ink);
+  font-weight: 700;
+}
+.game-shell--table .game-topbar--mine .game-topbar__turn { color: var(--red); }
+.game-shell--table .deadline-timer {
+  background: var(--office-ink) !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+/* 社員証：首から下げるストラップの色帯 */
+.seat-badge {
+  border: 1px solid var(--hud-line);
+  border-top: 4px solid var(--office-ink);
+  box-shadow: 0 2px 0 rgb(27 31 59 / 15%);
+}
+.seat-badge__avatar { font-weight: 700; }
+.game-shell--table .opponent > span:not(.opponent__draw-badge) {
+  color: var(--office-muted);
+}
+.game-shell--table .opponent--draw-source .seat-badge {
+  outline: 2px dashed var(--red);
+}
+.game-shell--table .opponent__mini-card {
+  border-color: #fff;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 20%);
+}
+
+/* 卓の中央：場と書類（パネル） */
+.game-shell--table .table-field__title,
+.game-shell--table .table-field__title strong { color: var(--office-ink); }
+.game-shell--table .table-field__effect { color: var(--office-muted); }
+.game-shell--table .table-field__cards .playing-card { box-shadow: 0 3px 0 rgb(27 31 59 / 20%); }
+
+.game-shell--table .cpu-banner,
+.game-shell--table .draw-zone,
+.game-shell--table .pending,
+.game-shell--table .actions,
+.game-shell--table .peek,
+.game-shell--table .notice,
+.game-shell--table .being-targeted,
+.game-shell--table .spectator-banner,
+.game-shell--table .game-table > .card,
+.game-shell--table .game-table > div:not(.table-field):not(.rouki-reveal-overlay):not([class*="overlay"]) {
+  background: #ffffff !important;
+  color: var(--office-ink) !important;
+  border: 1px solid var(--hud-line) !important;
+  border-top: 3px solid var(--office-ink) !important;
+  box-shadow: 0 2px 0 rgb(27 31 59 / 12%) !important;
+}
+.game-shell--table .draw-zone--active { border-top-color: var(--red) !important; outline: 2px solid var(--red); }
+.game-shell--table .game-table .status,
+.game-shell--table .game-table [class*="hint"] { color: var(--office-muted) !important; }
+.game-shell--table .game-table button.secondary,
+.game-shell--table .my-hand__shuffle,
+.game-shell--table .my-hand__skip-pair,
+.lobby-screen__footer .secondary {
+  background: #fff !important;
+  color: var(--office-ink) !important;
+  border: 1px solid var(--desk-edge) !important;
+}
+
+/* 手前：自分の手札 */
+.game-shell--table .game-hand-dock { border-top: 3px solid var(--desk-edge); }
+.game-shell--table .my-hand__label { color: var(--office-muted); }
+.game-shell--table .my-hand__label strong { color: var(--office-ink); }
+
+/* 見出しは同じ書体の太字で */
+.game-shell--table .game-topbar__turn,
+.app-brand--hero h1,
+.lobby-screen__invite .room-code,
+.lobby-screen__role,
+.lobby-screen__members-title,
+.lobby-section__title,
+.lobby-screen__members-count,
+.game-shell--scroll .screen-header h2,
+.turn-banner span,
+.home-entry-action,
+.lobby-screen__actions > button:not(.secondary),
+.game-shell--table .card-detail__action {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+}
+
+/* ホーム・ロビー（明るい背景に合わせて文字を紺に） */
+.app-brand--hero,
+.app-brand--hero h1,
+.app:not(.app--in-game) .app-brand:not(.app-brand--hero) h1,
+.lobby-screen__members-title,
+.lobby-section__title,
+.lobby-screen__members-count,
+.lobby-screen__waiting {
+  color: var(--office-ink) !important;
+}
+.app-brand--hero .app-brand__specs li {
+  border-color: var(--desk-edge);
+  background: #fff;
+  color: var(--office-ink);
+}
+.app-brand--hero::before { border-color: #fff; box-shadow: 10px 8px 0 -2px var(--red), 0 4px 0 rgb(27 31 59 / 25%); }
+.app .card,
+.home-entry,
+.lobby-screen__invite,
+.lobby-player-card,
+.game-screen-scroll > .card {
+  border: 1px solid var(--hud-line) !important;
+  box-shadow: 0 2px 0 rgb(27 31 59 / 12%) !important;
+}
+.app-footer,
+.app-footer a,
+.mottainai-links,
+.mottainai-links a,
+.legal-footer-links,
+.legal-footer-links a,
+.legal-footer-links button {
+  color: var(--office-muted) !important;
+}
+.lobby-screen__header,
+.lobby-screen__header * {
+  color: var(--office-ink) !important;
+}
+.lobby-screen__header { border-bottom: 3px solid var(--office-ink); }
