@@ -20,6 +20,8 @@ import { CollapsibleSection } from "./collapsible-section";
 import { GameMenu, GameMenuButton } from "./game-menu";
 import { HandPickHint, type HandPickPurpose } from "./hand-pick-hint";
 import { LobbyMemberCard } from "./lobby-member-card";
+import { RulesModal } from "./home-rules";
+import { CardEffectsModal } from "./card-effects-ui";
 import { LobbyAnnouncementStack, useLobbyAnnouncements } from "./lobby-announcement";
 import { LobbySeatOrder } from "./lobby-seat-order";
 import { formatLogMessage, seatNameStyle } from "./player-name-display";
@@ -163,6 +165,7 @@ export function GameScreen({
 
   // 自分の番になった瞬間だけ帯を流す
   const [turnBanner, setTurnBanner] = useState(false);
+  const [guideOpen, setGuideOpen] = useState<"effects" | "rules" | null>(null);
   const prevTurnRef = useRef<string | null>(null);
   useEffect(() => {
     const cur = view.currentPlayerId ?? null;
@@ -707,7 +710,7 @@ export function GameScreen({
       {gameMenu}
       {turnBanner && (
         <div className="turn-banner" aria-hidden>
-          <span>あなたの番</span>
+          <span className="turn-stamp"><small>あなたの</small>番</span>
         </div>
       )}
 
@@ -733,6 +736,16 @@ export function GameScreen({
         )}
         <GameMenuButton onClick={() => setMenuOpen(true)} />
       </header>
+      <nav className="game-guide-bar" aria-label="ルールの確認">
+        <button type="button" className="game-guide-bar__btn" onClick={() => setGuideOpen("effects")}>
+          カード効果一覧
+        </button>
+        <button type="button" className="game-guide-bar__btn" onClick={() => setGuideOpen("rules")}>
+          遊び方
+        </button>
+      </nav>
+      <CardEffectsModal open={guideOpen === "effects"} onClose={() => setGuideOpen(null)} />
+      <RulesModal open={guideOpen === "rules"} onClose={() => setGuideOpen(null)} />
 
       <div className="game-main">
         <div

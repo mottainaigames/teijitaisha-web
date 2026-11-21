@@ -24,7 +24,7 @@ const RULE_STEPS = [
   },
 ] as const;
 
-function RulesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function RulesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
