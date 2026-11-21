@@ -708,6 +708,25 @@ export class RoomManager {
     room?.game?.clearCpuStatus();
   }
 
+  /** 全員が同時に選ぶ効果（情報共有・取引）か */
+  isSimultaneousPending(code: RoomCode): boolean {
+    const t = this.rooms.get(code.toUpperCase())?.game?.pending?.type;
+    return t === "info_share" || t === "trade";
+  }
+
+  /** 同時に選ぶ効果で、待っている CPU 全員にまとめて選ばせる */
+  resolveAllPendingCpu(code: RoomCode): number {
+    let count = 0;
+    for (let i = 0; i < 64 && this.isSimultaneousPending(code); i++) {
+      const actor = this.getNextCpuActor(code);
+      if (!actor) break;
+      if (!this.prepareCpuAction(code, actor.id)) break;
+      if (!this.executePreparedCpuAction(code)) break;
+      count++;
+    }
+    return count;
+  }
+
   hasPendingCpu(code: RoomCode): boolean {
     return this.getNextCpuActor(code) !== null;
   }
@@ -735,6 +754,8 @@ export class RoomManager {
         return pending.playerIds.filter(
           (id) => cpuIds.has(id) && room.players.get(id)?.isCpu && !pending.tradeSelections?.has(id),
         );
+      case "romance_view":
+        return lobbyCpuIds(pending.playerIds).filter((id) => !pending.romanceSkips?.has(id));
       default:
         return lobbyCpuIds(pending.playerIds);
     }

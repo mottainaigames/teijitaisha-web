@@ -140,6 +140,18 @@ export function createApp(options: AppOptions = {}): Promise<AppHandle> {
         const actor = roomManager.getNextCpuActor(code);
         if (!actor) break;
 
+        // 情報共有・取引など全員が選ぶ効果は、CPU 全員が裏で同時に1枚選ぶ
+        if (roomManager.isSimultaneousPending(code)) {
+          roomManager.setCpuStatus(code, actor.id, "CPU", "thinking", "CPU がカードを選んでいます…");
+          broadcastGameState(code);
+          await cpuDelay(code, CPU_THINK_MS);
+          roomManager.resolveAllPendingCpu(code);
+          roomManager.clearCpuStatus(code);
+          broadcastRoom(code);
+          broadcastGameState(code);
+          continue;
+        }
+
         roomManager.setCpuStatus(code, actor.id, actor.name, "thinking", `${actor.name} 思考中…`);
         broadcastGameState(code);
         await cpuDelay(code, CPU_THINK_MS);

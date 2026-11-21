@@ -432,6 +432,18 @@ export class GameEngine {
       case "draw":
       case "play_or_skip":
         return [this.pending.playerIds[0]!];
+      case "romance_view": {
+        const skips = this.pending.romanceSkips;
+        return this.pending.playerIds.filter((id) => !skips?.has(id));
+      }
+      case "info_share": {
+        const sel = this.pending.infoShareSelections;
+        return this.pending.playerIds.filter((id) => !sel?.has(id));
+      }
+      case "trade": {
+        const sel = this.pending.tradeSelections;
+        return this.pending.playerIds.filter((id) => !sel?.has(id));
+      }
       default:
         return [...this.pending.playerIds];
     }
@@ -580,6 +592,11 @@ export class GameEngine {
         if (playerId !== p.effectUserId) return null;
         const cardIds = this.getSelectableCardIds(playerId);
         if (cardIds.length === 0) return null;
+        if (p.effectCard === "pawahara") {
+          // 自分の手札から渡す：残業があれば押し付ける
+          const hand = this.players.get(playerId)?.hand ?? [];
+          return { type: "select_card", cardId: this.cpuCardToGive(hand).id };
+        }
         return { type: "select_card", cardId: pickRandom(cardIds, this.random) };
       }
       case "info_share": {
@@ -587,7 +604,7 @@ export class GameEngine {
         if (!player || player.status !== "active") return null;
         if (p.infoShareSelections?.has(playerId)) return null;
         if (!player.hand.length) return null;
-        const card = pickRandom(player.hand, this.random);
+        const card = this.cpuCardToGive(player.hand);
         return { type: "info_share_select", cardId: card.id };
       }
       case "trade": {
@@ -595,7 +612,7 @@ export class GameEngine {
         if (p.tradeSelections?.has(playerId)) return null;
         const player = this.players.get(playerId);
         if (!player?.hand.length) return null;
-        const card = pickRandom(player.hand, this.random);
+        const card = this.cpuCardToGive(player.hand);
         return { type: "trade_select", cardId: card.id };
       }
       case "training_peek": {
@@ -617,17 +634,30 @@ export class GameEngine {
       case "training_take": {
         if (playerId !== p.effectUserId) return null;
         const peeked = p.peekedCards ?? [];
-        const options: { type: string; [key: string]: unknown }[] = [
-          { type: "training_take", take: false },
-        ];
-        for (const card of peeked) {
-          options.push({ type: "training_take", take: true, cardId: card.id });
-        }
-        return pickRandom(options, this.random);
+        // 残業は絶対に取らない。手札とペアになるカードがあればそれを取る
+        const myTypes = new Set(this.players.get(playerId)?.hand.map((c) => c.type) ?? []);
+        const pairing = peeked.find((c) => c.type !== "zangyo" && myTypes.has(c.type));
+        if (pairing) return { type: "training_take", take: true, cardId: pairing.id };
+        return { type: "training_take", take: false };
+      }
+      case "romance_view": {
+        if (!p.playerIds.includes(playerId)) return null;
+        if (p.romanceSkips?.has(playerId)) return null;
+        return { type: "romance_skip" };
       }
       default:
         return null;
     }
+  }
+
+  /** CPU が手放すカード：残業があれば必ず残業、なければペアにならないカードから */
+  private cpuCardToGive(hand: CardInstance[]): CardInstance {
+    const zangyo = hand.find((c) => c.type === "zangyo");
+    if (zangyo) return zangyo;
+    const counts = new Map<string, number>();
+    for (const c of hand) counts.set(c.type, (counts.get(c.type) ?? 0) + 1);
+    const singles = hand.filter((c) => counts.get(c.type) === 1);
+    return pickRandom(singles.length > 0 ? singles : hand, this.random);
   }
 
   private getSelectableCardIds(_playerId: PlayerId): string[] {
